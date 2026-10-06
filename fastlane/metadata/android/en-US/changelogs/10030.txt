@@ -1,0 +1,3 @@
+- Native watch screen: title, channel, description, likes and up next under the player
+- Playlists and mixes are navigated natively; autoplay uses native suggestions
+- The player sizes itself to the screen and no longer leaves a gap above it

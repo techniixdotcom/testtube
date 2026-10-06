@@ -1,0 +1,4 @@
+TestTube v1.0.9
+
+Fixed
+- Videos sometimes failed to play with "Could not get ytInitialData". This happened when YouTube answered a background request with an unexpected page (for example a consent page). Playback no longer depends on that request; at worst the like count and suggestions for that one video are missing.

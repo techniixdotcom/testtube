@@ -5,7 +5,7 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
-val appVersionName = "v1.6.5"
+val appVersionName = "v1.6.6"
 val appVersionCode = 10051
 val apkBaseName = "testtube" + appVersionName.removePrefix("v")
 
