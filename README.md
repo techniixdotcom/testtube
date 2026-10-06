@@ -3,11 +3,6 @@ TestTube
 
 by: techniix / cuteLiLi / QuacK
 
-A continuation of the Litube project: https://github.com/HydeYYHH/litube
-
-TestTube is an advanced webview wrapper for YouTube.
-
-
 ## Features
 * [x] **Ad-free playback**
 * [x] **Sponsor-block**
@@ -28,7 +23,3 @@ TestTube is an advanced webview wrapper for YouTube.
 
 If you encounter a bug, please check the GitHub repository to see if an issue has already been reported. If not, feel free to open a new one. Code contributions and pull requests are always welcome!
 
-
-## License
-
-GPL-3.0. TestTube is derived from Litube by HydeYYHH (GPL-3.0); this notice is required by the license. NewPipe Extractor is GPL-3.0-or-later.
