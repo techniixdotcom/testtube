@@ -6,6 +6,8 @@ by: techniix / cuteLiLi / QuacK
 In a world full of excess, we give you 4.5 MB of simplicity.
 
 ## Features
+
+* [x] **Local or Logged in to YouTube**
 * [x] **Ad-free playback**
 * [x] **Sponsor-block**
 * [x] **block Channels**
