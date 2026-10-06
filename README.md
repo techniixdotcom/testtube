@@ -38,4 +38,4 @@ If you encounter a bug, please check the GitHub repository to see if an issue ha
 
 ## License
 
-GPL-3.0. TestTube is derived from Litube by HydeYYHH (GPL-3.0); this notice is required by the license. NewPipe Extractor is GPL-3.0-or-later.
+GPL-3.0-or-later
