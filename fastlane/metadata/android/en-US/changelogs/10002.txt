@@ -1,0 +1,4 @@
+Back now sends the video to the bottom bar when Swipe down to minimize is on.
+Brightness and volume gesture settings are greyed out while Swipe down to minimize is on.
+Block channel is always available on long-press; the channel is looked up from the video when the page does not show it.
+The YouTube navigation bar stays visible on every page, including while watching a video.

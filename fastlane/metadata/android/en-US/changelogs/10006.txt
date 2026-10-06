@@ -1,0 +1,3 @@
+In-app updates: after the download a dialog offers Install now or Later.
+Local History on the You page, shown above YouTube's own History in the same style. View all opens a full Local History page grouped by day, like YouTube's History page; each video can be removed from it.
+Security hardening from an external review: safer long-press image handling, page links checked before loading, video cookies only sent to YouTube hosts, thread-safe SponsorBlock segments.
