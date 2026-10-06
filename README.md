@@ -4,6 +4,7 @@ TestTube
 by: techniix / cuteLiLi / QuacK
 
 In a world full of excess, we give you 4.5 MB of simplicity.
+In our opinion its the correct mix of web-wrapper and native. so you get reliability but in a speedy and efficient manner !
 
 ## Features
 
