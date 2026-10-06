@@ -1,22 +1,44 @@
 TestTube
-by: techniix / cuteLiLi / QuacK
+============
 
-In a world full of excess, we give you 4.5 MB of simplicity.
+TestTube is an ad-free YouTube client for Android. No account needed: Home, search, queue and history work without logging in. Signing in is optional and only used for your Subscriptions.
 
-Features
- Local or Logged in to YouTube
- Ad-free playback
- Sponsor-block
- block Channels
- Local queue support
- Local History
- Built-in video and playlist downloader
- Live stream
- Watched videos greyed out (75% watched)
-Screenshots
+Requires Android 8.0 (API 26) or later.
 
+## Features
+* [x] **Works without login** (optional sign-in for Subscriptions)
+* [x] **Ad-free playback**
+* [x] **Suggested videos, with a next video that always plays**
+* [x] **Description and Comments tabs (live chat for live streams)**
+* [x] **Sponsor-block**
+* [x] **Mini-player support**
+* [x] **Local queue support**
+* [x] **Background & Picture-in-Picture support**
+* [x] **Built-in video and playlist downloader**
+* [x] **Watched videos greyed out**
+* [x] **Local history**
 
-Contributing
-If you encounter a bug, please check the GitHub repository to see if an issue has already been reported. If not, feel free to open a new one. Code contributions and pull requests are always welcome!
+## How it works
 
-by: techniix / cuteLiLi / QuacK
+TestTube is a mix of native and web:
+
+* **Web wrapper:** some pages are still YouTube's own mobile website, shown inside Android's WebView with TestTube's scripts and styles on top (ad blocking, greying out watched videos, and so on). This is quick to build and gives access to every YouTube page, but it depends on YouTube's page layout and is slower and heavier. The Google sign-in also uses a web page.
+* **Native:** the player, the Home, Subscriptions, search and history lists, the screen under the video (Description/Comments tabs, suggestions), the queue and the downloader are drawn by the app itself and get their data directly from YouTube through the NewPipe extractor. This is faster, smoother and fully under our control.
+
+The mix keeps the parts you use most fast and reliable, while the web pages fill the gaps. More screens can be made native over time.
+
+## Screenshots
+
+<p align="center">
+<img src="screens/1.png" alt="" width="200">
+<img src="screens/2.png" alt="" width="200">
+<img src="screens/3.png" alt="" width="200">
+</p>
+
+## Contributing
+
+If you encounter a bug, please check whether an issue has already been reported. If not, feel free to open a new one. Pull requests are always welcome!
+
+## License
+
+GPL-3.0. TestTube is derived from Litube by HydeYYHH (GPL-3.0); this notice is required by the license. NewPipe Extractor is GPL-3.0-or-later.
