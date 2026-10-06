@@ -1,3 +1,0 @@
-In-app updates: TestTube checks for a new release every time it starts, downloads it with a progress bar and opens the installer. Only a newer TestTube signed with the same key is installed.
-If GitHub's update service is busy, the release page is used instead.
-Reliability: background work can no longer be rejected under load, history is written off the main thread, and unused texts were removed.
