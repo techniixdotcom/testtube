@@ -7,10 +7,10 @@ by: techniix / cuteLiLi / QuacK
 * [x] **Ad-free playback**
 * [x] **Sponsor-block**
 * [x] **Local queue support**
-* [x] **Built-in video and playlist downloader**
-* [x] **Live stream chat support, etc**
-* [x] **Watched videos greyed out (75% watched)**
 * [x] **Local History**
+* [x] **Built-in video and playlist downloader**
+* [x] **Live stream**
+* [x] **Watched videos greyed out (75% watched)**
 
 
 ## Screenshots
