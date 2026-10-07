@@ -41,7 +41,7 @@ The mix keeps the parts you use most fast and reliable, while the web pages fill
 ## Privacy
 
 * No analytics, crash reporting or ads in the app. History, queue and followed channels stay on the phone, and backups are off.
-* YouTube and Google still see your IP address and the videos you watch, as with any YouTube client.
+* YouTube and Google still see your IP address and the videos you watch, as with any YouTube client (use a VPN).
 * Sponsor-block sends the first 4 characters of a hash of the video ID to sponsor.ajay.app.
 
 ## Screenshots
