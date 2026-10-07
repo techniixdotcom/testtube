@@ -63,5 +63,7 @@ GPL-3.0. NewPipe Extractor is GPL-3.0-or-later.
 
 
 Peace and Love
+
 by
+
 techniix / cuteLiLi / QuacK
