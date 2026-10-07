@@ -10,23 +10,22 @@ TestTube is an ad-free YouTube client for Android. No account needed: Home, sear
 Requires Android 8.0 (API 26) or later.
 
 ## Features
-* [x] **Works without login** (optional sign-in for your YouTube subscriptions)
-* [x] **Subscriptions without an account**: follow channels from a video, by link or @handle, or import/export a list (Google Takeout, NewPipe or OPML)
-* [x] **Home from your history** when signed out, and the last Home shows instantly on start
+* [x] **Works without login**
+* [x] **Subscriptions without an account**
+* [x] **Home from your history**
 * [x] **Ad-free playback**
-* [x] **Suggested videos under the player, with a next video that always plays**
-* [x] **Smarter autoplay**: avoids repeating the same channel, with an "Up next" notice you can cancel
+* [x] **Smarter autoplay**
 * [x] **Swipe a video right to queue it, left to follow its channel**
-* [x] **Log out any time**: your followed channels stay
+* [x] **Log out any time**
 * [x] **Description and Comments tabs (live chat for live streams)**
 * [x] **Sponsor-block**
 * [x] **Mini-player support**
-* [x] **Local queue support**: Queue and History are two full pages with a switch between them
+* [x] **Local queue support**
 * [x] **Background & Picture-in-Picture support**
 * [x] **Built-in video and playlist downloader**
 * [x] **Watched videos greyed out**
 * [x] **Local history**
-* [x] **Light on data**: small thumbnails in lists and a limited image cache
+* [x] **Light on data**
 
 ## How it works
 
