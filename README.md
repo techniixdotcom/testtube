@@ -17,14 +17,16 @@ Requires Android 8.0 (API 26) or later.
 * [x] **Suggested videos under the player, with a next video that always plays**
 * [x] **Smarter autoplay**: avoids repeating the same channel, with an "Up next" notice you can cancel
 * [x] **Swipe a video right to queue it, left to follow its channel**
+* [x] **Log out any time**: your followed channels stay
 * [x] **Description and Comments tabs (live chat for live streams)**
 * [x] **Sponsor-block**
 * [x] **Mini-player support**
-* [x] **Local queue support**
+* [x] **Local queue support**: Queue and History are two full pages with a switch between them
 * [x] **Background & Picture-in-Picture support**
 * [x] **Built-in video and playlist downloader**
 * [x] **Watched videos greyed out**
 * [x] **Local history**
+* [x] **Light on data**: small thumbnails in lists and a limited image cache
 
 ## How it works
 
