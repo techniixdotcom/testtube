@@ -181,7 +181,6 @@
     <string name="search_no_results">結果がありません</string>
     <string name="watch_up_next">次の動画</string>
     <string name="watch_likes">高評価 %1$s</string>
-    <string name="watch_dislikes">低評価 %1$s</string>
     <string name="page_play_all">すべて再生</string>
     <string name="login_subtitle">Google アカウントでログイン</string>
     <string name="watch_history_remove">履歴から削除</string>

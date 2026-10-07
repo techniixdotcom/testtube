@@ -181,7 +181,6 @@
     <string name="search_no_results">Ничего не найдено</string>
     <string name="watch_up_next">Далее</string>
     <string name="watch_likes">%1$s лайков</string>
-    <string name="watch_dislikes">%1$s дизлайков</string>
     <string name="page_play_all">Воспроизвести все</string>
     <string name="login_subtitle">Войдите с помощью аккаунта Google</string>
     <string name="watch_history_remove">Удалить из истории</string>

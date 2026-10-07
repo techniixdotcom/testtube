@@ -181,7 +181,6 @@
     <string name="search_no_results">Aucun résultat</string>
     <string name="watch_up_next">À suivre</string>
     <string name="watch_likes">%1$s J\'aime</string>
-    <string name="watch_dislikes">%1$s Je n\'aime pas</string>
     <string name="page_play_all">Tout lire</string>
     <string name="login_subtitle">Connectez-vous avec votre compte Google</string>
     <string name="watch_history_remove">Retirer de l\'historique</string>

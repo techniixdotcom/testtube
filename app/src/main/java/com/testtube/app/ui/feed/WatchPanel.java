@@ -539,10 +539,8 @@ public final class WatchPanel {
 			}
 			meta.setText(String.join(SEPARATOR, parts));
 			author.setText(d != null && d.getAuthor() != null ? d.getAuthor() : "");
-			List<String> voteParts = new ArrayList<>(2);
-			if (d != null && d.getLikeCount() > 0) voteParts.add(context.getString(R.string.watch_likes, compact(d.getLikeCount())));
-			if (d != null && d.getDislikeCount() > 0) voteParts.add(context.getString(R.string.watch_dislikes, compact(d.getDislikeCount())));
-			votes.setText(String.join(SEPARATOR, voteParts));
+			votes.setText(d != null && d.getLikeCount() > 0
+							? context.getString(R.string.watch_likes, compact(d.getLikeCount())) : "");
 			String avatarUrl = d != null ? d.getUploaderAvatarUrl() : null;
 			if (avatarUrl != null && !avatarUrl.isBlank()) {
 				Picasso.get().load(avatarUrl).fit().centerCrop().into(avatar);

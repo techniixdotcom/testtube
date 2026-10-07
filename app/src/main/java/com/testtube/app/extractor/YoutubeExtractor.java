@@ -270,7 +270,6 @@ public final class YoutubeExtractor {
 										Math.max(0L, streamInfo.getDuration()),
 										thumbnailUrl != null ? thumbnailUrl : buildDefaultThumbnailUrl(streamInfo.getId()),
 										streamInfo.getLikeCount(),
-										streamInfo.getDislikeCount(),
 										uploadDate,
 										streamInfo.getUploaderUrl(),
 										getBestImageUrl(streamInfo.getUploaderAvatars()),

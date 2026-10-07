@@ -28,6 +28,7 @@
 - The search box says "Search TestTube".
 
 ## Build, security and cleanup
+- Dislike counts removed completely (no lookups to a third-party service, script and setting deleted).
 - Live build log (build.log) with timestamps, an errors-only file on failure, no pointless retries and a --verbose option.
 - Hardened web views (https only, no file access), plain-text traffic blocked, file sharing narrowed to the gallery and download folders, the share-to-download screen only passes on the shared link, and file names are cleaned of backslashes, control characters and "..".
 - A written security audit with the open items listed.

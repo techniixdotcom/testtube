@@ -181,7 +181,6 @@
     <string name="search_no_results">无结果</string>
     <string name="watch_up_next">接下来播放</string>
     <string name="watch_likes">%1$s 赞</string>
-    <string name="watch_dislikes">%1$s 踩</string>
     <string name="page_play_all">全部播放</string>
     <string name="login_subtitle">使用 Google 账号登录</string>
     <string name="watch_history_remove">从历史记录中移除</string>

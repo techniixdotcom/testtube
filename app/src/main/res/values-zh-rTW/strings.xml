@@ -181,7 +181,6 @@
     <string name="search_no_results">沒有結果</string>
     <string name="watch_up_next">即將播放</string>
     <string name="watch_likes">%1$s 個喜歡</string>
-    <string name="watch_dislikes">%1$s 個不喜歡</string>
     <string name="page_play_all">全部播放</string>
     <string name="login_subtitle">使用 Google 帳戶登入</string>
     <string name="watch_history_remove">從記錄中移除</string>

@@ -183,7 +183,6 @@
     <string name="search_no_results">Sin resultados</string>
     <string name="watch_up_next">A continuación</string>
     <string name="watch_likes">%1$s me gusta</string>
-    <string name="watch_dislikes">%1$s no me gusta</string>
     <string name="page_play_all">Reproducir todo</string>
     <string name="login_subtitle">Inicia sesión con tu cuenta de Google</string>
     <string name="watch_history_remove">Quitar del historial</string>

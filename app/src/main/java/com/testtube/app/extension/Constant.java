@@ -16,7 +16,6 @@ import java.util.Map;
  * the map only exists so the JavaScript bridge can keep reading it.
  */
 public final class Constant {
-	public static final String ENABLE_DISPLAY_DISLIKES = "enable_display_dislikes";
 	public static final String ENABLE_HIDE_SHORTS = "enable_hide_shorts";
 	public static final String ENABLE_GREY_WATCHED = "enable_grey_watched";
 	public static final String GESTURE_SWIPE_DOWN_MINIMIZE = "gesture_swipe_down_minimize";
@@ -26,7 +25,6 @@ public final class Constant {
 	 */
 	public static final int WATCHED_THRESHOLD_PERCENT = 75;
 	public static final Map<String, Boolean> DEFAULT_PREFERENCES = Map.ofEntries(
-					Map.entry(ENABLE_DISPLAY_DISLIKES, true),
 					Map.entry(ENABLE_HIDE_SHORTS, true),
 					Map.entry(ENABLE_GREY_WATCHED, true),
 					Map.entry(GESTURE_SWIPE_DOWN_MINIMIZE, true),

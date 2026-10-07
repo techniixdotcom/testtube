@@ -181,7 +181,6 @@
     <string name="search_no_results">검색 결과 없음</string>
     <string name="watch_up_next">다음 동영상</string>
     <string name="watch_likes">좋아요 %1$s</string>
-    <string name="watch_dislikes">싫어요 %1$s</string>
     <string name="page_play_all">모두 재생</string>
     <string name="login_subtitle">Google 계정으로 로그인</string>
     <string name="watch_history_remove">기록에서 삭제</string>

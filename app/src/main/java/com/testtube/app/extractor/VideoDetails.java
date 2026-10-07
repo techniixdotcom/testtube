@@ -13,7 +13,6 @@ public class VideoDetails {
 	private Long duration;
 	private String thumbnailUrl;
 	private long likeCount;
-	private long dislikeCount;
 	private Date uploadDate;
 	private String uploaderUrl;
 	private String uploaderAvatarUrl;
@@ -23,7 +22,7 @@ public class VideoDetails {
 	public VideoDetails() {
 	}
 
-	public VideoDetails(String id, String title, String author, String description, Long duration, String thumbnailUrl, long likeCount, long dislikeCount, Date uploadDate, String uploaderUrl, String uploaderAvatarUrl, long viewCount) {
+	public VideoDetails(String id, String title, String author, String description, Long duration, String thumbnailUrl, long likeCount, Date uploadDate, String uploaderUrl, String uploaderAvatarUrl, long viewCount) {
 		this.id = id;
 		this.title = title;
 		this.author = author;
@@ -31,7 +30,6 @@ public class VideoDetails {
 		this.duration = duration;
 		this.thumbnailUrl = thumbnailUrl;
 		this.likeCount = likeCount;
-		this.dislikeCount = dislikeCount;
 		this.uploadDate = uploadDate;
 		this.uploaderUrl = uploaderUrl;
 		this.uploaderAvatarUrl = uploaderAvatarUrl;
@@ -96,10 +94,6 @@ public class VideoDetails {
 
 	public long getLikeCount() {
 		return likeCount;
-	}
-
-	public long getDislikeCount() {
-		return dislikeCount;
 	}
 
 	public Date getUploadDate() {
