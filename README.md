@@ -1,7 +1,6 @@
 <p align="center">
   <img src="screens/header.png" alt="" width="400">
 </p>
-============
 
 in a world full of excess we give you 4.5 mb of simplicity 
 
