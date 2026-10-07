@@ -1,6 +1,0 @@
-First TestTube release.
-Fixed playback stopping after about one minute (YouTube now blocks the old client; streams use the visionOS client).
-Rejected streams are recovered automatically and playback continues at the same position.
-The local queue no longer loops; when it ends TestTube autoplays YouTube's suggestions, skipping recently watched videos.
-Finished videos start from the beginning instead of the last seconds.
-New setting: Autoplay suggested videos.
