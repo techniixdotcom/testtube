@@ -41,9 +41,9 @@ The mix keeps the parts you use most fast and reliable, while the web pages fill
 
 If you encounter a bug, please check whether an issue has already been reported. If not, feel free to open a new one. Pull requests are always welcome!
 
-## License
+##License
 
-GPL-3.0. this notice is required by the license. NewPipe Extractor is GPL-3.0-or-later.
+GPL-3.0. NewPipe Extractor is GPL-3.0-or-later.
 
 
 by: techniix / cuteLiLi / QuacK
