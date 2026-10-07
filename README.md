@@ -47,24 +47,11 @@ The mix keeps the parts you use most fast and reliable, while the web pages fill
 ## Screenshots
 
 <p align="center">
-<img src="screens/1.png" alt="" width="200">
+<img src="screens/11.png" alt="" width="200">
 <img src="screens/2.png" alt="" width="200">
 <img src="screens/3.png" alt="" width="200">
 </p>
 
-## Building
-
-Requirements: Linux or macOS with `bash`, `curl` and `unzip`. Everything else (JDK 21, Android SDK, signing key) is installed by the script into `~/.testtube`.
-
-```
-./BUILD.sh              # signed release APK in dist/
-./BUILD.sh --install    # build and install on a USB-connected phone
-./BUILD.sh --debug      # debug APK
-./BUILD.sh --clean      # clean build
-./BUILD.sh --verbose    # more detailed log
-```
-
-The build log is written live to `build.log`; errors are collected in `build-errors.log`.
 
 ## Contributing
 
