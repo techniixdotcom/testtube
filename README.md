@@ -1,16 +1,14 @@
 TestTube
 ============
 
-**in a world full of excess we give you 4.5 mb of simplicity**
-
-TestTube is an ad-free YouTube client for Android. No account needed: Home, search, queue and history work without logging in. Signing in is optional and only used for your Subscriptions.
+TestTube is an ad-free YouTube client for Android. Home, search, queue and history work without an account; signing in is optional and only used for Subscriptions.
 
 Requires Android 8.0 (API 26) or later.
 
 ## Features
-* [x] **Works without login** (optional sign-in for Subscriptions)
+* [x] **Works without login**, with optional sign-in for Subscriptions
 * [x] **Ad-free playback**
-* [x] **Suggested videos, with a next video that always plays**
+* [x] **Suggested videos under the player and a next video that always plays**
 * [x] **Description and Comments tabs (live chat for live streams)**
 * [x] **Sponsor-block**
 * [x] **Mini-player support**
@@ -18,32 +16,26 @@ Requires Android 8.0 (API 26) or later.
 * [x] **Background & Picture-in-Picture support**
 * [x] **Built-in video and playlist downloader**
 * [x] **Watched videos greyed out**
-* [x] **Local history**
+* [x] **Local History**
 
-## How it works
+## Building
 
-TestTube is a mix of native and web:
+Requirements: Linux or macOS with `bash`, `curl` and `unzip`. Everything else (JDK 21, Android SDK, signing key) is installed by the script into `~/.testtube`.
 
-* **Web wrapper:** some pages are still YouTube's own mobile website, shown inside Android's WebView with TestTube's scripts and styles on top (ad blocking, greying out watched videos, and so on). This is quick to build and gives access to every YouTube page, but it depends on YouTube's page layout and is slower and heavier. The Google sign-in also uses a web page.
-* **Native:** the player, the Home, Subscriptions, search and history lists, the screen under the video (Description/Comments tabs, suggestions), the queue and the downloader are drawn by the app itself and get their data directly from YouTube through the NewPipe extractor. This is faster, smoother and fully under our control.
+```
+./BUILD.sh              # signed release APK in dist/
+./BUILD.sh --install    # build and install on a USB-connected phone
+./BUILD.sh --debug      # debug APK
+./BUILD.sh --clean      # clean build
+./BUILD.sh --verbose    # more detailed log
+```
 
-The mix keeps the parts you use most fast and reliable, while the web pages fill the gaps. More screens can be made native over time.
-
-## Screenshots
-
-<p align="center">
-<img src="screens/11.png" alt="" width="200">
-<img src="screens/2.png" alt="" width="200">
-<img src="screens/3.png" alt="" width="200">
-</p>
+The build log is written live to `build.log`; errors are collected in `build-errors.log`.
 
 ## Contributing
 
-If you encounter a bug, please check whether an issue has already been reported. If not, feel free to open a new one. Pull requests are always welcome!
+If you encounter a bug, please check the GitHub repository to see if an issue has already been reported. If not, feel free to open a new one. Code contributions and pull requests are always welcome!
 
-##License
+## License
 
 GPL-3.0. NewPipe Extractor is GPL-3.0-or-later.
-
-
-by: techniix / cuteLiLi / QuacK

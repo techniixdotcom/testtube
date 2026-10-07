@@ -1,0 +1,3 @@
+- Native Home, Subscriptions and Search screens (no web page behind them)
+- Queue and local history side by side in the Local History tab
+- Closing the mini player no longer leaves an empty black player
