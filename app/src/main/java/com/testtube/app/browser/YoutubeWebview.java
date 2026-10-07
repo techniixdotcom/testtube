@@ -61,6 +61,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Response;
+import java.util.Set;
 
 /**
  * WebView wrapper that constrains navigation and injects page hooks.
@@ -255,7 +256,7 @@ public class YoutubeWebview extends WebView {
 	@Nullable
 	private volatile String pageUrl;
 
-	private static final java.util.Set<String> TRACKING_HOSTS = java.util.Set.of(
+	private static final Set<String> TRACKING_HOSTS = Set.of(
 					"googleads.g.doubleclick.net", "static.doubleclick.net", "ad.doubleclick.net",
 					"pagead2.googlesyndication.com", "tpc.googlesyndication.com", "www.googleadservices.com");
 
@@ -290,7 +291,7 @@ public class YoutubeWebview extends WebView {
 		if (!host.endsWith(".googlevideo.com")) return false;
 		return Constant.PAGE_WATCH.equals(UrlUtils.getPageClass(pageUrl));
 	}
-	private static final java.util.Set<String> BRIDGE_ORIGINS = java.util.Set.of("https://youtube.com", "https://*.youtube.com");
+	private static final Set<String> BRIDGE_ORIGINS = Set.of("https://youtube.com", "https://*.youtube.com");
 	/**
 	 * True when the page talks to the app through an origin-restricted message channel; false on
 	 * old WebView versions, which fall back to addJavascriptInterface.

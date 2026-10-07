@@ -60,6 +60,16 @@ public final class LoginController {
 	}
 
 	/**
+	 * Forgets the Google session: removes the account cookies shared by all WebViews.
+	 */
+	public void signOut() {
+		store.encode(KEY_DONE, false);
+		CookieManager cookies = CookieManager.getInstance();
+		cookies.removeAllCookies(null);
+		cookies.flush();
+	}
+
+	/**
 	 * Shows the login overlay and calls back once sign-in completes.
 	 */
 	@SuppressLint("SetJavaScriptEnabled")
@@ -92,6 +102,10 @@ public final class LoginController {
 		settings.setDomStorageEnabled(true);
 		settings.setUserAgentString(Constant.USER_AGENT);
 		settings.setMediaPlaybackRequiresUserGesture(false);
+		settings.setAllowFileAccess(false);
+		settings.setAllowContentAccess(false);
+		settings.setGeolocationEnabled(false);
+		settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
 		cookies.setAcceptThirdPartyCookies(webView, true);
 		webView.setWebViewClient(new WebViewClient() {
 			@Override
@@ -105,7 +119,8 @@ public final class LoginController {
 					complete(container, onComplete);
 					return true;
 				}
-				return false;
+				// Sign-in pages are https only; intent:, file:, javascript: and plain http are refused.
+				return !url.regionMatches(true, 0, "https://", 0, 8);
 			}
 		});
 		webView.loadUrl(LOGIN_URL);

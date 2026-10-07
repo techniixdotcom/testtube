@@ -52,6 +52,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import androidx.media3.common.C;
 
 /**
  * Playback facade that tracks the current media session and UI state.
@@ -192,7 +193,7 @@ public class TestTubePlayer {
 	private void saveSelectedTrackLanguage(Tracks tracks) {
 		try {
 			for (Tracks.Group group : tracks.getGroups()) {
-				if (group.getType() == androidx.media3.common.C.TRACK_TYPE_AUDIO && group.isSelected()) {
+				if (group.getType() == C.TRACK_TYPE_AUDIO && group.isSelected()) {
 					for (int i = 0; i < group.length; i++) {
 						if (group.isTrackSelected(i)) {
 							String lang = group.getTrackFormat(i).language;

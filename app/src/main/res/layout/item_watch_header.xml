@@ -66,6 +66,18 @@
             android:maxLines="1"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/watch_follow"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center"
+            android:paddingStart="12dp"
+            android:paddingEnd="4dp"
+            android:textColor="@color/yt_red"
+            android:textSize="14sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
     <TextView

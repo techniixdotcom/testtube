@@ -10,7 +10,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.annotation.SuppressLint;
-import android.webkit.CookieManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -23,6 +22,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.util.UnstableApi;
 import androidx.recyclerview.widget.ConcatAdapter;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -32,17 +32,21 @@ import com.testtube.app.Constant;
 import com.testtube.app.R;
 import com.testtube.app.browser.TabManager;
 import com.testtube.app.extractor.FeedClient;
+import com.testtube.app.extractor.LocalSubscriptions;
 import com.testtube.app.extractor.FeedItem;
 import com.testtube.app.extractor.RelatedVideo;
 import com.testtube.app.extractor.VideoDetails;
 import com.testtube.app.extractor.YoutubeExtractor;
 import com.testtube.app.filter.ContentFilters;
+import com.testtube.app.util.ToastUtils;
 import com.testtube.app.util.UrlUtils;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import android.webkit.WebResourceRequest;
+import android.net.Uri;
 
 /**
  * Native watch screen below the player: title, channel, description and what plays next (the
@@ -175,6 +179,23 @@ public final class WatchPanel {
 		});
 		list.setLayoutManager(new LinearLayoutManager(root.getContext()));
 		list.setAdapter(new ConcatAdapter(header, items));
+		new ItemTouchHelper(new QueueSwipe(root.getContext(), new QueueSwipe.Target() {
+			@Nullable
+			@Override
+			public FeedItem itemFor(@NonNull RecyclerView.ViewHolder holder) {
+				return items.itemAt(holder);
+			}
+
+			@Override
+			public void enqueue(@NonNull FeedItem item) {
+				host.enqueue(item);
+			}
+
+			@Override
+			public void follow(@NonNull FeedItem item) {
+				host.follow(item);
+			}
+		})).attachToRecyclerView(list);
 		list.setItemViewCacheSize(4);
 	}
 
@@ -264,7 +285,7 @@ public final class WatchPanel {
 					if (video.title() == null) continue;
 					out.add(new FeedItem(FeedItem.Kind.VIDEO, Constant.HOME_URL + "/watch?v=" + video.id(), video.id(),
 									video.title(), video.uploaderName(), FeedClient.mobile(video.uploaderUrl()),
-									"https://i.ytimg.com/vi/" + video.id() + "/hqdefault.jpg", video.durationSeconds(),
+									FeedItem.thumbnailFor(video.id()), video.durationSeconds(),
 									video.viewCount(), video.published(), false));
 				}
 			}
@@ -351,8 +372,21 @@ public final class WatchPanel {
 			settings.setJavaScriptEnabled(true);
 			settings.setDomStorageEnabled(true);
 			settings.setUserAgentString(Constant.USER_AGENT);
-			CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
-			web.setWebViewClient(new WebViewClient());
+			settings.setAllowFileAccess(false);
+			settings.setAllowContentAccess(false);
+			settings.setGeolocationEnabled(false);
+			settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+			// The chat only ever shows YouTube pages: any other link or scheme is ignored.
+			web.setWebViewClient(new WebViewClient() {
+				@Override
+				public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+					Uri uri = request.getUrl();
+					String host = uri.getHost();
+					boolean youtube = "https".equals(uri.getScheme()) && host != null
+									&& (host.equals("youtube.com") || host.endsWith(".youtube.com"));
+					return !youtube;
+				}
+			});
 			chatHost.addView(web, new FrameLayout.LayoutParams(
 							ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 			chatWeb = web;
@@ -416,8 +450,9 @@ public final class WatchPanel {
 			List<String> parts = new ArrayList<>(3);
 			parts.add(comment.author());
 			if (comment.published() != null && !comment.published().isBlank()) parts.add(comment.published());
-			if (comment.likes() > 0) parts.add("👍 " + comment.likes());
-			if (comment.pinned()) parts.add("📌");
+			Context context = holder.itemView.getContext();
+			if (comment.likes() > 0) parts.add(context.getString(R.string.watch_comment_likes, comment.likes()));
+			if (comment.pinned()) parts.add(context.getString(R.string.watch_comment_pinned));
 			holder.meta.setText(String.join(SEPARATOR, parts));
 			holder.text.setText(comment.text());
 		}
@@ -469,6 +504,8 @@ public final class WatchPanel {
 		@NonNull
 		private final TextView votes;
 		@NonNull
+		private final TextView follow;
+		@NonNull
 		private final TextView description;
 		@NonNull
 		private final TextView sectionView;
@@ -481,6 +518,7 @@ public final class WatchPanel {
 			avatar = itemView.findViewById(R.id.watch_avatar);
 			author = itemView.findViewById(R.id.watch_author);
 			votes = itemView.findViewById(R.id.watch_votes);
+			follow = itemView.findViewById(R.id.watch_follow);
 			description = itemView.findViewById(R.id.watch_description);
 			sectionView = itemView.findViewById(R.id.watch_section);
 			description.setOnClickListener(v -> {
@@ -515,11 +553,37 @@ public final class WatchPanel {
 			String channelUrl = d != null ? FeedClient.mobile(d.getUploaderUrl()) : null;
 			channel.setOnClickListener(channelUrl != null ? v -> host.openPage(channelUrl) : null);
 			channel.setClickable(channelUrl != null);
+			bindFollow(d);
 			boolean hasText = DescriptionText.apply(description, d != null ? d.getDescription() : null);
 			description.setVisibility(hasText ? View.VISIBLE : View.GONE);
 			applyExpanded();
 			sectionView.setText(note != null ? note
 							: section != null && !section.isBlank() ? section : context.getString(R.string.watch_up_next));
+		}
+
+		/**
+		 * Follow the channel without an account: its videos then show up under Subscriptions.
+		 */
+		private void bindFollow(@Nullable VideoDetails d) {
+			String channelId = d != null ? LocalSubscriptions.channelIdOf(d.getUploaderUrl()) : null;
+			if (channelId == null) {
+				follow.setVisibility(View.GONE);
+				return;
+			}
+			LocalSubscriptions subscriptions = LocalSubscriptions.get();
+			String name = d.getAuthor() != null ? d.getAuthor() : "";
+			follow.setVisibility(View.VISIBLE);
+			follow.setText(subscriptions.isFollowing(channelId) ? R.string.watch_following : R.string.watch_follow);
+			follow.setOnClickListener(v -> {
+				if (subscriptions.isFollowing(channelId)) {
+					subscriptions.remove(channelId);
+				} else {
+					subscriptions.add(new LocalSubscriptions.Channel(channelId, name));
+					ToastUtils.show(v.getContext(), R.string.subs_followed);
+				}
+				follow.setText(subscriptions.isFollowing(channelId) ? R.string.watch_following : R.string.watch_follow);
+				host.onFollowChanged();
+			});
 		}
 
 		private void applyExpanded() {

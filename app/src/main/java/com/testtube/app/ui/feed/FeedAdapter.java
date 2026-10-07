@@ -24,6 +24,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import android.graphics.ColorMatrixColorFilter;
+import android.graphics.ColorMatrix;
 
 /**
  * Rows of the native Home, Subscriptions and Search screens.
@@ -32,14 +34,14 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	private static final int TYPE_VIDEO = 0;
 	private static final int TYPE_ENTITY = 1;
 	private static final float WATCHED_ALPHA = 0.3f;
-	private static final android.graphics.ColorMatrixColorFilter GREY = greyFilter();
+	private static final ColorMatrixColorFilter GREY = greyFilter();
 
 	// Watched videos lose their colour and most of their brightness, so they stand out at a glance.
 	@NonNull
-	private static android.graphics.ColorMatrixColorFilter greyFilter() {
-		android.graphics.ColorMatrix matrix = new android.graphics.ColorMatrix();
+	private static ColorMatrixColorFilter greyFilter() {
+		ColorMatrix matrix = new ColorMatrix();
 		matrix.setSaturation(0f);
-		return new android.graphics.ColorMatrixColorFilter(matrix);
+		return new ColorMatrixColorFilter(matrix);
 	}
 	private static final String SEPARATOR = " • ";
 
@@ -85,6 +87,16 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 		} else if (!appended) {
 			notifyDataSetChanged();
 		}
+	}
+
+	/**
+	 * The video shown in this row, or null for other rows (channels, playlists, the header).
+	 */
+	@Nullable
+	FeedItem itemAt(@NonNull RecyclerView.ViewHolder holder) {
+		if (!(holder instanceof VideoHolder) || holder.getBindingAdapter() != this) return null;
+		int position = holder.getBindingAdapterPosition();
+		return position >= 0 && position < items.size() ? items.get(position) : null;
 	}
 
 	void refreshStates() {

@@ -39,6 +39,7 @@ import com.testtube.app.extractor.PlaybackDetails;
 import com.testtube.app.extractor.PlaybackMode;
 import com.testtube.app.extractor.PlaybackPlan;
 import com.testtube.app.extractor.PlaybackPlanner;
+import com.testtube.app.extractor.RelatedVideo;
 import com.testtube.app.extractor.StreamCandidate;
 import com.testtube.app.extractor.StreamCatalog;
 import com.testtube.app.extractor.VideoDetails;
@@ -66,6 +67,7 @@ import java.net.ConnectException;
 import java.net.NoRouteToHostException;
 import java.net.SocketTimeoutException;
 import java.net.URI;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -74,6 +76,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 
 
 
@@ -124,6 +129,7 @@ public class Engine {
 				if (duration - pos <= PREFETCH_BEFORE_END_MS && !videoId.equals(prefetchedFor)) {
 					prefetchedFor = videoId;
 					prefetchedNextUrl = null;
+					prefetchedPick = null;
 					prefetchNext(videoId);
 				}
 			}
@@ -200,8 +206,8 @@ public class Engine {
 	 * One background thread for history writes, so they happen in order and never queue behind
 	 * extraction work.
 	 */
-	private static final java.util.concurrent.ExecutorService HISTORY_WRITER =
-					java.util.concurrent.Executors.newSingleThreadExecutor(runnable -> {
+	private static final ExecutorService HISTORY_WRITER =
+					Executors.newSingleThreadExecutor(runnable -> {
 						Thread thread = new Thread(runnable, "testtube-history");
 						thread.setDaemon(true);
 						return thread;
@@ -212,6 +218,8 @@ public class Engine {
 	private static final int MAX_HISTORY = 50;
 	private static final int SUGGESTION_POOL = 5;
 	private static final int SUGGESTION_RETRIES = 3;
+	private static final int RECENT_AUTHORS = 3;
+	private static final long UP_NEXT_DELAY_MS = 4_000L;
 	private static final long SUGGESTION_RETRY_DELAY_MS = 1500L;
 	private static final long PREFETCH_BEFORE_END_MS = 30_000L;
 	@Nullable
@@ -229,6 +237,12 @@ public class Engine {
 	private long autoplayToken;
 	@Nullable
 	private FeedClient feedClient;
+	@NonNull
+	private final ArrayDeque<String> recentAuthors = new ArrayDeque<>();
+	@Nullable
+	private UpNextListener upNextListener;
+	@Nullable
+	private Candidate prefetchedPick;
 	@Nullable
 	private String currentTitle;
 	@Nullable
@@ -720,12 +734,8 @@ public class Engine {
 	}
 
 	/**
-	 * Plays the first suggestion of the given video that has not been played recently, the same
-	 * way YouTube continues with "Up next" once nothing else is queued.
-	 */
-	/**
-	 * Plays the next suggested video, like YouTube's autoplay. Suggestions come from the watch
-	 * page first and from the extractor when the page has none.
+	 * Plays the next suggested video, like YouTube's autoplay. Suggestions come from the
+	 * extractor first, then from YouTube's "next" list, a search and the Home feed.
 	 *
 	 * @param manual true when the user pressed next; false when the video ended on its own
 	 */
@@ -735,12 +745,35 @@ public class Engine {
 		if (!manual && prefetchedNextUrl != null && sourceId.equals(prefetchedFor)) {
 			// Picked and loaded during the last seconds of the video, so it starts right away.
 			String url = prefetchedNextUrl;
+			Candidate pick = prefetchedPick;
 			prefetchedNextUrl = null;
-			tabManager.playInWatch(url);
+			prefetchedPick = null;
+			if (pick != null) startNext(sourceId, pick, false);
+			else tabManager.playInWatch(url);
 			return;
 		}
 		long token = ++autoplayToken;
 		requestSuggestions(sourceId, manual, token);
+	}
+
+	/**
+	 * A video that could play next.
+	 */
+	private record Candidate(@NonNull String id, @Nullable String title, @Nullable String author) {
+	}
+
+	/**
+	 * Shows the "Up next" notice before an automatic switch to the next video.
+	 */
+	public interface UpNextListener {
+		/**
+		 * @param onCancel stops the switch; the next video then does not start
+		 */
+		void show(@NonNull String title, long delayMs, @NonNull Runnable onCancel);
+	}
+
+	public void setUpNextListener(@Nullable UpNextListener listener) {
+		this.upNextListener = listener;
 	}
 
 	public void setFeedClient(@Nullable FeedClient feedClient) {
@@ -752,15 +785,15 @@ public class Engine {
 	}
 
 	private void requestSuggestions(@NonNull String sourceId, boolean manual, long token, int attempt) {
-		gatherSuggestions(sourceId, token, ids -> {
-			if (ids.isEmpty() && attempt < SUGGESTION_RETRIES) {
+		gatherSuggestions(sourceId, token, found -> {
+			if (found.isEmpty() && attempt < SUGGESTION_RETRIES) {
 				// Nothing yet (slow network, page still loading): try again shortly instead of giving up.
 				handler.postDelayed(() -> {
 					if (token == autoplayToken) requestSuggestions(sourceId, manual, token, attempt + 1);
 				}, SUGGESTION_RETRY_DELAY_MS);
 				return;
 			}
-			playSuggestion(sourceId, ids, manual);
+			playSuggestion(sourceId, found, manual);
 		});
 	}
 
@@ -769,12 +802,18 @@ public class Engine {
 	 * suggestions, a search for the current video's title, and finally the Home feed. The first
 	 * source that has videos wins, so a next video is found whenever YouTube answers at all.
 	 */
-	private void gatherSuggestions(@NonNull String sourceId, long token, @NonNull Consumer<List<String>> done) {
-		extractor.getRelatedVideoIds(sourceId).whenComplete((ids, error) -> handler.post(() -> {
+	private void gatherSuggestions(@NonNull String sourceId, long token, @NonNull Consumer<List<Candidate>> done) {
+		extractor.getRelatedVideos(sourceId).whenComplete((related, error) -> handler.post(() -> {
 			if (token != autoplayToken) return;
 			if (error != null) Log.w(TAG, "suggestions unavailable videoId=" + sourceId, error);
-			if (hasOther(ids, sourceId)) {
-				done.accept(ids);
+			List<Candidate> found = new ArrayList<>();
+			if (related != null) {
+				for (RelatedVideo video : related) {
+					found.add(new Candidate(video.id(), video.title(), video.uploaderName()));
+				}
+			}
+			if (hasOther(found, sourceId)) {
+				done.accept(found);
 				return;
 			}
 			FeedClient feed = feedClient;
@@ -782,9 +821,9 @@ public class Engine {
 				done.accept(List.of());
 				return;
 			}
-			fromFeed(feed.related(sourceId), sourceId, token, related -> {
-				if (!related.isEmpty()) {
-					done.accept(related);
+			fromFeed(feed.related(sourceId), sourceId, token, related2 -> {
+				if (!related2.isEmpty()) {
+					done.accept(related2);
 					return;
 				}
 				String query = currentTitle != null && !currentTitle.isBlank() ? currentTitle : currentAuthor;
@@ -804,63 +843,104 @@ public class Engine {
 	}
 
 	private void fromFeed(@NonNull FeedClient.Call call, @NonNull String sourceId, long token,
-	                      @NonNull Consumer<List<String>> done) {
+	                      @NonNull Consumer<List<Candidate>> done) {
 		call.result.whenComplete((page, error) -> handler.post(() -> {
 			if (token != autoplayToken) return;
-			List<String> ids = new ArrayList<>();
+			List<Candidate> found = new ArrayList<>();
 			if (page != null) {
 				for (FeedItem item : page.items()) {
 					if (item.kind() != FeedItem.Kind.VIDEO || item.live() || item.videoId() == null) continue;
 					if (item.videoId().equals(sourceId)) continue;
 					if (item.author() != null && contentFilters.isChannelBlocked(item.author(), item.authorUrl())) continue;
-					ids.add(item.videoId());
+					found.add(new Candidate(item.videoId(), item.title(), item.author()));
 				}
 			} else if (error != null) {
 				Log.w(TAG, "feed suggestions unavailable videoId=" + sourceId, error);
 			}
-			done.accept(ids);
+			done.accept(found);
 		}));
 	}
 
-	private static boolean hasOther(@Nullable List<String> ids, @NonNull String sourceId) {
-		if (ids == null) return false;
-		for (String id : ids) {
-			if (id != null && !id.equals(sourceId)) return true;
+	private static boolean hasOther(@NonNull List<Candidate> found, @NonNull String sourceId) {
+		for (Candidate candidate : found) {
+			if (!candidate.id().equals(sourceId)) return true;
 		}
 		return false;
 	}
 
-	private void playSuggestion(@NonNull String sourceId, @NonNull List<String> ids, boolean manual) {
+	private void playSuggestion(@NonNull String sourceId, @NonNull List<Candidate> found, boolean manual) {
 		// The user moved on to another video in the meantime.
 		if (!Objects.equals(sourceId, watchVideoId())) return;
-		String pick = pickSuggestion(sourceId, ids);
+		Candidate pick = pickSuggestion(sourceId, found);
 		if (pick == null) {
 			Log.i(TAG, "no suggestion videoId=" + sourceId);
 			if (manual) ToastUtils.show(appContext, R.string.no_suggestions);
 			return;
 		}
-		tabManager.playInWatch(Constant.HOME_URL + "/watch?v=" + pick);
+		startNext(sourceId, pick, manual);
 	}
 
 	/**
-	 * Picks the next video: at random among the top suggestions, preferring ones not watched in
-	 * the last day, falling back to the top suggestions so playback never stops.
+	 * Switches to the picked video. After a video ends on its own, a short "Up next" notice gives
+	 * the person a moment to cancel.
+	 */
+	private void startNext(@NonNull String sourceId, @NonNull Candidate pick, boolean manual) {
+		recordAuthor(pick.author());
+		String url = Constant.HOME_URL + "/watch?v=" + pick.id();
+		UpNextListener listener = upNextListener;
+		if (manual || listener == null) {
+			tabManager.playInWatch(url);
+			return;
+		}
+		long token = autoplayToken;
+		Runnable play = () -> {
+			if (token == autoplayToken && Objects.equals(sourceId, watchVideoId())) tabManager.playInWatch(url);
+		};
+		handler.postDelayed(play, UP_NEXT_DELAY_MS);
+		listener.show(pick.title() != null && !pick.title().isBlank() ? pick.title() : pick.id(),
+						UP_NEXT_DELAY_MS, () -> handler.removeCallbacks(play));
+	}
+
+	private void recordAuthor(@Nullable String author) {
+		if (author == null || author.isBlank()) return;
+		recentAuthors.remove(author);
+		recentAuthors.addFirst(author);
+		while (recentAuthors.size() > RECENT_AUTHORS) recentAuthors.removeLast();
+	}
+
+	/**
+	 * Picks the next video at random among the top suggestions. Videos that were not played lately
+	 * and not watched yet come first, and a channel that just played is avoided, so autoplay does
+	 * not stay on one channel. When nothing qualifies it falls back to any suggestion, so
+	 * playback never stops.
 	 */
 	@Nullable
-	private String pickSuggestion(@NonNull String sourceId, @NonNull List<String> ids) {
-		// Pick at random among the top suggestions, preferring ones not watched in the last day,
-		// so autoplay wanders through similar videos instead of walking down one list.
-		List<String> fresh = new ArrayList<>();
-		List<String> any = new ArrayList<>();
-		for (String id : ids) {
-			if (id == null || id.equals(sourceId) || any.contains(id)) continue;
-			if (any.size() < SUGGESTION_POOL) any.add(id);
-			if (fresh.size() < SUGGESTION_POOL && !prefs.wasRecentlyPlayed(id)) fresh.add(id);
-			if (fresh.size() >= SUGGESTION_POOL) break;
+	private Candidate pickSuggestion(@NonNull String sourceId, @NonNull List<Candidate> found) {
+		List<Candidate> pool = new ArrayList<>();
+		Set<String> seen = new HashSet<>();
+		for (Candidate candidate : found) {
+			if (candidate.id().equals(sourceId) || !seen.add(candidate.id())) continue;
+			pool.add(candidate);
+			if (pool.size() >= SUGGESTION_POOL * 3) break;
 		}
-		List<String> pool = !fresh.isEmpty() ? fresh : any;
 		if (pool.isEmpty()) return null;
-		return pool.get(java.util.concurrent.ThreadLocalRandom.current().nextInt(pool.size()));
+		List<Candidate> fresh = new ArrayList<>();
+		List<Candidate> unwatched = new ArrayList<>();
+		List<Candidate> notRecent = new ArrayList<>();
+		for (Candidate candidate : pool) {
+			if (prefs.wasRecentlyPlayed(candidate.id())) continue;
+			notRecent.add(candidate);
+			if (contentFilters.isWatched(candidate.id())) continue;
+			unwatched.add(candidate);
+			String author = candidate.author();
+			boolean sameChannel = author != null && (recentAuthors.contains(author) || author.equals(currentAuthor));
+			if (!sameChannel) fresh.add(candidate);
+		}
+		List<Candidate> chosen = !fresh.isEmpty() ? fresh
+						: !unwatched.isEmpty() ? unwatched
+						: !notRecent.isEmpty() ? notRecent : pool;
+		List<Candidate> top = chosen.subList(0, Math.min(chosen.size(), SUGGESTION_POOL));
+		return top.get(ThreadLocalRandom.current().nextInt(top.size()));
 	}
 
 	/**
@@ -875,12 +955,13 @@ public class Engine {
 			return;
 		}
 		if (tabManager.watchHasPlaylist()) return;
-		gatherSuggestions(sourceId, autoplayToken, ids -> rememberPrefetch(sourceId, pickSuggestion(sourceId, ids)));
+		gatherSuggestions(sourceId, autoplayToken, found -> rememberPrefetch(sourceId, pickSuggestion(sourceId, found)));
 	}
 
-	private void rememberPrefetch(@NonNull String sourceId, @Nullable String pick) {
+	private void rememberPrefetch(@NonNull String sourceId, @Nullable Candidate pick) {
 		if (pick == null || !sourceId.equals(prefetchedFor) || !sourceId.equals(videoId)) return;
-		prefetchedNextUrl = Constant.HOME_URL + "/watch?v=" + pick;
+		prefetchedPick = pick;
+		prefetchedNextUrl = Constant.HOME_URL + "/watch?v=" + pick.id();
 		warm(prefetchedNextUrl);
 	}
 

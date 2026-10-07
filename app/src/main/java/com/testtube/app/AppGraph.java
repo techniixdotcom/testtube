@@ -39,6 +39,7 @@ import com.testtube.app.player.queue.QueueRepository;
 import com.testtube.app.player.sponsor.SponsorBlockManager;
 
 import java.io.File;
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -49,6 +50,9 @@ import okhttp3.Cache;
 import okhttp3.ConnectionPool;
 import okhttp3.Dispatcher;
 import okhttp3.OkHttpClient;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.ArrayList;
 
 @UnstableApi
 public final class AppGraph {
@@ -169,6 +173,27 @@ public final class AppGraph {
 	}
 
 	@NonNull
+	/**
+	 * What to search for when building a Home without an account: the channels watched most often
+	 * lately and the titles of the last videos.
+	 */
+	private List<String> historyInterests() {
+		List<WatchHistory.Entry> entries = new ArrayList<>(watchHistory().entries());
+		entries.sort((a, b) -> Long.compare(b.watchedAt(), a.watchedAt()));
+		Map<String, Integer> channels = new LinkedHashMap<>();
+		List<String> titles = new ArrayList<>();
+		for (int i = 0; i < Math.min(entries.size(), 30); i++) {
+			WatchHistory.Entry entry = entries.get(i);
+			if (entry.author() != null && !entry.author().isBlank()) channels.merge(entry.author(), 1, Integer::sum);
+			if (titles.size() < 2 && entry.title() != null && !entry.title().isBlank()) titles.add(entry.title());
+		}
+		List<String> topChannels = new ArrayList<>(channels.keySet());
+		topChannels.sort((a, b) -> Integer.compare(channels.get(b), channels.get(a)));
+		List<String> out = new ArrayList<>(topChannels.subList(0, Math.min(topChannels.size(), 3)));
+		out.addAll(titles);
+		return out;
+	}
+
 	public synchronized WatchHistory watchHistory() {
 		if (watchHistory == null) watchHistory = new WatchHistory(gson());
 		return watchHistory;
@@ -257,6 +282,7 @@ public final class AppGraph {
 			// The extractor sets up NewPipe, which the feed requests go through.
 			youtubeExtractor();
 			feedClient = new FeedClient(extractorDownloader(), nativeAuth(), executor());
+			feedClient.setInterests(this::historyInterests);
 		}
 		return feedClient;
 	}

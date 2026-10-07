@@ -207,23 +207,6 @@ public final class YoutubeExtractor {
 	}
 
 	/**
-	 * Returns suggested video ids for the given video, in YouTube's own order, without videos
-	 * of blocked channels. Uses the cached suggestions when available and otherwise performs an
-	 * extraction.
-	 */
-	@NonNull
-	public CompletableFuture<List<String>> getRelatedVideoIds(@NonNull String videoId) {
-		List<RelatedVideo> cached = cache.getRelatedVideos(videoId);
-		if (cached != null && !cached.isEmpty()) {
-			return CompletableFuture.completedFuture(allowedIds(cached));
-		}
-		return getInfo(WATCH_URL + videoId, null, false).thenApply(ignored -> {
-			List<RelatedVideo> related = cache.getRelatedVideos(videoId);
-			return related != null ? allowedIds(related) : new ArrayList<>();
-		});
-	}
-
-	/**
 	 * Suggested videos for the watch screen, without videos of blocked channels.
 	 */
 	@NonNull
@@ -250,17 +233,6 @@ public final class YoutubeExtractor {
 			out.add(item);
 		}
 		return out;
-	}
-
-	@NonNull
-	private List<String> allowedIds(@NonNull List<RelatedVideo> related) {
-		List<String> ids = new ArrayList<>();
-		for (RelatedVideo item : related) {
-			if (item == null) continue;
-			if (filters.isChannelBlocked(item.uploaderName(), item.uploaderUrl())) continue;
-			ids.add(item.id());
-		}
-		return ids;
 	}
 
 	@NonNull

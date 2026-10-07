@@ -27,6 +27,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import android.webkit.WebResourceError;
 
 
 
@@ -198,7 +199,7 @@ public final class PoTokenHost {
 			@Override
 			public void onReceivedError(@NonNull WebView view,
 			                            @NonNull WebResourceRequest request,
-			                            @NonNull android.webkit.WebResourceError error) {
+			                            @NonNull WebResourceError error) {
 				super.onReceivedError(view, request, error);
 				if (request.isForMainFrame()) {
 					onLoadFailed(view);

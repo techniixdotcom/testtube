@@ -38,6 +38,7 @@ import com.testtube.app.util.ViewUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import android.os.Build;
 
 
 
@@ -163,7 +164,7 @@ public class TestTubePlayerView extends PlayerView {
 	}
 
 	public void disableAutoPiP() {
-		if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S) return;
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return;
 		activity.setPictureInPictureParams(buildPiPParams(false));
 	}
 
@@ -186,7 +187,7 @@ public class TestTubePlayerView extends PlayerView {
 	private PictureInPictureParams buildPiPParams(boolean autoEnter) {
 		PictureInPictureParams.Builder builder = new PictureInPictureParams.Builder()
 						.setAspectRatio(new Rational(16, 9));
-		if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
 			builder.setAutoEnterEnabled(autoEnter);
 		}
 		Rect sourceRectHint = new Rect();

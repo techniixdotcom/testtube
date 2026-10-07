@@ -11,6 +11,8 @@ import androidx.annotation.Nullable;
 import androidx.media3.common.util.UnstableApi;
 import androidx.webkit.WebViewCompat;
 
+import com.squareup.picasso.LruCache;
+import com.squareup.picasso.Picasso;
 import com.tencent.mmkv.MMKV;
 import com.testtube.app.util.UserAgents;
 
@@ -30,7 +32,19 @@ public class App extends Application {
 			}
 		}
 		graph = new AppGraph(this);
+		initImageLoader();
 		initUserAgent();
+	}
+
+	/**
+	 * Thumbnails are kept in memory up to an eighth of the app's heap; Picasso's own disk cache
+	 * stays on, so a list that was seen before opens without a network request.
+	 */
+	private void initImageLoader() {
+		long heap = Runtime.getRuntime().maxMemory();
+		Picasso.setSingletonInstance(new Picasso.Builder(this)
+						.memoryCache(new LruCache((int) Math.min(heap / 8, Integer.MAX_VALUE)))
+						.build());
 	}
 
 	/**

@@ -53,6 +53,8 @@ import com.testtube.app.downloader.ui.DownloadPermissionHost;
 import com.testtube.app.downloader.ui.PlaylistDownloadDialog;
 import com.testtube.app.downloader.ui.PlaylistDownloadItem;
 import com.tencent.mmkv.MMKV;
+import android.util.Log;
+import com.testtube.app.extractor.LocalSubscriptions;
 import com.testtube.app.extractor.FeedItem;
 import com.testtube.app.extractor.PageSource;
 import com.testtube.app.extractor.YoutubeExtractor;
@@ -77,6 +79,15 @@ import com.testtube.app.util.ViewUtils;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.ArrayList;
+import java.nio.charset.StandardCharsets;
+import java.io.OutputStream;
+import java.io.InputStream;
+import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.activity.result.ActivityResultLauncher;
+import android.widget.FrameLayout;
 
 
 
@@ -210,6 +221,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 			historyController = new LocalHistoryController(historyContainer, watchHistory,
 							videoId -> openVideo(Constant.HOME_URL + "/watch?v=" + videoId));
 			setupQueuePanel(historyContainer);
+			setupPageSwitch(historyContainer);
 		}
 		nativeContainer = findViewById(R.id.native_container);
 		View browserView = getLayoutInflater().inflate(R.layout.view_native_browser,
@@ -253,14 +265,60 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 
 			@Override
 			public boolean accountEnabled() {
-				// Existing installs that already signed in keep their subscriptions.
-				return MMKV.defaultMMKV().decodeBool(KEY_SUBS_ACCOUNT,
-								loginController != null && loginController.isSignedIn());
+				// The followed channels are the default; the account is only used after asking for it.
+				return MMKV.defaultMMKV().decodeBool(KEY_SUBS_ACCOUNT, false);
+			}
+
+			@Override
+			public void logout() {
+				if (loginController != null) loginController.signOut();
+				setSubscriptionsAccount(false);
+				ToastUtils.show(MainActivity.this, R.string.subs_logged_out);
+				if (nativeBrowser != null) nativeBrowser.reloadAll();
 			}
 
 			@Override
 			public void setAccountEnabled(boolean enabled) {
 				setSubscriptionsAccount(enabled);
+			}
+
+			@Override
+			public void enqueue(@NonNull FeedItem item) {
+				if (item.videoId() == null) return;
+				QueueItem queued = new MediaItemMenuPayload(item.videoId(), item.url(), item.title(), item.author(),
+								item.thumbnailUrl(), item.authorUrl()).toQueueItem();
+				if (queued.getVideoUrl() == null || queued.getTitle() == null || queued.getTitle().isBlank()) {
+					ToastUtils.show(MainActivity.this, R.string.queue_item_unavailable);
+					return;
+				}
+				if (!queueRepository.isEnabled()) queueRepository.setEnabled(true);
+				queueRepository.add(queued);
+				player.refreshQueueNav();
+				ToastUtils.show(MainActivity.this, R.string.queue_item_added);
+			}
+
+			@Override
+			public void follow(@NonNull FeedItem item) {
+				confirmFollow(item);
+			}
+
+			@Override
+			public void importSubscriptions() {
+				importPicker.launch(new String[]{"*/*"});
+			}
+
+			@Override
+			public void exportSubscriptions() {
+				if (LocalSubscriptions.get().all().isEmpty()) {
+					ToastUtils.show(MainActivity.this, R.string.subs_export_empty);
+					return;
+				}
+				exportPicker.launch("testtube-subscriptions.csv");
+			}
+
+			@Override
+			public void onFollowChanged() {
+				if (nativeBrowser != null) nativeBrowser.reloadLocalSubscriptions();
 			}
 		};
 		nativeBrowser = new NativeBrowser(browserView, app.feedClient(), contentFilters, feedHost);
@@ -298,6 +356,16 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 
 			@Override
 			public void onNativeRequested(@NonNull String pageClass) {
+				if (pageClass.startsWith("searching:")) {
+					String query = pageClass.substring("searching:".length());
+					goTo(R.id.nav_home);
+					if (nativeBrowser != null && !query.isBlank() && !"null".equals(query)) nativeBrowser.searchFor(query);
+					return;
+				}
+				if (Constant.PAGE_LIBRARY.equals(pageClass) || "history".equals(pageClass)) {
+					goTo(R.id.nav_history);
+					return;
+				}
 				goTo(Constant.PAGE_SUBSCRIPTIONS.equals(pageClass) ? R.id.nav_subscriptions : R.id.nav_home);
 			}
 		});
@@ -345,6 +413,112 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	}
 
 	private static final String KEY_SUBS_ACCOUNT = "subs_use_account";
+	private static final String KEY_FOLLOW_REMINDERS = "follow_swipe_reminders";
+	private static final int FOLLOW_REMINDER_COUNT = 3;
+
+	/**
+	 * The first three swipes ask for confirmation and say how many reminders are left.
+	 */
+	private void confirmFollow(@NonNull FeedItem item) {
+		MMKV store = MMKV.defaultMMKV();
+		int shown = store.decodeInt(KEY_FOLLOW_REMINDERS, 0);
+		String name = item.author() != null && !item.author().isBlank() ? item.author() : getString(R.string.swipe_this_channel);
+		if (shown >= FOLLOW_REMINDER_COUNT) {
+			followChannel(item);
+			return;
+		}
+		store.encode(KEY_FOLLOW_REMINDERS, shown + 1);
+		int left = FOLLOW_REMINDER_COUNT - 1 - shown;
+		String indicator = left == 0 ? getString(R.string.swipe_last_reminder)
+						: getResources().getQuantityString(R.plurals.swipe_more_reminders, left, left);
+		new MaterialAlertDialogBuilder(this)
+						.setTitle(getString(R.string.swipe_follow_title, name))
+						.setMessage(indicator)
+						.setPositiveButton(R.string.watch_follow, (d, which) -> followChannel(item))
+						.setNegativeButton(R.string.cancel, null)
+						.show();
+	}
+
+	private void followChannel(@NonNull FeedItem item) {
+		String url = item.authorUrl();
+		String id = LocalSubscriptions.channelIdOf(url);
+		String name = item.author() != null ? item.author() : "";
+		if (id != null) {
+			if (LocalSubscriptions.get().add(new LocalSubscriptions.Channel(id, name))) {
+				ToastUtils.show(this, R.string.subs_followed);
+				if (nativeBrowser != null) nativeBrowser.reloadLocalSubscriptions();
+			} else {
+				ToastUtils.show(this, R.string.swipe_already_following);
+			}
+			return;
+		}
+		if (url == null || url.isBlank()) {
+			ToastUtils.show(this, R.string.subs_add_failed);
+			return;
+		}
+		AppGraph.of(this).feedClient().resolveChannel(url).whenComplete((channel, error) -> runOnUiThread(() -> {
+			if (error != null || channel == null) {
+				ToastUtils.show(this, R.string.subs_add_failed);
+				return;
+			}
+			LocalSubscriptions.get().add(channel);
+			ToastUtils.show(this, R.string.subs_followed);
+			if (nativeBrowser != null) nativeBrowser.reloadLocalSubscriptions();
+		}));
+	}
+	private static final int MAX_IMPORT_BYTES = 5_000_000;
+
+	/**
+	 * Saves the followed channels as a csv the person picks the place for.
+	 */
+	private final ActivityResultLauncher<String> exportPicker =
+					registerForActivityResult(new ActivityResultContracts.CreateDocument("text/csv"), uri -> {
+						if (uri == null) return;
+						boolean saved = false;
+						try (OutputStream stream = getContentResolver().openOutputStream(uri)) {
+							if (stream != null) {
+								stream.write(LocalSubscriptions.get().exportCsv().getBytes(StandardCharsets.UTF_8));
+								saved = true;
+							}
+						} catch (IOException | RuntimeException e) {
+							Log.w("MainActivity", "channel export failed", e);
+						}
+						ToastUtils.show(this, saved ? R.string.subs_export_done : R.string.subs_export_failed);
+					});
+
+	/**
+	 * Reads a list of channels (Takeout csv, NewPipe export, OPML or plain links) and follows them.
+	 */
+	private final ActivityResultLauncher<String[]> importPicker =
+					registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
+						if (uri == null) return;
+						new Thread(() -> {
+							int added = -1;
+							try (InputStream stream = getContentResolver().openInputStream(uri)) {
+								if (stream != null) {
+									ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+									byte[] chunk = new byte[8192];
+									int read;
+									while ((read = stream.read(chunk)) != -1 && buffer.size() < MAX_IMPORT_BYTES) {
+										buffer.write(chunk, 0, read);
+									}
+									String text = new String(buffer.toByteArray(), StandardCharsets.UTF_8);
+									added = LocalSubscriptions.get().addAll(LocalSubscriptions.parseImport(text));
+								}
+							} catch (IOException | RuntimeException e) {
+								Log.w("MainActivity", "channel import failed", e);
+							}
+							int count = added;
+							runOnUiThread(() -> {
+								if (count < 0) {
+									ToastUtils.show(this, R.string.subs_import_failed);
+									return;
+								}
+								ToastUtils.show(this, getString(R.string.subs_import_done, count));
+								if (nativeBrowser != null) nativeBrowser.reloadLocalSubscriptions();
+							});
+						}, "channel-import").start();
+					});
 
 	private void setSubscriptionsAccount(boolean enabled) {
 		MMKV.defaultMMKV().encode(KEY_SUBS_ACCOUNT, enabled);
@@ -513,7 +687,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	private void showQueueBottomSheet() {
 		if (DeviceUtils.isInPictureInPictureMode(this)) return;
 		BottomSheetDialog dialog = new BottomSheetDialog(this);
-		View sheetView = getLayoutInflater().inflate(R.layout.bottom_sheet_queue, new android.widget.FrameLayout(this), false);
+		View sheetView = getLayoutInflater().inflate(R.layout.bottom_sheet_queue, new FrameLayout(this), false);
 		dialog.setContentView(sheetView);
 
 		ImageButton closeButton = sheetView.findViewById(R.id.btn_queue_close);
@@ -577,7 +751,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 				ToastUtils.show(this, R.string.queue_download_unavailable);
 				return;
 			}
-			List<PlaylistDownloadItem> dialogItems = new java.util.ArrayList<>();
+			List<PlaylistDownloadItem> dialogItems = new ArrayList<>();
 			for (int i = 0; i < items.size(); i++) {
 				QueueItem queueItem = items.get(i);
 				String videoId = queueItem.getVideoId() != null
@@ -623,9 +797,9 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 						.setNegativeButton(R.string.cancel, null)
 						.show());
 		dialog.setOnShowListener(ignored -> {
-			final android.widget.FrameLayout bottomSheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+			final FrameLayout bottomSheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
 			if (bottomSheet == null) return;
-			BottomSheetBehavior<android.widget.FrameLayout> behavior = BottomSheetBehavior.from(bottomSheet);
+			BottomSheetBehavior<FrameLayout> behavior = BottomSheetBehavior.from(bottomSheet);
 			sheet.behavior = behavior;
 			int sheetBasePaddingBottom = sheetView.getPaddingBottom();
 			int recyclerBasePaddingBottom = recyclerView.getPaddingBottom();
@@ -741,6 +915,31 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 						.setNegativeButton(R.string.cancel, null)
 						.show());
 		queuePanel = new QueueSheet(enabledSwitch, clearButton, emptyView, recyclerView, adapter);
+	}
+
+	/**
+	 * Queue (left) and History (right) are two full pages; the switch in the header flips between
+	 * them and the clear button follows the page that is showing.
+	 */
+	private void setupPageSwitch(@NonNull View root) {
+		SwitchMaterial pageSwitch = root.findViewById(R.id.panel_page_switch);
+		TextView queueTitle = root.findViewById(R.id.panel_queue_title);
+		TextView historyTitle = root.findViewById(R.id.panel_history_title);
+		View queuePage = root.findViewById(R.id.panel_queue_page);
+		View historyPage = root.findViewById(R.id.panel_history_page);
+		View queueClear = root.findViewById(R.id.panel_queue_clear);
+		View historyClear = root.findViewById(R.id.history_clear);
+		pageSwitch.setOnCheckedChangeListener((button, showHistory) -> {
+			queuePage.setVisibility(showHistory ? View.GONE : View.VISIBLE);
+			historyPage.setVisibility(showHistory ? View.VISIBLE : View.GONE);
+			queueClear.setVisibility(showHistory ? View.GONE : View.VISIBLE);
+			historyClear.setVisibility(showHistory ? View.VISIBLE : View.GONE);
+			queueTitle.setAlpha(showHistory ? 0.5f : 1f);
+			historyTitle.setAlpha(showHistory ? 1f : 0.5f);
+		});
+		queueTitle.setOnClickListener(v -> pageSwitch.setChecked(false));
+		historyTitle.setOnClickListener(v -> pageSwitch.setChecked(true));
+		queueTitle.setAlpha(0.5f);
 	}
 
 	private void renderQueuePanel(@NonNull MainActivityViewModel.UiState state) {
@@ -999,7 +1198,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		@NonNull
 		private final QueueAdapter adapter;
 		@Nullable
-		private BottomSheetBehavior<android.widget.FrameLayout> behavior;
+		private BottomSheetBehavior<FrameLayout> behavior;
 		private boolean scrollPending;
 
 		private QueueSheet(@NonNull SwitchMaterial enabledSwitch,

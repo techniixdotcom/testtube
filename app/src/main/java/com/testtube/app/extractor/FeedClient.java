@@ -14,7 +14,11 @@ import org.schabi.newpipe.extractor.InfoItem;
 import org.schabi.newpipe.extractor.ListExtractor;
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.Page;
+import org.schabi.newpipe.extractor.channel.tabs.ChannelTabs;
+import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo;
+import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.ServiceList;
+import org.schabi.newpipe.extractor.channel.ChannelInfo;
 import org.schabi.newpipe.extractor.channel.ChannelInfoItem;
 import org.schabi.newpipe.extractor.comments.CommentsExtractor;
 import org.schabi.newpipe.extractor.comments.CommentsInfoItem;
@@ -33,7 +37,18 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamType;
 
+import android.text.format.DateUtils;
+import android.util.Log;
+import android.util.Xml;
+
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserException;
+
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.time.OffsetDateTime;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -44,7 +59,16 @@ import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
+import java.util.concurrent.TimeoutException;
+import android.text.Html;
 
 /**
  * Loads the Home feed, the subscriptions feed and search results directly from YouTube, signed
@@ -56,6 +80,12 @@ public final class FeedClient {
 	private static final String LOCKUP_VIDEO = "LOCKUP_CONTENT_TYPE_VIDEO";
 	private static final String LOCKUP_PLAYLIST = "LOCKUP_CONTENT_TYPE_PLAYLIST";
 	private static final String LOCKUP_MIX = "LOCKUP_CONTENT_TYPE_MIX";
+	/**
+	 * Names of ad slots, upsells ("Upgrade to YouTube Premium"), nudges and banners.
+	 */
+	private static final Pattern PROMO_KEY = Pattern.compile(
+					"^ad[A-Z]|Ad[A-Z]|(?i:promo|upsell|nudge|masthead|banner|sponsor|searchPyv)");
+
 	/**
 	 * Parts of the response that never hold feed videos, or hold content the app hides.
 	 */
@@ -137,7 +167,7 @@ public final class FeedClient {
 			Description text = item.getCommentText();
 			String content = text == null ? "" : text.content();
 			if (text != null && text.type() == Description.Type.HTML) {
-				content = android.text.Html.fromHtml(content, android.text.Html.FROM_HTML_MODE_COMPACT).toString().trim();
+				content = Html.fromHtml(content, Html.FROM_HTML_MODE_COMPACT).toString().trim();
 			}
 			if (content.isBlank()) continue;
 			out.add(new Comment(item.getUploaderName() == null ? "" : item.getUploaderName(),
@@ -195,6 +225,7 @@ public final class FeedClient {
 	public Call browse(@NonNull Feed feed, @Nullable String continuation) {
 		return run(signedIn -> {
 			FeedPage page = browsePage(feed, continuation, null);
+			if (feed == Feed.SUBSCRIPTIONS) FeedItem.sortNewestFirst(page.items());
 			if (page.items().isEmpty() && !signedIn && feed == Feed.HOME && continuation == null) {
 				// Signed out, YouTube may return an empty Home without a visitor id: retry with one.
 				String visitor = visitorData();
@@ -241,15 +272,42 @@ public final class FeedClient {
 	}
 
 	private static final String[] GUEST_QUERIES = {"trending", "popular today", "new this week", "most watched"};
+	private static final String TAG = "FeedClient";
+	private static final long FALLBACK_BUDGET_MS = 30_000L;
+	private static final int MAX_LOCAL_VIDEOS = 120;
+	private static final ExecutorService FEED_POOL = Executors.newFixedThreadPool(6, task -> {
+		Thread thread = new Thread(task, "channel-feed");
+		thread.setDaemon(true);
+		return thread;
+	});
 
 	/**
-	 * A Home for people who are not signed in: popular videos found by searching.
+	 * Words to search for when building a Home without an account: channels and titles the person
+	 * watched lately.
 	 */
 	@NonNull
-	private static FeedPage guestHome() {
+	private volatile Supplier<List<String>> interests = List::of;
+
+	public void setInterests(@NonNull Supplier<List<String>> interests) {
+		this.interests = interests;
+	}
+
+	/**
+	 * A Home for people who are not signed in: videos found by searching for what they watched
+	 * lately, then for what is popular.
+	 */
+	@NonNull
+	private FeedPage guestHome() {
 		List<FeedItem> items = new ArrayList<>();
 		Set<String> seen = new HashSet<>();
-		for (String query : GUEST_QUERIES) {
+		List<String> queries = new ArrayList<>();
+		try {
+			queries.addAll(interests.get());
+		} catch (RuntimeException ignored) {
+			// No history yet: the general searches below are enough.
+		}
+		Collections.addAll(queries, GUEST_QUERIES);
+		for (String query : queries) {
 			try {
 				SearchExtractor extractor = ServiceList.YouTube.getSearchExtractor(query);
 				extractor.fetchPage();
@@ -266,6 +324,207 @@ public final class FeedClient {
 		}
 		Collections.shuffle(items);
 		return new FeedPage(items, null, false);
+	}
+
+	private record RssVideo(@NonNull String id, @NonNull String title, @NonNull String author,
+	                        @NonNull String channelId, long views, long time) {
+	}
+
+	/**
+	 * The latest videos of the channels followed without an account, newest first.
+	 */
+	@NonNull
+	public Call localSubscriptions(@NonNull List<LocalSubscriptions.Channel> channels) {
+		return run(signedIn -> loadLocalFeed(channels));
+	}
+
+	@NonNull
+	private static FeedPage loadLocalFeed(@NonNull List<LocalSubscriptions.Channel> channels) throws IOException {
+		long start = System.currentTimeMillis();
+		List<Future<List<RssVideo>>> pending = new ArrayList<>(channels.size());
+		for (LocalSubscriptions.Channel channel : channels) {
+			pending.add(FEED_POOL.submit(() -> fetchChannelFeed(channel)));
+		}
+		List<RssVideo> all = new ArrayList<>();
+		List<LocalSubscriptions.Channel> failed = new ArrayList<>();
+		for (int i = 0; i < pending.size(); i++) {
+			try {
+				List<RssVideo> videos = pending.get(i).get(40, TimeUnit.SECONDS);
+				if (videos.isEmpty()) failed.add(channels.get(i));
+				else all.addAll(videos);
+			} catch (InterruptedException | ExecutionException | TimeoutException e) {
+				Log.w(TAG, "channel feed failed id=" + channels.get(i).id(), e);
+				failed.add(channels.get(i));
+			}
+		}
+		// A channel whose feed did not answer, or came back empty, is read through the extractor.
+		for (LocalSubscriptions.Channel channel : failed) {
+			if (System.currentTimeMillis() - start > FALLBACK_BUDGET_MS) break;
+			try {
+				all.addAll(videosFromExtractor(channel));
+			} catch (IOException | ExtractionException e) {
+				Log.w(TAG, "extractor fallback failed id=" + channel.id(), e);
+			}
+		}
+		// Channels are followed but nothing could be read: report it, an empty list would only mislead.
+		if (all.isEmpty() && !channels.isEmpty()) throw new IOException("no followed channel could be loaded");
+		all.sort((a, b) -> Long.compare(b.time(), a.time()));
+		long now = System.currentTimeMillis();
+		List<FeedItem> items = new ArrayList<>();
+		for (RssVideo video : all) {
+			if (items.size() >= MAX_LOCAL_VIDEOS) break;
+			items.add(new FeedItem(FeedItem.Kind.VIDEO, watchUrl(video.id()), video.id(), video.title(),
+							video.author(), mobile("https://www.youtube.com/channel/" + video.channelId()),
+							FeedItem.thumbnailFor(video.id()), -1, video.views(),
+							DateUtils.getRelativeTimeSpanString(video.time(), now, DateUtils.MINUTE_IN_MILLIS,
+											DateUtils.FORMAT_ABBREV_RELATIVE).toString(), false));
+		}
+		return new FeedPage(items, null, true);
+	}
+
+	@NonNull
+	private static List<RssVideo> videosFromExtractor(@NonNull LocalSubscriptions.Channel channel)
+					throws IOException, ExtractionException {
+		ChannelInfo info = ChannelInfo.getInfo(ServiceList.YouTube, "https://www.youtube.com/channel/" + channel.id());
+		List<RssVideo> out = new ArrayList<>();
+		for (ListLinkHandler tab : info.getTabs()) {
+			if (!tab.getContentFilters().contains(ChannelTabs.VIDEOS)) continue;
+			long now = System.currentTimeMillis();
+			int index = 0;
+			for (InfoItem item : ChannelTabInfo.getInfo(ServiceList.YouTube, tab).getRelatedItems()) {
+				if (!(item instanceof StreamInfoItem stream) || stream.isShortFormContent()) continue;
+				String id = YoutubeExtractor.getVideoId(stream.getUrl());
+				if (id == null) continue;
+				// Without an exact date, keep the channel's own order, newest first.
+				long time = stream.getUploadDate() != null
+								? stream.getUploadDate().offsetDateTime().toInstant().toEpochMilli()
+								: now - (index++) * DateUtils.HOUR_IN_MILLIS;
+				out.add(new RssVideo(id, stream.getName(), info.getName(), channel.id(), stream.getViewCount(), time));
+				if (out.size() >= 10) break;
+			}
+			break;
+		}
+		LocalSubscriptions.get().rename(channel.id(), info.getName());
+		return out;
+	}
+
+	@NonNull
+	private static List<RssVideo> fetchChannelFeed(@NonNull LocalSubscriptions.Channel channel)
+					throws IOException, XmlPullParserException {
+		URL url = new URL("https://www.youtube.com/feeds/videos.xml?channel_id=" + channel.id());
+		HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+		connection.setConnectTimeout(8_000);
+		connection.setReadTimeout(12_000);
+		connection.setRequestProperty("User-Agent", Constant.USER_AGENT);
+		try (InputStream stream = connection.getInputStream()) {
+			return parseChannelFeed(stream, channel);
+		} finally {
+			connection.disconnect();
+		}
+	}
+
+	@NonNull
+	private static List<RssVideo> parseChannelFeed(@NonNull InputStream stream,
+	                                               @NonNull LocalSubscriptions.Channel channel)
+					throws IOException, XmlPullParserException {
+		XmlPullParser parser = Xml.newPullParser();
+		parser.setInput(stream, null);
+		List<RssVideo> out = new ArrayList<>();
+		String feedAuthor = channel.name();
+		boolean inEntry = false;
+		boolean inAuthor = false;
+		String id = null, title = null, author = null, published = null;
+		long views = -1;
+		for (int event = parser.getEventType(); event != XmlPullParser.END_DOCUMENT; event = parser.next()) {
+			if (event == XmlPullParser.START_TAG) {
+				String name = parser.getName();
+				if ("entry".equals(name)) {
+					inEntry = true;
+					id = title = author = published = null;
+					views = -1;
+				} else if ("author".equals(name)) {
+					inAuthor = true;
+				} else if ("name".equals(name) && inAuthor) {
+					String text = parser.nextText();
+					if (inEntry) author = text;
+					else feedAuthor = text;
+				} else if (inEntry) {
+					switch (name) {
+						case "yt:videoId" -> id = parser.nextText();
+						case "title" -> title = parser.nextText();
+						case "published" -> published = parser.nextText();
+						case "media:statistics" -> {
+							String count = parser.getAttributeValue(null, "views");
+							if (count != null) {
+								try {
+									views = Long.parseLong(count);
+								} catch (NumberFormatException ignored) {
+									views = -1;
+								}
+							}
+						}
+						default -> {
+						}
+					}
+				}
+			} else if (event == XmlPullParser.END_TAG) {
+				String name = parser.getName();
+				if ("author".equals(name)) {
+					inAuthor = false;
+				} else if ("entry".equals(name)) {
+					inEntry = false;
+					if (id != null && title != null && published != null) {
+						try {
+							long time = OffsetDateTime.parse(published).toInstant().toEpochMilli();
+							out.add(new RssVideo(id, title, author != null ? author : feedAuthor, channel.id(),
+											views, time));
+						} catch (RuntimeException ignored) {
+							// An entry with an unreadable date is skipped.
+						}
+					}
+				}
+			}
+		}
+		LocalSubscriptions.get().rename(channel.id(), feedAuthor);
+		return out;
+	}
+
+	/**
+	 * Finds the channel behind a link, a handle (@name) or a channel id.
+	 */
+	@NonNull
+	public CompletableFuture<LocalSubscriptions.Channel> resolveChannel(@NonNull String input) {
+		CompletableFuture<LocalSubscriptions.Channel> result = new CompletableFuture<>();
+		String id = LocalSubscriptions.channelIdOf(input);
+		if (id != null) {
+			result.complete(new LocalSubscriptions.Channel(id, ""));
+			return result;
+		}
+		try {
+			executor.execute(() -> {
+				try {
+					AuthContext context = auth.current(true);
+					ExtractionSession session = new ExtractionSession(context);
+					result.complete(downloader.withExtractionSession(() -> lookupChannel(input), session));
+				} catch (Throwable error) {
+					result.completeExceptionally(error);
+				}
+			});
+		} catch (RuntimeException rejected) {
+			result.completeExceptionally(new CompletionException(rejected));
+		}
+		return result;
+	}
+
+	@NonNull
+	private static LocalSubscriptions.Channel lookupChannel(@NonNull String input)
+					throws IOException, ExtractionException {
+		String url = input.trim();
+		if (url.startsWith("@")) url = "https://www.youtube.com/" + url;
+		else if (!url.contains("/") && !url.contains(".")) url = "https://www.youtube.com/@" + url;
+		else if (!url.startsWith("http")) url = "https://" + url;
+		ChannelInfo info = ChannelInfo.getInfo(ServiceList.YouTube, url);
+		return new LocalSubscriptions.Channel(info.getId(), info.getName() == null ? "" : info.getName());
 	}
 
 	/**
@@ -347,7 +606,7 @@ public final class FeedClient {
 			if (videoId == null) return null;
 			StreamType type = stream.getStreamType();
 			return new FeedItem(FeedItem.Kind.VIDEO, watchUrl(videoId), videoId, stream.getName(),
-							stream.getUploaderName(), mobile(stream.getUploaderUrl()), videoThumbnail(videoId),
+							stream.getUploaderName(), mobile(stream.getUploaderUrl()), FeedItem.thumbnailFor(videoId),
 							stream.getDuration(), stream.getViewCount(), stream.getTextualUploadDate(),
 							isLive(type));
 		}
@@ -371,12 +630,6 @@ public final class FeedClient {
 	@NonNull
 	private static String watchUrl(@NonNull String videoId) {
 		return Constant.HOME_URL + "/watch?v=" + videoId;
-	}
-
-	@NonNull
-	private static String videoThumbnail(@NonNull String videoId) {
-		// 480x360 exists for every video and is cropped to 16:9 by the list.
-		return "https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg";
 	}
 
 	/**
@@ -425,7 +678,8 @@ public final class FeedClient {
 			for (Map.Entry<String, Object> entry : object.entrySet()) {
 				String key = entry.getKey();
 				Object value = entry.getValue();
-				if (SKIPPED.contains(key) || !(value instanceof JsonObject || value instanceof JsonArray)) {
+				if (SKIPPED.contains(key) || isPromoKey(key)
+								|| !(value instanceof JsonObject || value instanceof JsonArray)) {
 					continue;
 				}
 				switch (key) {
@@ -436,6 +690,14 @@ public final class FeedClient {
 					default -> walk(value, depth + 1);
 				}
 			}
+		}
+
+		/**
+		 * Ad slots, upsells ("Upgrade to YouTube Premium"), nudges and banners are named in many
+		 * ways; anything that looks like one is left out together with everything inside it.
+		 */
+		private static boolean isPromoKey(@NonNull String key) {
+			return PROMO_KEY.matcher(key).find();
 		}
 
 		private void addLockup(@NonNull JsonObject lockup) {
@@ -453,10 +715,18 @@ public final class FeedClient {
 				String videoId = YoutubeExtractor.getVideoId(extractor.getUrl());
 				if (videoId == null || !seen.add(videoId)) return;
 				StreamType type = safeType(extractor);
+				long duration = safeDuration(extractor);
+				String published = safePublished(extractor);
+				// A real video has a length, or is live or announced; a bare title with none of
+				// that is a promotion dressed up as a video.
+				if (duration <= 0 && !isLive(type) && safeViews(extractor) < 0
+								&& (published == null || published.isBlank())) {
+					return;
+				}
 				items.add(new FeedItem(FeedItem.Kind.VIDEO, watchUrl(videoId), videoId,
 								extractor.getName(), safeUploader(extractor), mobile(safeUploaderUrl(extractor)),
-								videoThumbnail(videoId), safeDuration(extractor), safeViews(extractor),
-								safePublished(extractor), isLive(type)));
+								FeedItem.thumbnailFor(videoId), duration, safeViews(extractor),
+								published, isLive(type)));
 			} catch (Exception ignored) {
 				// One malformed entry must not drop the whole page.
 			}

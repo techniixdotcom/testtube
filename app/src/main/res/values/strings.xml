@@ -188,7 +188,6 @@
     <string name="watch_dislikes">%1$s dislikes</string>
     <string name="page_play_all">Play all</string>
     <string name="subs_use_account">Use my YouTube account</string>
-    <string name="subs_off">Subscriptions are off. Turn the switch on and sign in to see your subscriptions.</string>
     <string name="watch_tab_description">Description</string>
     <string name="watch_tab_chat">Chat</string>
     <string name="watch_chat_hint">Live chat is active during live streams and premieres.</string>
@@ -196,5 +195,44 @@
     <string name="watch_tab_comments">Comments</string>
     <string name="watch_comments_empty">No comments</string>
     <string name="watch_comments_disabled">Comments are turned off for this video</string>
+    <string name="watch_comment_likes">%d likes</string>
+    <string name="watch_comment_pinned">Pinned</string>
+    <string name="subs_local_empty">No channels yet. Tap Manage to add or import channels, or follow them from a video.</string>
+    <string name="subs_manage">Manage</string>
+    <string name="subs_manage_title">Followed channels (%d)</string>
+    <string name="subs_manage_empty">You are not following any channel yet. Add one by link or handle, or import a list (Google Takeout, NewPipe or OPML).</string>
+    <string name="subs_add_url">Add channel</string>
+    <string name="subs_add_hint">Channel link or @handle</string>
+    <string name="subs_looking_up">Looking up channel…</string>
+    <string name="subs_add_failed">Could not find that channel</string>
+    <string name="subs_followed">Channel followed</string>
+    <string name="subs_import">Import</string>
+    <string name="subs_import_done">%d channels imported</string>
+    <string name="subs_import_failed">Could not read that file</string>
+    <string name="subs_unfollow">Unfollow</string>
+    <string name="subs_unfollow_confirm">Unfollow %s?</string>
+    <string name="watch_follow">Follow</string>
+    <string name="watch_following">Following</string>
+    <string name="up_next_title">Up next: %s</string>
+    <string name="up_next_cancel">Cancel</string>
+    <string name="swipe_added">Added</string>
+    <string name="swipe_follow">Follow</string>
+    <string name="swipe_this_channel">this channel</string>
+    <string name="swipe_follow_title">Follow %s?</string>
+    <string name="swipe_last_reminder">Last reminder</string>
+    <string name="swipe_already_following">Already following</string>
+    <plurals name="swipe_more_reminders">
+        <item quantity="one">%d more reminder</item>
+        <item quantity="other">%d more reminders</item>
+    </plurals>
+    <string name="subs_use_local">Use my followed channels</string>
+    <string name="subs_import_export">Import / Export</string>
+    <string name="subs_export">Export channels</string>
+    <string name="subs_export_done">Channels saved</string>
+    <string name="subs_export_failed">Could not save the file</string>
+    <string name="subs_export_empty">No channels to export yet</string>
+    <string name="subs_logout">Log out</string>
+    <string name="subs_logout_confirm">Log out of your YouTube account? Your followed channels stay.</string>
+    <string name="subs_logged_out">Logged out</string>
 </resources>
 

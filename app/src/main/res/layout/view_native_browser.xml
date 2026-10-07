@@ -82,17 +82,27 @@
         android:visibility="gone">
 
         <TextView
+            android:id="@+id/browser_subs_manage"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:layout_weight="1"
-            android:text="@string/subs_use_account"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="15sp" />
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:text="@string/subs_manage"
+            android:textColor="@color/yt_red"
+            android:textSize="14sp"
+            android:textStyle="bold" />
 
-        <com.google.android.material.materialswitch.MaterialSwitch
-            android:id="@+id/browser_subs_switch"
+        <TextView
+            android:id="@+id/browser_subs_account"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+            android:layout_height="match_parent"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center_vertical|end"
+            android:text="@string/subs_use_account"
+            android:textColor="@color/yt_red"
+            android:textSize="14sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
     <androidx.swiperefreshlayout.widget.SwipeRefreshLayout

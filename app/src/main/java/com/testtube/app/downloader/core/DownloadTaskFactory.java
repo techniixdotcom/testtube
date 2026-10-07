@@ -29,7 +29,7 @@ public final class DownloadTaskFactory {
 	public String sanitizeFileName(@Nullable String rawName) {
 		String safeName = rawName == null
 						? ""
-						: rawName.replaceAll("[<>:\"/|?*]", "_").trim();
+						: cleanName(rawName);
 		return safeName.isEmpty() ? "download" : safeName;
 	}
 
@@ -53,7 +53,7 @@ public final class DownloadTaskFactory {
 		String safeTitle = sanitizeFileName(title);
 		String safeAuthor = author == null
 						? ""
-						: author.replaceAll("[<>:\"/|?*]", "_").trim();
+						: cleanName(author);
 		return safeAuthor.isBlank() ? safeTitle : sanitizeFileName(safeTitle + "-" + safeAuthor);
 	}
 
@@ -290,5 +290,16 @@ public final class DownloadTaskFactory {
 		} catch (NumberFormatException ignored) {
 			return -1;
 		}
+	}
+
+	/**
+	 * Makes a title usable as a file name: no path separators (including backslashes), no control
+	 * characters and never "." or "..".
+	 */
+	@NonNull
+	private static String cleanName(@NonNull String name) {
+		String cleaned = name.replaceAll("[<>:\"/\\\\|?*\\p{Cntrl}]", "_").trim();
+		if (cleaned.isEmpty() || cleaned.matches("\\.+")) return "_";
+		return cleaned;
 	}
 }

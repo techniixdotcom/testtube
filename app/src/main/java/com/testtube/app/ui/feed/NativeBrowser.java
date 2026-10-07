@@ -11,19 +11,22 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
-import android.widget.CompoundButton;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.testtube.app.R;
 import com.testtube.app.extractor.FeedClient;
+import com.testtube.app.extractor.FeedCache;
 import com.testtube.app.extractor.FeedItem;
+import com.testtube.app.extractor.LocalSubscriptions;
 import com.testtube.app.filter.ContentFilters;
 
 import org.schabi.newpipe.extractor.Page;
@@ -69,6 +72,36 @@ public final class NativeBrowser {
 		boolean accountEnabled();
 
 		void setAccountEnabled(boolean enabled);
+
+		/**
+		 * Signs out of the YouTube account.
+		 */
+		void logout();
+
+		/**
+		 * Adds a video to the end of the queue (swipe to the right).
+		 */
+		void enqueue(@NonNull FeedItem item);
+
+		/**
+		 * Lets the person pick a file with channels to follow.
+		 */
+		void importSubscriptions();
+
+		/**
+		 * Saves the followed channels to a file.
+		 */
+		void exportSubscriptions();
+
+		/**
+		 * Follows the channel behind a video (swipe to the left), after a reminder popup.
+		 */
+		void follow(@NonNull FeedItem item);
+
+		/**
+		 * A channel was followed or unfollowed from the watch screen.
+		 */
+		void onFollowChanged();
 	}
 
 	@NonNull
@@ -78,8 +111,9 @@ public final class NativeBrowser {
 	@NonNull
 	private final View subsBar;
 	@NonNull
-	private final CompoundButton subsSwitch;
-	private boolean bindingSwitch;
+	private final TextView subsAccount;
+	@NonNull
+	private final TextView subsManage;
 	@NonNull
 	private final FeedClient client;
 	@NonNull
@@ -119,25 +153,29 @@ public final class NativeBrowser {
 		this.filters = filters;
 		this.host = host;
 		subsBar = root.findViewById(R.id.browser_subs_bar);
-		subsSwitch = root.findViewById(R.id.browser_subs_switch);
-		subsSwitch.setOnCheckedChangeListener((button, checked) -> {
-			if (bindingSwitch) return;
-			host.setAccountEnabled(checked);
-			State subs = state(Mode.SUBSCRIPTIONS);
-			if (!checked) {
-				if (subs.call != null) subs.call.cancel();
-				subs.call = null;
-				subs.items.clear();
-				subs.seen.clear();
-				subs.next = null;
-				subs.loaded = false;
-				subs.error = false;
-				render(subs);
-			} else if (!client.isSignedIn()) {
-				host.signIn();
-			} else {
-				load(Mode.SUBSCRIPTIONS, true);
+		subsAccount = root.findViewById(R.id.browser_subs_account);
+		subsManage = root.findViewById(R.id.browser_subs_manage);
+		subsManage.setOnClickListener(v -> {
+			if (host.accountEnabled()) {
+				new MaterialAlertDialogBuilder(root.getContext())
+								.setMessage(R.string.subs_logout_confirm)
+								.setPositiveButton(R.string.subs_logout, (dialog, which) -> host.logout())
+								.setNegativeButton(R.string.cancel, null)
+								.show();
+				return;
 			}
+			SubscriptionsDialog.show(root.getContext(), client, this::reloadLocalSubscriptions,
+							host::importSubscriptions, host::exportSubscriptions);
+		});
+		// One button: the channels followed here, or the YouTube account's own subscriptions.
+		subsAccount.setOnClickListener(v -> {
+			boolean useAccount = !host.accountEnabled();
+			host.setAccountEnabled(useAccount);
+			State subs = state(Mode.SUBSCRIPTIONS);
+			reset(subs);
+			render(subs);
+			if (useAccount && !client.isSignedIn()) host.signIn();
+			else load(Mode.SUBSCRIPTIONS, true);
 		});
 		for (Mode value : Mode.values()) states.put(value, new State());
 		title = root.findViewById(R.id.browser_title);
@@ -177,10 +215,28 @@ public final class NativeBrowser {
 				if (last >= adapter.getItemCount() - LOAD_MORE_THRESHOLD) loadMore();
 			}
 		});
+		new ItemTouchHelper(new QueueSwipe(root.getContext(), new QueueSwipe.Target() {
+			@Nullable
+			@Override
+			public FeedItem itemFor(@NonNull RecyclerView.ViewHolder holder) {
+				return adapter.itemAt(holder);
+			}
+
+			@Override
+			public void enqueue(@NonNull FeedItem item) {
+				host.enqueue(item);
+			}
+
+			@Override
+			public void follow(@NonNull FeedItem item) {
+				host.follow(item);
+			}
+		})).attachToRecyclerView(list);
 		message.setOnClickListener(v -> {
 			State state = state(mode);
 			if (mode == Mode.SUBSCRIPTIONS && !host.accountEnabled()) {
-				subsSwitch.setChecked(true);
+				if (LocalSubscriptions.get().all().isEmpty()) subsManage.performClick();
+				else load(mode, true);
 			} else if (mode == Mode.SUBSCRIPTIONS && (!client.isSignedIn() || (state.loaded && !state.signedIn))) {
 				host.signIn();
 			} else if (state.error) {
@@ -221,6 +277,12 @@ public final class NativeBrowser {
 		mode = next;
 		applySearchUi(next == Mode.SEARCH);
 		State state = state(next);
+		if (next == Mode.HOME && !state.loaded && state.items.isEmpty()) {
+			// Last time's Home appears at once while the new one loads.
+			for (FeedItem cached : FeedCache.load(homeCacheKey())) {
+				if (state.seen.add(cached.url())) state.items.add(cached);
+			}
+		}
 		render(state);
 		if (changed && state.scroll != null) layoutManager.onRestoreInstanceState(state.scroll);
 		if (next == Mode.SEARCH) {
@@ -231,7 +293,35 @@ public final class NativeBrowser {
 	}
 
 	private boolean subsOff(@NonNull Mode value) {
-		return value == Mode.SUBSCRIPTIONS && (!host.accountEnabled() || !client.isSignedIn());
+		return value == Mode.SUBSCRIPTIONS && host.accountEnabled() && !client.isSignedIn();
+	}
+
+	@NonNull
+	private String homeCacheKey() {
+		return client.isSignedIn() ? "home_account" : "home_guest";
+	}
+
+	private static void reset(@NonNull State state) {
+		if (state.call != null) state.call.cancel();
+		state.call = null;
+		state.items.clear();
+		state.seen.clear();
+		state.next = null;
+		state.scroll = null;
+		state.loaded = false;
+		state.error = false;
+	}
+
+	/**
+	 * The followed channels changed (followed, unfollowed or imported): load the feed again.
+	 */
+	public void reloadLocalSubscriptions() {
+		State subs = state(Mode.SUBSCRIPTIONS);
+		reset(subs);
+		if (mode == Mode.SUBSCRIPTIONS && !host.accountEnabled()) {
+			render(subs);
+			load(Mode.SUBSCRIPTIONS, true);
+		}
 	}
 
 	/**
@@ -309,6 +399,15 @@ public final class NativeBrowser {
 		return state;
 	}
 
+	/**
+	 * Runs a search that came from a link (a YouTube results page) on the native search screen.
+	 */
+	public void searchFor(@NonNull String query) {
+		show(Mode.SEARCH);
+		searchField.setText(query);
+		submitSearch();
+	}
+
 	private void submitSearch() {
 		String query = searchField.getText().toString().trim();
 		if (query.isEmpty()) return;
@@ -354,6 +453,8 @@ public final class NativeBrowser {
 				return;
 			}
 			call = client.search(state.query, next instanceof Page page ? page : null);
+		} else if (target == Mode.SUBSCRIPTIONS && !host.accountEnabled()) {
+			call = client.localSubscriptions(LocalSubscriptions.get().all());
 		} else {
 			FeedClient.Feed feed = target == Mode.HOME ? FeedClient.Feed.HOME : FeedClient.Feed.SUBSCRIPTIONS;
 			call = client.browse(feed, next instanceof String token ? token : null);
@@ -385,6 +486,9 @@ public final class NativeBrowser {
 				state.next = page.next();
 				state.signedIn = page.signedIn();
 				state.loaded = true;
+				if (target == Mode.HOME && firstPage && !state.items.isEmpty()) {
+					FeedCache.save(homeCacheKey(), state.items);
+				}
 			}
 			if (target == mode) {
 				render(state);
@@ -400,13 +504,6 @@ public final class NativeBrowser {
 
 	private void render(@NonNull State state) {
 		updateSubsBar();
-		if (mode == Mode.SUBSCRIPTIONS && !host.accountEnabled()) {
-			adapter.submit(new ArrayList<>());
-			refresh.setRefreshing(false);
-			message.setText(R.string.subs_off);
-			message.setVisibility(View.VISIBLE);
-			return;
-		}
 		List<FeedItem> visible = new ArrayList<>(state.items.size());
 		for (FeedItem item : state.items) {
 			if (item.author() != null && filters.isChannelBlocked(item.author(), item.authorUrl())) continue;
@@ -422,6 +519,10 @@ public final class NativeBrowser {
 		if (state.call != null) {
 			message.setVisibility(View.GONE);
 			return;
+		} else if (mode == Mode.SUBSCRIPTIONS && !host.accountEnabled()) {
+			// Followed channels never ask for a login.
+			text = LocalSubscriptions.get().all().isEmpty() ? R.string.subs_local_empty
+							: state.error ? R.string.feed_error : R.string.feed_empty;
 		} else if (state.error) {
 			text = R.string.feed_error;
 		} else if (mode == Mode.SUBSCRIPTIONS && (!client.isSignedIn() || (state.loaded && !state.signedIn))) {
@@ -445,9 +546,8 @@ public final class NativeBrowser {
 	private void updateSubsBar() {
 		boolean show = mode == Mode.SUBSCRIPTIONS;
 		subsBar.setVisibility(show ? View.VISIBLE : View.GONE);
-		bindingSwitch = true;
-		subsSwitch.setChecked(host.accountEnabled());
-		bindingSwitch = false;
+		subsAccount.setText(host.accountEnabled() ? R.string.subs_use_local : R.string.subs_use_account);
+		subsManage.setText(host.accountEnabled() ? R.string.subs_logout : R.string.subs_manage);
 	}
 
 	private void applySearchUi(boolean searching) {

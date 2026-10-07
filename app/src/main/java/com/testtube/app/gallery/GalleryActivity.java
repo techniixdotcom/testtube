@@ -114,7 +114,9 @@ public class GalleryActivity extends AppCompatActivity {
 				String authority = getPackageName() + ".provider";
 				String chooserTitle = getString(R.string.share_thumbnail);
 				String errorMessage = getString(R.string.failed_to_download_thumbnail);
-				File file = new File(getCacheDir(), filename + ".jpg");
+				File galleryDir = new File(getCacheDir(), "gallery");
+				galleryDir.mkdirs();
+				File file = new File(galleryDir, filename + ".jpg");
 				List<File> cachedFiles = files;
 				WeakReference<GalleryActivity> activityRef = new WeakReference<>(this);
 				// Cache the thumbnail, then share the local file.

@@ -65,6 +65,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Dialog that batches playlist items into download tasks.
@@ -747,7 +748,7 @@ public final class PlaylistDownloadDialog {
 					}
 				}
 				processedIndexes.add(playlistIndex);
-			} catch (final java.util.concurrent.ExecutionException e) {
+			} catch (final ExecutionException e) {
 				Throwable cause = e.getCause();
 				if (cause instanceof InterruptedIOException || cause instanceof InterruptedException) {
 					Thread.currentThread().interrupt();

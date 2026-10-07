@@ -18,6 +18,7 @@ import com.testtube.app.R;
 import com.testtube.app.util.ImageUtils;
 import com.testtube.app.util.ToastUtils;
 import com.squareup.picasso.Callback;
+import android.content.Context;
 
 
 /**
@@ -118,7 +119,7 @@ public class ImageFragment extends Fragment {
 		private float touchX;
 		private float touchY;
 
-		GestureContainer(@NonNull android.content.Context context) {
+		GestureContainer(@NonNull Context context) {
 			super(context);
 			detector = new GestureDetector(context, new GestureDetector.SimpleOnGestureListener() {
 				@Override

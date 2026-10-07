@@ -41,6 +41,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
+import android.content.ActivityNotFoundException;
 
 /**
  * Component that handles app logic.
@@ -509,8 +512,8 @@ public final class JavascriptInterface {
 	}
 
 	private static final int INLINE_MESSAGE_CHARS = 32 * 1024;
-	private static final java.util.concurrent.ExecutorService MESSAGE_PARSER =
-					java.util.concurrent.Executors.newSingleThreadExecutor(runnable -> {
+	private static final ExecutorService MESSAGE_PARSER =
+					Executors.newSingleThreadExecutor(runnable -> {
 						Thread thread = new Thread(runnable, "testtube-bridge");
 						thread.setDaemon(true);
 						return thread;
@@ -595,7 +598,7 @@ public final class JavascriptInterface {
 		if (!(context instanceof Activity)) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 		try {
 			context.startActivity(intent);
-		} catch (android.content.ActivityNotFoundException e) {
+		} catch (ActivityNotFoundException e) {
 			Log.w(TAG, "No screen for " + intent, e);
 		}
 	}

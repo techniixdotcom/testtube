@@ -115,7 +115,8 @@ public class TabManager {
 	}
 
 	static boolean isNativePage(@Nullable String pageClass) {
-		return Constant.PAGE_HOME.equals(pageClass) || Constant.PAGE_SUBSCRIPTIONS.equals(pageClass);
+		return Constant.PAGE_HOME.equals(pageClass) || Constant.PAGE_SUBSCRIPTIONS.equals(pageClass)
+						|| Constant.PAGE_LIBRARY.equals(pageClass) || "history".equals(pageClass);
 	}
 
 	@NonNull
@@ -133,10 +134,11 @@ public class TabManager {
 	public void onUrlChanged(@NonNull YoutubeFragment fragment, @NonNull String url) {
 		if (fragment != tab) return;
 		String pageClass = UrlUtils.getPageClass(url);
-		if (isNativePage(pageClass)) {
+		if (isNativePage(pageClass) || "searching".equals(pageClass)) {
 			// Posted: the request can come from inside a WebView callback of the page being closed.
 			Host current = host;
-			if (current != null) handler.post(() -> current.onNativeRequested(pageClass));
+			String request = "searching".equals(pageClass) ? "searching:" + UrlUtils.getQueryParameter(url, "search_query") : pageClass;
+			if (current != null) handler.post(() -> current.onNativeRequested(request));
 			return;
 		}
 		if (Constant.PAGE_WATCH.equals(pageClass)) {
@@ -188,9 +190,10 @@ public class TabManager {
 	 */
 	public void openTab(@NonNull String url, @Nullable String tag) {
 		String targetTag = tag != null ? tag : UrlUtils.getPageClass(url);
-		if (isNativePage(targetTag)) {
+		if (isNativePage(targetTag) || "searching".equals(targetTag)) {
 			Host current = host;
-			if (current != null) current.onNativeRequested(targetTag);
+			String request = "searching".equals(targetTag) ? "searching:" + UrlUtils.getQueryParameter(url, "search_query") : targetTag;
+			if (current != null) current.onNativeRequested(request);
 			return;
 		}
 		if (Constant.PAGE_WATCH.equals(targetTag)) {

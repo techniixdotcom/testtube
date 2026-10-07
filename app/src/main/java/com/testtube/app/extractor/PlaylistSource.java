@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.io.IOException;
 
 /**
  * Loads the videos of a playlist or mix natively, for the watch screen and playlist navigation.
@@ -100,7 +101,7 @@ public final class PlaylistSource {
 
 	@NonNull
 	private static Playlist fetch(@NonNull String listId, @Nullable String videoId)
-					throws java.io.IOException, org.schabi.newpipe.extractor.exceptions.ExtractionException {
+					throws IOException, org.schabi.newpipe.extractor.exceptions.ExtractionException {
 		String url = isMix(listId) && videoId != null
 						? "https://www.youtube.com/watch?v=" + videoId + "&list=" + listId
 						: "https://www.youtube.com/playlist?list=" + listId;
@@ -130,7 +131,7 @@ public final class PlaylistSource {
 			if (videoId == null || !seen.add(videoId)) continue;
 			items.add(new FeedItem(FeedItem.Kind.VIDEO, Constant.HOME_URL + "/watch?v=" + videoId, videoId,
 							stream.getName(), stream.getUploaderName(), FeedClient.mobile(stream.getUploaderUrl()),
-							"https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg", stream.getDuration(),
+							FeedItem.thumbnailFor(videoId), stream.getDuration(),
 							stream.getViewCount(), stream.getTextualUploadDate(), false));
 		}
 	}

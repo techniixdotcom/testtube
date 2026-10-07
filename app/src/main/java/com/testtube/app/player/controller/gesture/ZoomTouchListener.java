@@ -11,6 +11,7 @@ import androidx.media3.common.util.UnstableApi;
 import com.testtube.app.player.TestTubePlayerView;
 
 import java.util.function.Consumer;
+import androidx.media3.ui.R;
 
 
 
@@ -139,7 +140,7 @@ public class ZoomTouchListener extends ScaleGestureDetector.SimpleOnScaleGesture
 
 	private View getTargetView() {
 		// Prefer the content frame so zoom applies to the video area.
-		View contentFrame = playerView.findViewById(androidx.media3.ui.R.id.exo_content_frame);
+		View contentFrame = playerView.findViewById(R.id.exo_content_frame);
 		if (contentFrame != null) return contentFrame;
 
 		// Fallback to the surface view.

@@ -1,14 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <cache-path
-        name="cache"
-        path="." />
-    <external-cache-path
-        name="external_cache"
-        path="." />
+        name="gallery"
+        path="gallery/" />
     <external-files-path
-        name="external_files"
-        path="." />
+        name="downloads_work"
+        path="download_work/" />
     <external-path
         name="downloads"
         path="Download/" />

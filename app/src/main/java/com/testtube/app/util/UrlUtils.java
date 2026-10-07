@@ -11,6 +11,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.Arrays;
 
 /**
  * URL helpers for page classification and host checks.
@@ -184,7 +185,7 @@ public final class UrlUtils {
 			String path = uri.getPath();
 			List<String> segments = path == null || path.isEmpty()
 							? List.of()
-							: java.util.Arrays.stream(path.split("/"))
+							: Arrays.stream(path.split("/"))
 							.filter(segment -> !segment.isEmpty())
 							.toList();
 			return getPageClassFromHost(host, segments);
@@ -238,7 +239,7 @@ public final class UrlUtils {
 			}
 			String path = uri.getPath();
 			if (path == null || path.isEmpty()) return List.of();
-			return java.util.Arrays.stream(path.split("/")).filter(segment -> !segment.isEmpty()).toList();
+			return Arrays.stream(path.split("/")).filter(segment -> !segment.isEmpty()).toList();
 		} catch (IllegalArgumentException ignored) {
 			return null;
 		}

@@ -177,7 +177,7 @@ public final class PageSource {
 			boolean live = type == StreamType.LIVE_STREAM || type == StreamType.AUDIO_LIVE_STREAM;
 			out.add(new FeedItem(FeedItem.Kind.VIDEO, Constant.HOME_URL + "/watch?v=" + videoId, videoId,
 							stream.getName(), stream.getUploaderName(), FeedClient.mobile(stream.getUploaderUrl()),
-							"https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg", stream.getDuration(),
+							FeedItem.thumbnailFor(videoId), stream.getDuration(),
 							stream.getViewCount(), stream.getTextualUploadDate(), live));
 		}
 		return out;

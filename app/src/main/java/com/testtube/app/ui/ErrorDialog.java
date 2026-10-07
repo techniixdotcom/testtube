@@ -20,6 +20,7 @@ import java.util.Date;
 import java.util.IdentityHashMap;
 import java.util.Locale;
 import java.util.Set;
+import java.util.Collections;
 
 /**
  * Dialog that shows structured error details.
@@ -67,7 +68,7 @@ public final class ErrorDialog {
 		}
 
 		StringBuilder sb = new StringBuilder();
-		Set<Throwable> seen = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+		Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
 		appendThrowable(sb, throwable, null, "", seen);
 		return sb.toString();
 	}
