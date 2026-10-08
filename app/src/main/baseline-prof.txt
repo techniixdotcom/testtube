@@ -1,0 +1,4 @@
+HSPLcom/testtube/app/**->**(**)**
+Lcom/testtube/app/**;
+HSPLorg/schabi/newpipe/extractor/**->**(**)**
+Lorg/schabi/newpipe/extractor/**;

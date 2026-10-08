@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Everything TestTube talks to is https: refuse plain-text traffic on every Android version. -->
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>
