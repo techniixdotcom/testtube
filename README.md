@@ -45,9 +45,9 @@ Subscriptions either come from the channels you follow in the app (public channe
 ## Screenshots
 
 <p align="center">
-<img src="screens/1.png" alt="" width="200">
-<img src="screens/2.png" alt="" width="200">
-<img src="screens/3.png" alt="" width="200">
+<img src="screens/1.jpeg" alt="" width="200">
+<img src="screens/2.jpeg" alt="" width="200">
+<img src="screens/3.jpeg" alt="" width="200">
 </p>
 
 ## Contributing
