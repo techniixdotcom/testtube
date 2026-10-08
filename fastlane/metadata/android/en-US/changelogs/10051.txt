@@ -1,2 +1,0 @@
-- Removed unused code left over from the web-based screens
-- Completed missing translations
