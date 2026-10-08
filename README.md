@@ -11,10 +11,9 @@ Requires Android 8.0 (API 26) or later.
 ## Features
 * [x] **No login needed** 
 * [x] **Subscriptions without an account**
-* [x] **Your YouTube subscriptions** 
+* [x] **Your YouTube subscriptions** optional
 * [x] **Home for discovering**
 * [x] **No ads**
-* [x] **Suggestions under the player**
 * [x] **Smarter autoplay**
 * [x] **Swipe right to queue a video**
 * [x] **Description and Comments tabs**
