@@ -18,7 +18,7 @@ Requires Android 8.0 (API 26) or later.
 * [x] **Swipe right to queue a video**
 * [x] **Description and Comments tabs**
 * [x] **SponsorBlock**
-* [x] **AI video blocker** (next version)
+* [x] **AI video blocker**
 * [x] **Mini player**
 * [x] **Local queue** 
 * [x] **Background play**
