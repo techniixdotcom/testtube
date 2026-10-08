@@ -9,61 +9,55 @@ TestTube is an ad-free YouTube client for Android. No account needed: Home, sear
 Requires Android 8.0 (API 26) or later.
 
 ## Features
-* [x] **Works without login** 
+* [x] **No login needed** 
 * [x] **Subscriptions without an account**
 * [x] **Your YouTube subscriptions** 
-* [x] **Home from your history** 
-* [x] **Ad-free playback**
-* [x] **Suggested videos under the player, with a next video that always plays**
+* [x] **Home for discovering**
+* [x] **No ads**
+* [x] **Suggestions under the player**
 * [x] **Smarter autoplay**
-* [x] **Swipe a video right to add it to the queue**
-* [x] **Description and Comments tabs (live chat for live streams)**
-* [x] **Sponsor-block**
-* [x] **Mini-player support**
-* [x] **Local queue support**
-* [x] **Background & Picture-in-Picture support**
-* [x] **Built-in video and playlist downloader**
+* [x] **Swipe right to queue a video**
+* [x] **Description and Comments tabs**
+* [x] **SponsorBlock**
+* [x] **Mini player**
+* [x] **Local queue** 
+* [x] **Background play**
+* [x] **Downloader**
 * [x] **Watched videos greyed out**
 * [x] **Local history**
-* [x] **Light on data**
+* [x] **Easy on data**
 
 ## How it works
 
-TestTube is a mix of native and web:
+Pretty much everything is native. Player, Home, Subscriptions, search, channel and playlist pages, History, queue, the stuff under the video and the downloader are all drawn by the app and get their data straight from YouTube through the NewPipe extractor. No YouTube website underneath, no injected scripts.
 
-* **Native:** the player, Home, Subscriptions, search, channel and playlist pages, History, the queue, the screen under the video (Description/Comments tabs, suggestions) and the downloader are drawn by the app itself and get their data directly from YouTube through the NewPipe extractor. This is faster, smoother and fully under our control.
-* **Web wrapper:** the remaining pages (Shorts, Gaming, the other channel tabs such as Playlists and About) are still YouTube's own mobile website, shown inside Android's WebView with TestTube's scripts and styles on top (ad blocking, greying out watched videos, and so on). This is quick to build and gives access to every YouTube page, but it depends on YouTube's page layout and is slower and heavier. The Google sign-in also uses a web page.
+There are only two web views left: Google sign-in and live chat.
 
-Subscriptions come from one of two places. By default the app shows the latest videos of the channels you follow, read from YouTube's public channel feeds, so no account is involved. "Use my YouTube account" switches to your account's own subscriptions.
-
-The mix keeps the parts you use most fast and reliable, while the web pages fill the gaps. More screens can be made native over time.
+Subscriptions either come from the channels you follow in the app (public channel feeds, no account) or, if you turn on "Use my YouTube account", from your actual YouTube subs.
 
 ## Privacy
 
-* No analytics, crash reporting or ads in the app. History, queue and followed channels stay on the phone, and backups are off.
-* YouTube and Google still see your IP address and the videos you watch, as with any YouTube client (use a VPN).
-* Sponsor-block sends the first 4 characters of a hash of the video ID to sponsor.ajay.app.
+* No analytics, no crash reporting, no ads. History, queue and followed channels stay on your phone, and backups are off.
+* YouTube/Google still see your IP and what you watch, same as with any other client so use a VPV.
+* The only other service is SponsorBlock: it gets the first 4 characters of a hash of the video ID (sponsor.ajay.app).
+* 5 seconds after start the app asks GitHub (api.github.com) if there's a new release. Nothing about you is sent. To turn it off tap the TestTube logo on Home and untick "Check automatically".
 
 ## Screenshots
 
 <p align="center">
-<img src="screens/11.png" alt="" width="200">
+<img src="screens/1.png" alt="" width="200">
 <img src="screens/2.png" alt="" width="200">
 <img src="screens/3.png" alt="" width="200">
 </p>
 
-
 ## Contributing
 
-If you encounter a bug, please check whether an issue has already been reported. If not, feel free to open a new one. Pull requests are always welcome!
+Found a bug? Check the issues first, if it's not there open one. PRs welcome.
 
 ## License
 
 GPL-3.0. NewPipe Extractor is GPL-3.0-or-later.
 
-
-Peace and Love
-
-by
+#BY
 
 techniix / cuteLiLi / QuacK
