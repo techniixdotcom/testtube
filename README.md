@@ -38,7 +38,7 @@ Subscriptions either come from the channels you follow in the app (public channe
 ## Privacy
 
 * No analytics, no crash reporting, no ads. History, queue and followed channels stay on your phone, and backups are off.
-* YouTube/Google still see your IP and what you watch, same as with any other client so use a VPV.
+* YouTube/Google still see your IP and what you watch, same as with any other client so use a VPN.
 * The only other service is SponsorBlock: it gets the first 4 characters of a hash of the video ID (sponsor.ajay.app).
 * 5 seconds after start the app asks GitHub (api.github.com) if there's a new release. Nothing about you is sent. To turn it off tap the TestTube logo on Home and untick "Check automatically".
 
