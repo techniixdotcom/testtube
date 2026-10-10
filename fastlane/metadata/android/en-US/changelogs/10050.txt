@@ -1,3 +1,0 @@
-- Faster start: the WebView engine is no longer loaded at launch
-- Page scripts are only read when a web page is opened
-- At most two web pages are kept open

@@ -1,6 +1,0 @@
-- Leaner build: removed Hilt, Lombok, commons-io and PhotoView, and unused extractor services
-- Page scripts are read once and injected in a single call per page event
-- SponsorBlock segments are skipped exactly at their start
-- Playback position is saved every 5 seconds and on pause instead of every second
-- Fixed lost player state updates, live stream seeking, and hidden tabs left over after the app was restored
-- Removed unused permissions
