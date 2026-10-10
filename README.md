@@ -1,5 +1,5 @@
 <p align="center">
-<img src="screens/banner.png" alt="" width="400">
+<img src="screens/header.png" alt="" width="400">
 </p>
 
 in a world full of excess we give you 4.5 mb of simplicity 
@@ -43,9 +43,9 @@ Subscriptions come from one of two places. By default the app shows the latest v
 ## Screenshots
 
 <p align="center">
-<img src="screens/11.png" alt="" width="200">
-<img src="screens/2.png" alt="" width="200">
-<img src="screens/3.png" alt="" width="200">
+<img src="screens/11.jpeg" alt="" width="200">
+<img src="screens/2.jped" alt="" width="200">
+<img src="screens/3.jpeg" alt="" width="200">
 </p>
 
 
