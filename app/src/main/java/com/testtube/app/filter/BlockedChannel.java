@@ -4,8 +4,9 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 /**
- * A blocked channel, matched by display name and, if known, its URL paths
- * ("/@handle" from pages, "/channel/UC..." from the extractor).
+ * A channel whose videos are hidden. A channel is identified by its display name and, when
+ * known, by its URL paths ("/@handle" as shown in pages and "/channel/UC..." from the
+ * extractor).
  */
 public record BlockedChannel(@NonNull String name, @Nullable String path, @Nullable String altPath, long blockedAt) {
 }

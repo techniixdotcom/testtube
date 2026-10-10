@@ -10,7 +10,10 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Last shown feed, so the next start has something on screen while the new one loads. */
+/**
+ * Keeps the last feed that was shown, so a list can appear straight away on the next start while
+ * the new one loads.
+ */
 public final class FeedCache {
 	private static final int MAX_ITEMS = 60;
 	private static final String PREFIX = "feed_cache_";
@@ -26,7 +29,7 @@ public final class FeedCache {
 		try {
 			MMKV.defaultMMKV().encode(PREFIX + key, GSON.toJson(kept, LIST_TYPE));
 		} catch (RuntimeException ignored) {
-			// it's only a cache
+			// The cache is only a convenience.
 		}
 	}
 

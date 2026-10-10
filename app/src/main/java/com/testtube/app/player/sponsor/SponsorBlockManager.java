@@ -26,6 +26,9 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
+/**
+ * Manager that loads SponsorBlock segments and skip rules.
+ */
 public final class SponsorBlockManager {
 	private static final String API_URL = "https://sponsor.ajay.app/api/skipSegments/";
 	@NonNull
@@ -37,7 +40,9 @@ public final class SponsorBlockManager {
 	@NonNull
 	// Written by the loader thread, read by the player thread.
 	private volatile List<long[]> segments = Collections.emptyList();
-	// bumped on every load/clear so stale requests can't publish
+	/**
+	 * Bumped on every load and clear, so a stale request can never publish its result.
+	 */
 	private final AtomicInteger loadToken = new AtomicInteger();
 	private volatile Call inFlight;
 
@@ -47,6 +52,9 @@ public final class SponsorBlockManager {
 		this.preferences = preferences;
 	}
 
+	/**
+	 * Drops the current segments and cancels any request still running.
+	 */
 	public void clear() {
 		loadToken.incrementAndGet();
 		segments = Collections.emptyList();

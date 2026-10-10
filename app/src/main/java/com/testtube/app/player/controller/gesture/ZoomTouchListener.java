@@ -7,12 +7,15 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.media3.common.util.UnstableApi;
-import androidx.media3.ui.R;
 
 import com.testtube.app.player.TestTubePlayerView;
 
 import java.util.function.Consumer;
+import androidx.media3.ui.R;
 
+/**
+ * Component that handles app logic.
+ */
 @UnstableApi
 public class ZoomTouchListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
 	private final ScaleGestureDetector detector;
@@ -20,7 +23,7 @@ public class ZoomTouchListener extends ScaleGestureDetector.SimpleOnScaleGesture
 	private Consumer<Boolean> onShowReset;
 	private float scaleFactor = 1.0f;
 	private float lastX, lastY;
-	private boolean panning;
+	private int state = 0; // 0: idle, 1: scaling, 2: panning
 
 	public ZoomTouchListener(Activity activity, TestTubePlayerView playerView) {
 		this.playerView = playerView;
@@ -31,8 +34,8 @@ public class ZoomTouchListener extends ScaleGestureDetector.SimpleOnScaleGesture
 		detector.onTouchEvent(event);
 
 		if (event.getPointerCount() < 2) {
-			if (panning) {
-				panning = false;
+			if (state != 0) {
+				state = 0;
 				checkResetVisibility();
 			}
 			return;
@@ -42,11 +45,11 @@ public class ZoomTouchListener extends ScaleGestureDetector.SimpleOnScaleGesture
 			case MotionEvent.ACTION_POINTER_DOWN:
 				lastX = centerX(event);
 				lastY = centerY(event);
-				panning = true;
+				state = 2;
 				break;
 
 			case MotionEvent.ACTION_MOVE:
-				if (panning && scaleFactor > 1.0f) {
+				if (state == 2 && scaleFactor > 1.0f) {
 					float cx = centerX(event);
 					float cy = centerY(event);
 					applyTranslation(cx - lastX, cy - lastY, false);
@@ -57,11 +60,11 @@ public class ZoomTouchListener extends ScaleGestureDetector.SimpleOnScaleGesture
 
 			case MotionEvent.ACTION_POINTER_UP:
 				if (event.getPointerCount() > 2) {
-					// recenter when one finger lifts
+					// Recenter when a finger lifts from a multi-touch gesture.
 					lastX = centerX(event);
 					lastY = centerY(event);
 				} else {
-					panning = false;
+					state = 0;
 				}
 				break;
 		}
@@ -69,6 +72,7 @@ public class ZoomTouchListener extends ScaleGestureDetector.SimpleOnScaleGesture
 
 	@Override
 	public boolean onScale(@NonNull ScaleGestureDetector detector) {
+		// Allow zoom up to 500%.
 		scaleFactor = Math.max(1.0f, Math.min(scaleFactor * detector.getScaleFactor(), 5.0f));
 		applyScale(scaleFactor);
 		checkResetVisibility();
@@ -77,7 +81,7 @@ public class ZoomTouchListener extends ScaleGestureDetector.SimpleOnScaleGesture
 
 	public void reset() {
 		scaleFactor = 1.0f;
-		panning = false;
+		state = 0;
 		applyScale(1f);
 		applyTranslation(0, 0, true);
 		checkResetVisibility();
@@ -123,7 +127,7 @@ public class ZoomTouchListener extends ScaleGestureDetector.SimpleOnScaleGesture
 			float nextX = target.getTranslationX() + dx;
 			float nextY = target.getTranslationY() + dy;
 
-			// clamp so the video stays inside the visible crop
+			// Clamp movement so the content stays within the visible crop.
 			float limitX = (target.getWidth() * scaleFactor - target.getWidth()) / 2f;
 			float limitY = (target.getHeight() * scaleFactor - target.getHeight()) / 2f;
 
@@ -133,14 +137,15 @@ public class ZoomTouchListener extends ScaleGestureDetector.SimpleOnScaleGesture
 	}
 
 	private View getTargetView() {
-		// prefer the content frame so we zoom the video area
+		// Prefer the content frame so zoom applies to the video area.
 		View contentFrame = playerView.findViewById(R.id.exo_content_frame);
 		if (contentFrame != null) return contentFrame;
 
+		// Fallback to the surface view.
 		View surface = playerView.getVideoSurfaceView();
 		if (surface != null) return surface;
 
-		// Last resort
+		// Final fallback: use the first child of the player view.
 		if (playerView.getChildCount() > 0) {
 			return playerView.getChildAt(0);
 		}
@@ -148,6 +153,7 @@ public class ZoomTouchListener extends ScaleGestureDetector.SimpleOnScaleGesture
 		return playerView;
 	}
 
+	// Controller uses this to toggle the reset button.
 	public boolean isZoomed() {
 		return scaleFactor > 1.01f;
 	}

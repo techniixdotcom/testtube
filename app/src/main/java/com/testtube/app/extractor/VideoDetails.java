@@ -2,6 +2,9 @@ package com.testtube.app.extractor;
 
 import java.util.Date;
 
+/**
+ * Video metadata extracted from YouTube.
+ */
 public class VideoDetails {
 	private String id;
 	private String title;

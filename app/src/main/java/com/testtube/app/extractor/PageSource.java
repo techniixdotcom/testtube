@@ -25,6 +25,9 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
+/**
+ * Loads channel and playlist pages natively: a header and the videos, page by page.
+ */
 public final class PageSource {
 	public enum Kind {
 		CHANNEL,
@@ -43,6 +46,9 @@ public final class PageSource {
 	                     @Nullable String playlistId) {
 	}
 
+	/**
+	 * Where the next page of a list comes from.
+	 */
 	public static final class Cursor {
 		@NonNull
 		final Kind kind;
@@ -87,6 +93,9 @@ public final class PageSource {
 		Result run() throws IOException, ExtractionException;
 	}
 
+	/**
+	 * First page of a channel or playlist.
+	 */
 	@NonNull
 	public CompletableFuture<Result> open(@NonNull Kind kind, @NonNull String url) {
 		String desktopUrl = url.replaceFirst("^https?://(m\\.|www\\.)?youtube\\.com", "https://www.youtube.com");
@@ -165,12 +174,24 @@ public final class PageSource {
 			if (videoId == null) continue;
 			StreamType type = stream.getStreamType();
 			boolean live = type == StreamType.LIVE_STREAM || type == StreamType.AUDIO_LIVE_STREAM;
+			if (isUnavailable(stream)) continue;
 			out.add(new FeedItem(FeedItem.Kind.VIDEO, Constant.HOME_URL + "/watch?v=" + videoId, videoId,
 							stream.getName(), stream.getUploaderName(), FeedClient.mobile(stream.getUploaderUrl()),
 							FeedItem.thumbnailFor(videoId), stream.getDuration(),
 							stream.getViewCount(), stream.getTextualUploadDate(), live));
 		}
 		return out;
+	}
+
+	/**
+	 * A private or deleted entry of a playlist: no length, views or date. The extractor drops
+	 * these by their title, which it only recognises in English.
+	 */
+	static boolean isUnavailable(@NonNull StreamInfoItem stream) {
+		StreamType type = stream.getStreamType();
+		boolean live = type == StreamType.LIVE_STREAM || type == StreamType.AUDIO_LIVE_STREAM;
+		return stream.getDuration() <= 0 && !live && stream.getViewCount() < 0
+						&& stream.getTextualUploadDate() == null;
 	}
 
 	@Nullable

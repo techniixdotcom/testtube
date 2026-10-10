@@ -7,12 +7,16 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-/** YouTube descriptions: HTML for videos, plain text everywhere else. */
+/**
+ * Shows a YouTube description: the extractor delivers HTML for videos and plain text elsewhere.
+ */
 final class DescriptionText {
 	private DescriptionText() {
 	}
 
-	/** @return false if there's nothing to show */
+	/**
+	 * @return false when there is nothing to show
+	 */
 	static boolean apply(@NonNull TextView view, @Nullable String text) {
 		if (text == null || text.isBlank()) {
 			view.setText(null);

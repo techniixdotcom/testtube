@@ -9,6 +9,9 @@ import android.os.Build;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 
+/**
+ * Permission helpers for storage and notifications.
+ */
 public final class PermissionUtils {
 	public static final int REQUEST_POST_NOTIFICATIONS = 100;
 	public static final int REQUEST_STORAGE_PERMISSION = 2001;

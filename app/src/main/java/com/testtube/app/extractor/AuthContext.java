@@ -3,6 +3,9 @@ package com.testtube.app.extractor;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+/**
+ * Authentication snapshot used by the extractor.
+ */
 public record AuthContext(
 				@NonNull String source,
 				@Nullable String cookies,

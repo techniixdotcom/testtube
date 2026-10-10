@@ -7,7 +7,6 @@ import android.content.ContextWrapper;
 import android.content.pm.ActivityInfo;
 import android.graphics.Outline;
 import android.graphics.Rect;
-import android.os.Build;
 import android.util.AttributeSet;
 import android.util.Rational;
 import android.view.View;
@@ -39,7 +38,11 @@ import com.testtube.app.util.ViewUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import android.os.Build;
 
+/**
+ * Custom player view with fullscreen and PiP support.
+ */
 @UnstableApi
 public class TestTubePlayerView extends PlayerView {
 	private static final float SUBTITLE_LINE_FRACTION = 0.92f;
@@ -326,7 +329,10 @@ public class TestTubePlayerView extends PlayerView {
 		super.onDetachedFromWindow();
 	}
 
-	// 16:9 of the screen width, max 60% of the height (outside fullscreen/PiP)
+	/**
+	 * Sizes the player to 16:9 of the screen width, at most 60% of the screen height, outside
+	 * fullscreen and picture-in-picture.
+	 */
 	public void fitToWidth() {
 		if (activity.isInPictureInPictureMode() || isFs) return;
 		View parent = getParent() instanceof View view ? view : null;

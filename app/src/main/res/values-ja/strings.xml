@@ -175,4 +175,22 @@
     <string name="page_play_all">すべて再生</string>
     <string name="login_subtitle">Google アカウントでログイン</string>
     <string name="watch_history_remove">履歴から削除</string>
+    <string-array name="discover_queries">
+        <item>急上昇</item>
+        <item>今日の人気</item>
+        <item>今週の新着</item>
+        <item>人気の動画</item>
+        <item>ドキュメンタリー</item>
+        <item>音楽</item>
+        <item>ゲーム実況</item>
+        <item>科学</item>
+        <item>仕組み</item>
+        <item>旅行</item>
+        <item>料理</item>
+        <item>お笑い</item>
+        <item>ガジェット レビュー</item>
+        <item>歴史</item>
+        <item>スポーツ ハイライト</item>
+        <item>ポッドキャスト</item>
+    </string-array>
 </resources>

@@ -11,17 +11,13 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -41,27 +37,29 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.switchmaterial.SwitchMaterial;
-import com.tencent.mmkv.MMKV;
 import com.testtube.app.AppGraph;
 import com.testtube.app.Constant;
 import com.testtube.app.PlaybackService;
 import com.testtube.app.R;
+import com.testtube.app.nav.MediaItemMenuPayload;
+import com.testtube.app.nav.TabManager;
 import com.testtube.app.downloader.ui.DownloadActivity;
 import com.testtube.app.downloader.ui.DownloadDialog;
 import com.testtube.app.downloader.ui.DownloadPermissionHost;
 import com.testtube.app.downloader.ui.PlaylistDownloadDialog;
 import com.testtube.app.downloader.ui.PlaylistDownloadItem;
-import com.testtube.app.extractor.FeedItem;
+import com.tencent.mmkv.MMKV;
+import android.util.Log;
 import com.testtube.app.extractor.LocalSubscriptions;
-import com.testtube.app.extractor.PageSource;
+import com.testtube.app.extractor.FeedItem;
 import com.testtube.app.extractor.VideoDetails;
+import com.testtube.app.extractor.PageSource;
 import com.testtube.app.extractor.YoutubeExtractor;
 import com.testtube.app.filter.ContentFilters;
 import com.testtube.app.history.LocalHistoryController;
 import com.testtube.app.history.WatchHistory;
-import com.testtube.app.nav.MediaItemMenuPayload;
-import com.testtube.app.nav.TabManager;
 import com.testtube.app.player.TestTubePlayer;
+import com.testtube.app.update.UpdateManager;
 import com.testtube.app.player.common.PlayerLoopMode;
 import com.testtube.app.player.queue.QueueItem;
 import com.testtube.app.player.queue.QueueRepository;
@@ -70,23 +68,28 @@ import com.testtube.app.ui.feed.PageScreen;
 import com.testtube.app.ui.feed.WatchPanel;
 import com.testtube.app.ui.queue.QueueAdapter;
 import com.testtube.app.ui.queue.QueueTouch;
-import com.testtube.app.update.UpdateManager;
 import com.testtube.app.util.DeviceUtils;
 import com.testtube.app.util.PermissionUtils;
 import com.testtube.app.util.ToastUtils;
 import com.testtube.app.util.UrlUtils;
 import com.testtube.app.util.ViewUtils;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.ArrayList;
+import java.nio.charset.StandardCharsets;
+import java.io.OutputStream;
+import java.io.InputStream;
+import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.activity.result.ActivityResultLauncher;
+import android.widget.FrameLayout;
 
+/**
+ * Primary screen that wires playback, queue, and download entry points.
+ */
 @UnstableApi
 public final class MainActivity extends AppCompatActivity implements DownloadPermissionHost {
 	private static final String STATE_LAST_URL = "main.last_url";
@@ -209,8 +212,8 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		}
 
 		bottomNav = findViewById(R.id.bottom_nav);
-		// The activity already pads for the system bar. Without this the bar adds its own nav inset
-		// and the space under the icons doubles.
+		// The activity already pads for the system bar; the bar must not add its own
+		// navigation-inset padding or it doubles the empty space below the icons.
 		if (bottomNav != null) bottomNav.setOnApplyWindowInsetsListener(null);
 		historyContainer = findViewById(R.id.history_container);
 		nativeContainer = findViewById(R.id.native_container);
@@ -260,7 +263,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 
 			@Override
 			public boolean accountEnabled() {
-				// followed channels by default, the account only after asking
+				// The followed channels are the default; the account is only used after asking for it.
 				return MMKV.defaultMMKV().decodeBool(KEY_SUBS_ACCOUNT, false);
 			}
 
@@ -326,7 +329,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		player.setDetailsListener(details -> {
 			if (watchPanel != null) watchPanel.onDetails(details);
 		});
-		// long press on the playing video = same menu as in the lists
+		// Press and hold on the playing video opens the same menu as a video in a list.
 		player.setLongPressAction(() -> {
 			VideoDetails video = player.currentDetails();
 			if (video == null) return;
@@ -399,9 +402,11 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		};
 		getOnBackPressedDispatcher().addCallback(this, appBackCallback);
 
-		// Signing in is optional; the Subscriptions tab offers it. PoTokenHost isn't started here
-		// either, only once a token is actually requested.
+		// First run: sign in to a Google account before the app loads anything.
+		// The token page (PoTokenHost) is no longer opened at startup: the extractor's client does
+		// not use tokens, so it only starts if a token is ever actually requested.
 		loginController = new LoginController(this);
+		// Signing in is optional now: Home works without it, and the Subscriptions tab offers it.
 		mainView.post(this::bootstrap);
 	}
 
@@ -409,7 +414,9 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	private static final String KEY_FOLLOW_REMINDERS = "follow_swipe_reminders";
 	private static final int FOLLOW_REMINDER_COUNT = 3;
 
-	/** First three swipes ask for confirmation and say how many reminders are left. */
+	/**
+	 * The first three swipes ask for confirmation and say how many reminders are left.
+	 */
 	private void confirmFollow(@NonNull FeedItem item) {
 		MMKV store = MMKV.defaultMMKV();
 		int shown = store.decodeInt(KEY_FOLLOW_REMINDERS, 0);
@@ -459,6 +466,9 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	}
 	private static final int MAX_IMPORT_BYTES = 5_000_000;
 
+	/**
+	 * Saves the followed channels as a csv the person picks the place for.
+	 */
 	private final ActivityResultLauncher<String> exportPicker =
 					registerForActivityResult(new ActivityResultContracts.CreateDocument("text/csv"), uri -> {
 						if (uri == null) return;
@@ -474,6 +484,9 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 						ToastUtils.show(this, saved ? R.string.subs_export_done : R.string.subs_export_failed);
 					});
 
+	/**
+	 * Reads a list of channels (Takeout csv, NewPipe export, OPML or plain links) and follows them.
+	 */
 	private final ActivityResultLauncher<String[]> importPicker =
 					registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
 						if (uri == null) return;
@@ -540,6 +553,9 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		});
 	}
 
+	/**
+	 * Selects a bottom tab and shows its screen.
+	 */
 	private void goTo(int navId) {
 		if (bottomNav != null && bottomNav.getSelectedItemId() != navId) {
 			navGuard = true;
@@ -563,7 +579,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		updateContainers();
 	}
 
-	// History and the queue panel are built lazily; the app starts on Home.
+	/** History and the queue panel are only built when first opened; Home is what the app starts on. */
 	private void buildHistory() {
 		if (historyController != null || historyContainer == null) return;
 		getLayoutInflater().inflate(R.layout.view_local_history, historyContainer, true);
@@ -618,7 +634,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		if (Intent.ACTION_VIEW.equals(action) && intent.getData() != null) {
 			url = intent.getData().toString();
 		} else if (Intent.ACTION_SEND.equals(action) || isDownloadAction) {
-			// pull a YouTube URL out of the shared text
+			// Extract a shared YouTube URL from the incoming text.
 			String text = intent.getStringExtra(Intent.EXTRA_TEXT);
 			if (text != null) {
 				Pattern pat = Pattern.compile("https?://[\\w./?=&%#-]+", Pattern.CASE_INSENSITIVE);
@@ -627,7 +643,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 			}
 		}
 
-		// only accept YouTube links from other apps
+		// Only YouTube links are accepted from other apps.
 		if (url != null && url.regionMatches(true, 0, "http://", 0, 7)) {
 			url = "https://" + url.substring(7);
 		}
@@ -777,7 +793,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 							sheetView.getPaddingTop(),
 							sheetView.getPaddingRight(),
 							sheetBasePaddingBottom + Math.max(0, bottomInset));
-			// keep the last row visible
+			// Keep last row visible.
 			recyclerView.setPadding(
 							recyclerView.getPaddingLeft(),
 							recyclerView.getPaddingTop(),
@@ -833,6 +849,9 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 						player.isInMiniPlayer());
 	}
 
+	/**
+	 * Queue list shown above the local history in the Local History tab.
+	 */
 	private void setupQueuePanel(@NonNull View root) {
 		SwitchMaterial enabledSwitch = root.findViewById(R.id.panel_queue_enabled);
 		ImageButton clearButton = root.findViewById(R.id.panel_queue_clear);
@@ -876,8 +895,8 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	}
 
 	/**
-	 * Queue (left) and History (right) are full pages; the header switch flips between them and
-	 * the clear button acts on whichever one is showing.
+	 * Queue (left) and History (right) are two full pages; the switch in the header flips between
+	 * them and the clear button follows the page that is showing.
 	 */
 	private void setupPageSwitch(@NonNull View root) {
 		SwitchMaterial pageSwitch = root.findViewById(R.id.panel_page_switch);
@@ -1048,7 +1067,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		if (player != null) player.setVideoEnabled(true);
 	}
 
-	// in the background we only play audio, video isn't fetched until the app is back
+	/** In the background only the sound plays; the video is not downloaded until the app is back. */
 	@Override
 	protected void onStop() {
 		super.onStop();
@@ -1111,6 +1130,9 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 						PermissionUtils.REQUEST_STORAGE_PERMISSION);
 	}
 
+/**
+ * Helper that owns the queue bottom sheet widgets and transient state.
+ */
 	private static final class QueueSheet {
 		@NonNull
 		private final SwitchMaterial enabledSwitch;

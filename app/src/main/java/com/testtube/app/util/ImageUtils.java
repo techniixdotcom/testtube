@@ -5,10 +5,13 @@ import android.widget.ImageView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.testtube.app.R;
 import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
-import com.testtube.app.R;
 
+/**
+ * Image helpers for loading and resizing thumbnails.
+ */
 public final class ImageUtils {
 	private static final int THUMB = R.drawable.bg_thumbnail_placeholder;
 

@@ -12,6 +12,9 @@ import org.schabi.newpipe.extractor.stream.VideoStream;
 
 import java.util.List;
 
+/**
+ * Preference storage for download settings.
+ */
 public final class DownloadPrefs {
 	private static final String KEY_VID_ON = "download_single_video_enabled";
 	private static final String KEY_AUD_ON = "download_single_audio_enabled";

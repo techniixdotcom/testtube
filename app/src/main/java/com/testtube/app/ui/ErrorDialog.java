@@ -16,12 +16,15 @@ import com.testtube.app.util.DeviceUtils;
 import com.testtube.app.util.ToastUtils;
 
 import java.text.SimpleDateFormat;
-import java.util.Collections;
 import java.util.Date;
 import java.util.IdentityHashMap;
 import java.util.Locale;
 import java.util.Set;
+import java.util.Collections;
 
+/**
+ * Dialog that shows structured error details.
+ */
 public final class ErrorDialog {
 	private static final String TAG = "ErrorDialog";
 	private static final String DEBUG_INFO_LABEL = "Debug Info";
@@ -44,7 +47,7 @@ public final class ErrorDialog {
 	public static void show(Context context, String title, String stack, DialogInterface.OnDismissListener onDismissListener) {
 		String displayTitle = (title == null) ? context.getString(R.string.error_title) : title;
 
-		// no dialogs in PiP
+		// Avoid showing dialog in PIP mode
 		if (context instanceof Activity && DeviceUtils.isInPictureInPictureMode((Activity) context))
 			return;
 

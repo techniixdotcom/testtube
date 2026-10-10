@@ -17,8 +17,9 @@ import com.testtube.app.player.engine.Engine;
 import java.util.Locale;
 
 /**
- * Tap: toggle controls. Double tap: seek 10s or play/pause. Horizontal swipe: seek.
- * Swipe down: minimize. Swipe up: fullscreen.
+ * Fixed gestures: tap toggles the controls, double tap seeks ten seconds or toggles playback,
+ * horizontal swipes seek, swiping down minimizes to the bottom bar and swiping up opens
+ * fullscreen.
  */
 @UnstableApi
 public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListener {
@@ -63,6 +64,9 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 		}
 	}
 
+	/**
+	 * Runs when the video is pressed and held, to open the same menu as a long press in a list.
+	 */
 	public void setLongPressAction(@Nullable Runnable action) {
 		this.longPressAction = action;
 	}

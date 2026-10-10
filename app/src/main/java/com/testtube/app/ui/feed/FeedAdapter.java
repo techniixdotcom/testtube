@@ -1,8 +1,6 @@
 package com.testtube.app.ui.feed;
 
 import android.content.Context;
-import android.graphics.ColorMatrix;
-import android.graphics.ColorMatrixColorFilter;
 import android.icu.text.CompactDecimalFormat;
 import android.text.format.DateUtils;
 import android.view.LayoutInflater;
@@ -26,14 +24,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import android.graphics.ColorMatrixColorFilter;
+import android.graphics.ColorMatrix;
 
+/**
+ * Rows of the native Home, Subscriptions and Search screens.
+ */
 final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	private static final int TYPE_VIDEO = 0;
 	private static final int TYPE_ENTITY = 1;
 	private static final float WATCHED_ALPHA = 0.3f;
 	private static final ColorMatrixColorFilter GREY = greyFilter();
 
-	// watched videos get desaturated and dimmed so they're easy to spot
+	// Watched videos lose their colour and most of their brightness, so they stand out at a glance.
 	@NonNull
 	private static ColorMatrixColorFilter greyFilter() {
 		ColorMatrix matrix = new ColorMatrix();
@@ -69,7 +72,9 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 		setHasStableIds(true);
 	}
 
-	/** Replaces the list. When appending, only the new rows get inserted. */
+	/**
+	 * Shows a new list. Appending to the current list only inserts the new rows.
+	 */
 	void submit(@NonNull List<FeedItem> next) {
 		List<FeedItem> previous = items;
 		items = next;
@@ -84,6 +89,9 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 		}
 	}
 
+	/**
+	 * The video shown in this row, or null for other rows (channels, playlists, the header).
+	 */
 	@Nullable
 	FeedItem itemAt(@NonNull RecyclerView.ViewHolder holder) {
 		if (!(holder instanceof VideoHolder) || holder.getBindingAdapter() != this) return null;

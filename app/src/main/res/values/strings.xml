@@ -238,5 +238,24 @@
     <string name="update_check_now">Check for updates</string>
     <string name="update_auto">Check automatically</string>
     <string name="update_close">Close</string>
+    <!-- Searched for Home when there is too little history to go on; in the app's language. -->
+    <string-array name="discover_queries">
+        <item>trending</item>
+        <item>popular today</item>
+        <item>new this week</item>
+        <item>most watched</item>
+        <item>documentary</item>
+        <item>music</item>
+        <item>gaming</item>
+        <item>science</item>
+        <item>how it works</item>
+        <item>travel</item>
+        <item>cooking</item>
+        <item>comedy</item>
+        <item>tech review</item>
+        <item>history</item>
+        <item>sports highlights</item>
+        <item>podcast</item>
+    </string-array>
 </resources>
 

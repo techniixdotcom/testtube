@@ -45,6 +45,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Contract for fetching extracted data by video id.
+ */
 @FunctionalInterface
 interface Fetch {
 	StreamInfo fetch(@NonNull String videoId,
@@ -52,6 +55,9 @@ interface Fetch {
 					throws org.schabi.newpipe.extractor.exceptions.ExtractionException, IOException;
 }
 
+/**
+ * Coordinates YouTube extraction, caching, and playback-plan assembly.
+ */
 public final class YoutubeExtractor {
 	private static final String WATCH_URL = "https://www.youtube.com/watch?v=";
 	private static final Pattern VIDEO_ID_PATTERN = Pattern.compile(
@@ -89,7 +95,8 @@ public final class YoutubeExtractor {
 						gson,
 						auth,
 						filters);
-		NewPipe.init(downloader);
+		// Keeps the content language and country ContentLanguage set up.
+		NewPipe.init(downloader, NewPipe.getPreferredLocalization(), NewPipe.getPreferredContentCountry());
 		YoutubeStreamExtractor.setPoTokenProvider(testtubePoTokenProvider);
 	}
 
@@ -151,7 +158,9 @@ public final class YoutubeExtractor {
 		return StreamInfo.getInfo(ServiceList.YouTube.getStreamExtractor(url));
 	}
 
-	/** InnerTube client that produced a googlevideo URL (its {@code c} param). */
+	/**
+	 * Returns the InnerTube client that produced a googlevideo URL (the {@code c} query parameter).
+	 */
 	@Nullable
 	static String clientOf(@Nullable String url) {
 		if (url == null) return null;
@@ -170,7 +179,8 @@ public final class YoutubeExtractor {
 	}
 
 	/**
-	 * {@code refresh} drops the cached stream URLs and extracts again, for expired/rejected URLs.
+	 * Loads playback details. When {@code refresh} is true the cached stream URLs are discarded and
+	 * a brand new extraction is performed, which is used to recover from expired or rejected URLs.
 	 */
 	@NonNull
 	public CompletableFuture<PlaybackDetails> getInfo(@NonNull String videoUrl,
@@ -196,6 +206,9 @@ public final class YoutubeExtractor {
 		return task.attach(session);
 	}
 
+	/**
+	 * Suggested videos for the watch screen, without videos of blocked channels.
+	 */
 	@NonNull
 	public CompletableFuture<List<RelatedVideo>> getRelatedVideos(@NonNull String videoId) {
 		List<RelatedVideo> cached = cache.getRelatedVideos(videoId);
@@ -204,7 +217,7 @@ public final class YoutubeExtractor {
 		if (cached != null && !stale) {
 			return CompletableFuture.completedFuture(allowed(cached));
 		}
-		// entries cached by older versions have no titles, extract again to fill them in
+		// Entries cached by older versions have no titles: extract once more to fill them in.
 		return getInfo(WATCH_URL + videoId, null, stale).thenApply(ignored -> {
 			List<RelatedVideo> related = cache.getRelatedVideos(videoId);
 			return related != null ? allowed(related) : new ArrayList<>();
@@ -616,7 +629,9 @@ public final class YoutubeExtractor {
 		return copy != null ? copy : value;
 	}
 
-	// one in-flight extraction per video, shared by everyone asking for it
+	/**
+	 * A single in-flight extraction shared by every caller asking for the same video.
+	 */
 	private final class Task {
 		@NonNull
 		private final ExtractionSession root;

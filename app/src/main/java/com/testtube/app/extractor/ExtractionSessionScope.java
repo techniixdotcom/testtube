@@ -2,6 +2,9 @@ package com.testtube.app.extractor;
 
 import androidx.annotation.Nullable;
 
+/**
+ * Scope annotation for extractor session dependencies.
+ */
 public final class ExtractionSessionScope {
 	private final InheritableThreadLocal<ExtractionSession> session = new InheritableThreadLocal<>();
 

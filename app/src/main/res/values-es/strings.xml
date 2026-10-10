@@ -177,4 +177,22 @@
     <string name="page_play_all">Reproducir todo</string>
     <string name="login_subtitle">Inicia sesión con tu cuenta de Google</string>
     <string name="watch_history_remove">Quitar del historial</string>
+    <string-array name="discover_queries">
+        <item>tendencias</item>
+        <item>popular hoy</item>
+        <item>novedades de la semana</item>
+        <item>lo más visto</item>
+        <item>documental</item>
+        <item>música</item>
+        <item>videojuegos</item>
+        <item>ciencia</item>
+        <item>cómo funciona</item>
+        <item>viajes</item>
+        <item>recetas de cocina</item>
+        <item>comedia</item>
+        <item>análisis de tecnología</item>
+        <item>historia</item>
+        <item>resumen deportivo</item>
+        <item>podcast</item>
+    </string-array>
 </resources>

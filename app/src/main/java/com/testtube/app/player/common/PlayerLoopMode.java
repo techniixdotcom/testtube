@@ -2,6 +2,9 @@ package com.testtube.app.player.common;
 
 import androidx.media3.common.Player;
 
+/**
+ * Enumeration of playback end behaviors.
+ */
 public enum PlayerLoopMode {
 	PLAYLIST_NEXT(0, Player.REPEAT_MODE_OFF),
 	LOOP_ONE(1, Player.REPEAT_MODE_ONE),

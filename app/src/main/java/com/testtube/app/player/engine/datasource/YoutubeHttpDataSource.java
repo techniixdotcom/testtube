@@ -4,14 +4,17 @@
 
 package com.testtube.app.player.engine.datasource;
 
+import java.net.MalformedURLException;
+import java.io.OutputStream;
+import java.io.InterruptedIOException;
+import android.util.Log;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.isVisionOsStreamingUrl;
+import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getVisionOsUserAgent;
 import static androidx.media3.datasource.DefaultHttpDataSource.DEFAULT_CONNECT_TIMEOUT_MILLIS;
 import static androidx.media3.datasource.DefaultHttpDataSource.DEFAULT_READ_TIMEOUT_MILLIS;
-import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getVisionOsUserAgent;
-import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.isVisionOsStreamingUrl;
 import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.isWebStreamingUrl;
 
 import android.net.Uri;
-import android.util.Log;
 import android.webkit.CookieManager;
 
 import androidx.annotation.NonNull;
@@ -34,10 +37,7 @@ import com.testtube.app.util.StreamIOUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InterruptedIOException;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.NoRouteToHostException;
 import java.net.URL;
 import java.util.HashMap;
@@ -412,6 +412,9 @@ public final class YoutubeHttpDataSource extends BaseDataSource implements HttpD
 		}
 	}
 
+/**
+ * Component that handles app logic.
+ */
 	public static final class Factory implements HttpDataSource.Factory {
 		private final RequestProperties defaultRequestProperties;
 		private final boolean allowCrossProtocolRedirects;

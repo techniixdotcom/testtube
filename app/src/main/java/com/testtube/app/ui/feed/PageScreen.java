@@ -36,13 +36,19 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-/** Native channel/playlist pages. They stack; back returns to the previous one as it was. */
+/**
+ * Native channel and playlist pages. Pages stack up as the user opens them; back returns to the
+ * previous one with its list and scroll position intact.
+ */
 public final class PageScreen {
 	private static final int LOAD_MORE_THRESHOLD = 6;
 	private static final int MAX_PAGES = 6;
 	private static final int COLLAPSED_LINES = 3;
 	private static final String SEPARATOR = " • ";
 
+	/**
+	 * Notified when the screen appears or disappears.
+	 */
 	public interface Listener {
 		void onPageVisible(boolean visible);
 	}
@@ -111,7 +117,7 @@ public final class PageScreen {
 			@Override
 			public void onOpenAuthor(@NonNull FeedItem item) {
 				Entry entry = stack.peekLast();
-				// on a channel page the channel is the author
+				// On a channel page the author is the page itself.
 				if (entry != null && entry.kind == PageSource.Kind.CHANNEL) return;
 				if (item.authorUrl() != null) host.openPage(item.authorUrl());
 			}
@@ -150,6 +156,9 @@ public final class PageScreen {
 		return !stack.isEmpty();
 	}
 
+	/**
+	 * Opens a channel or playlist on top of the current page.
+	 */
 	public void open(@NonNull PageSource.Kind kind, @NonNull String url) {
 		Entry current = stack.peekLast();
 		if (current != null && current.url.equals(url)) {
@@ -168,7 +177,9 @@ public final class PageScreen {
 		listener.onPageVisible(true);
 	}
 
-	/** @return true if a page was closed */
+	/**
+	 * @return true when a page was closed
+	 */
 	public boolean back() {
 		Entry top = stack.pollLast();
 		if (top == null) return false;

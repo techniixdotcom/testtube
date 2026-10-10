@@ -22,13 +22,18 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * Navigation between the native screens and the watch screen. Leaving the watch screen sends
- * the video to the mini player, which can bring it back.
+ * Navigation between the native screens and the watch screen.
+ * <p>
+ * The watch screen is native: the player on top and the details below. Leaving it moves the
+ * video into the mini player; the mini player brings it back.
  */
 @UnstableApi
 public class TabManager {
 	private static final int MAX_WATCH_BACK = 50;
 
+	/**
+	 * Receives navigation changes.
+	 */
 	public interface Host {
 		/**
 		 * @param url the video shown on the watch screen, or null when the watch screen is closed
@@ -37,12 +42,20 @@ public class TabManager {
 		 */
 		void onWatchChanged(@Nullable String url, boolean visible);
 
-		/** A link pointed at a screen we show natively (Home, Subscriptions, search, History). */
+		/**
+		 * A link asked for a screen the app shows natively (Home, Subscriptions, search or History).
+		 */
 		void onNativeRequested(@NonNull String pageClass);
 
+		/**
+		 * Shows a channel or playlist on the native page screen.
+		 */
 		void onNativePage(@NonNull PageSource.Kind kind, @NonNull String url);
 	}
 
+	/**
+	 * Result of a playlist step.
+	 */
 	public interface PlaylistStep {
 		/**
 		 * @param url the video to play, or null when there is none
@@ -61,7 +74,9 @@ public class TabManager {
 	private final Deque<String> watchBack = new ArrayDeque<>();
 	@Nullable
 	private Host host;
-	// null when the watch screen is closed
+	/**
+	 * The video of the watch screen, null when it is closed.
+	 */
 	@Nullable
 	private String watchUrl;
 	private boolean watchVisible;
@@ -92,8 +107,9 @@ public class TabManager {
 	}
 
 	/**
-	 * Videos go to the watch screen; Home/Subscriptions/search/History, channels and playlists open
-	 * natively. Anything else is ignored.
+	 * Opens a page. Videos open on the watch screen, Home, Subscriptions, search and History on
+	 * their native screens, channels and playlists on the native page screen. Anything else is
+	 * ignored.
 	 */
 	public void openTab(@NonNull String url, @Nullable String tag) {
 		String targetTag = tag != null ? tag : UrlUtils.getPageClass(url);
@@ -118,12 +134,18 @@ public class TabManager {
 		return null;
 	}
 
+	/**
+	 * Shows a channel or playlist natively. A playing video moves to the mini player.
+	 */
 	public void openNativePage(@NonNull PageSource.Kind kind, @NonNull String url) {
 		leaveWatch();
 		Host current = host;
 		if (current != null) current.onNativePage(kind, url);
 	}
 
+	/**
+	 * Shows the watch screen in front and plays the video.
+	 */
 	public void openWatch(@NonNull String url) {
 		TestTubePlayer testtubePlayer = testtubePlayer();
 		if (testtubePlayer.isInMiniPlayer()) {
@@ -134,6 +156,9 @@ public class TabManager {
 		navigateWatch(url, true);
 	}
 
+	/**
+	 * Plays a video on the watch screen, wherever it is (in front or in the mini player).
+	 */
 	public void playInWatch(@NonNull String url) {
 		navigateWatch(url, true);
 	}
@@ -150,6 +175,10 @@ public class TabManager {
 		notifyWatch();
 	}
 
+	/**
+	 * Leaves the watch screen and reveals the native screen. A playing video moves to the mini
+	 * player.
+	 */
 	public void showNative() {
 		leaveWatch();
 	}
@@ -183,6 +212,9 @@ public class TabManager {
 		return list == null || list.isBlank() ? null : list;
 	}
 
+	/**
+	 * Loads the playlist of the current video.
+	 */
 	public void loadPlaylist(@NonNull Consumer<PlaylistSource.Playlist> callback) {
 		String url = watchUrl;
 		String listId = playlistId(url);
@@ -196,7 +228,9 @@ public class TabManager {
 		}));
 	}
 
-	/** offset: +1 next, -1 previous, 0 random */
+	/**
+	 * Works out the next (+1), previous (-1) or a random (0) video of the current playlist.
+	 */
 	public void playlistStep(int offset, @NonNull PlaylistStep callback) {
 		String currentId = YoutubeExtractor.getVideoId(watchUrl);
 		loadPlaylist(playlist -> {
@@ -239,9 +273,9 @@ public class TabManager {
 	}
 
 	/**
-	 * Sends the playing video to the mini player.
+	 * Moves the playing video into the mini player and shows what is underneath.
 	 *
-	 * @return false if the watch screen isn't in front or nothing can play in the mini player
+	 * @return false when the watch screen is not in front or nothing can play in the mini player
 	 */
 	public boolean minimizeWatch() {
 		if (!watchVisible) return false;
@@ -271,6 +305,9 @@ public class TabManager {
 		notifyWatch();
 	}
 
+	/**
+	 * Stops the video and closes the watch screen.
+	 */
 	public void closeWatch() {
 		boolean wasOpen = watchUrl != null;
 		watchUrl = null;

@@ -1,9 +1,7 @@
 package com.testtube.app.ui.feed;
 
-import android.annotation.SuppressLint;
 import android.content.Context;
 import android.icu.text.CompactDecimalFormat;
-import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.format.DateUtils;
@@ -11,13 +9,14 @@ import android.text.method.LinkMovementMethod;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.webkit.WebResourceRequest;
+import android.annotation.SuppressLint;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
+import org.schabi.newpipe.extractor.Page;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -31,18 +30,16 @@ import com.google.android.material.tabs.TabLayout;
 import com.squareup.picasso.Picasso;
 import com.testtube.app.Constant;
 import com.testtube.app.R;
+import com.testtube.app.nav.TabManager;
 import com.testtube.app.extractor.FeedClient;
-import com.testtube.app.extractor.FeedItem;
 import com.testtube.app.extractor.LocalSubscriptions;
+import com.testtube.app.extractor.FeedItem;
 import com.testtube.app.extractor.RelatedVideo;
 import com.testtube.app.extractor.VideoDetails;
 import com.testtube.app.extractor.YoutubeExtractor;
 import com.testtube.app.filter.ContentFilters;
-import com.testtube.app.nav.TabManager;
 import com.testtube.app.util.ToastUtils;
 import com.testtube.app.util.UrlUtils;
-
-import org.schabi.newpipe.extractor.Page;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -50,10 +47,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+import android.webkit.WebResourceRequest;
+import android.net.Uri;
 
 /**
- * Watch screen under the player: title, channel, description and what's next (the playlist if
- * there is one, otherwise suggestions).
+ * Native watch screen below the player: title, channel, description and what plays next (the
+ * playlist when the video is part of one, the suggestions otherwise).
  */
 @UnstableApi
 public final class WatchPanel {
@@ -116,7 +115,7 @@ public final class WatchPanel {
 	private String section;
 	private boolean expanded;
 	private long token;
-	// everything in the suggestions list, and whether it keeps growing on scroll
+	/** Everything shown in the suggestions list, and whether it keeps growing as you scroll. */
 	@NonNull
 	private final List<FeedItem> shown = new ArrayList<>();
 	@NonNull
@@ -218,7 +217,9 @@ public final class WatchPanel {
 		list.setItemViewCacheSize(4);
 	}
 
-	/** Watch screen switched video (url is null when it closed). */
+	/**
+	 * The watch screen shows another video (or closed when url is null).
+	 */
 	public void show(@Nullable String url) {
 		if (Objects.equals(this.url, url)) return;
 		String id = YoutubeExtractor.getVideoId(url);
@@ -252,6 +253,9 @@ public final class WatchPanel {
 		this.list.scrollToPosition(0);
 	}
 
+	/**
+	 * The player finished loading a video.
+	 */
 	public void onDetails(@NonNull VideoDetails details) {
 		if (!Objects.equals(details.getId(), videoId)) return;
 		this.details = details;
@@ -264,6 +268,9 @@ public final class WatchPanel {
 		}
 	}
 
+	/**
+	 * Blocked channels or watched marks changed.
+	 */
 	public void onFiltersChanged() {
 		items.refreshStates();
 	}
@@ -297,7 +304,7 @@ public final class WatchPanel {
 		items.submit(new ArrayList<>(shown));
 	}
 
-	// keeps the suggestions endless: more related videos get added near the end
+	/** Keeps the list under the video endless: more related videos are added when the end gets close. */
 	private void loadMoreSuggestions() {
 		if (moreLoading || shown.isEmpty()) return;
 		moreLoading = true;
@@ -342,7 +349,9 @@ public final class WatchPanel {
 		}));
 	}
 
-	/** Extractor had no suggestions, ask YouTube's "next" endpoint directly. */
+	/**
+	 * The extractor had no suggestions: ask YouTube's "next" endpoint directly.
+	 */
 	private void loadRelatedFallback(long current, @NonNull String id) {
 		FeedClient.Call call = feedClient.related(id);
 		call.result.whenComplete((page, error) -> handler.post(() -> {
@@ -419,7 +428,7 @@ public final class WatchPanel {
 			settings.setAllowContentAccess(false);
 			settings.setGeolocationEnabled(false);
 			settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-			// chat only shows YouTube pages, ignore other links/schemes
+			// The chat only ever shows YouTube pages: any other link or scheme is ignored.
 			web.setWebViewClient(new WebViewClient() {
 				@Override
 				public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
@@ -602,6 +611,9 @@ public final class WatchPanel {
 							: section != null && !section.isBlank() ? section : context.getString(R.string.watch_up_next));
 		}
 
+		/**
+		 * Follow the channel without an account: its videos then show up under Subscriptions.
+		 */
 		private void bindFollow(@Nullable VideoDetails d) {
 			String channelId = d != null ? LocalSubscriptions.channelIdOf(d.getUploaderUrl()) : null;
 			if (channelId == null) {
@@ -626,7 +638,7 @@ public final class WatchPanel {
 
 		private void applyExpanded() {
 			description.setMaxLines(expanded ? Integer.MAX_VALUE : COLLAPSED_LINES);
-			// links only work once expanded, so a tap on collapsed text expands it
+			// Links only react once the text is expanded, so a tap on the collapsed text expands it.
 			description.setMovementMethod(expanded ? LinkMovementMethod.getInstance() : null);
 			description.setClickable(true);
 		}

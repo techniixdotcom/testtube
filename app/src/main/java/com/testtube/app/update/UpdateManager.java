@@ -31,11 +31,11 @@ import com.tencent.mmkv.MMKV;
 import com.testtube.app.R;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.FileOutputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Arrays;
@@ -51,9 +51,9 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 /**
- * In-app updates from GitHub releases: check, download the APK with progress, hand it to the
- * installer. Android only installs it if it's signed with the same key, so a tampered APK
- * can't replace the app.
+ * Looks for a newer release on GitHub, downloads the APK with a progress bar and hands it to the
+ * system installer. Android only installs the file if it is signed with the same key as the
+ * installed app, so a tampered download cannot replace TestTube.
  */
 public final class UpdateManager {
 	private static final String LATEST_URL =
@@ -77,7 +77,7 @@ public final class UpdateManager {
 	private volatile Call activeDownload;
 
 	public UpdateManager(@NonNull OkHttpClient client) {
-		// separate client without the shared cache or response rewriting, so the APK comes through untouched
+		// A private copy without the shared HTTP cache or response rewriting, so the APK arrives untouched.
 		OkHttpClient.Builder builder = client.newBuilder().cache(null);
 		builder.networkInterceptors().clear();
 		this.client = builder.build();
@@ -91,7 +91,7 @@ public final class UpdateManager {
 		store.encode(KEY_AUTO, enabled);
 	}
 
-	/** On startup: checks after 5s and stays quiet unless there's an update. */
+	/** Called on start-up: checks 5 seconds later and stays quiet unless something is new. */
 	public void checkOnStart(@NonNull Activity activity) {
 		deleteOldDownloads(activity);
 		if (!autoCheckEnabled()) return;
@@ -100,7 +100,7 @@ public final class UpdateManager {
 		}, START_DELAY_MS);
 	}
 
-	/** Manual check, also reports "up to date" and errors. */
+	/** Checks now. A manual check also reports "up to date" and failures. */
 	public void check(@NonNull Activity activity, boolean manual) {
 		if (manual) Toast.makeText(activity, R.string.update_checking, Toast.LENGTH_SHORT).show();
 		executor.execute(() -> {
@@ -326,11 +326,11 @@ public final class UpdateManager {
 	}
 
 	/**
-	 * Is the APK signed with the same key as the installed app? The installer checks too, this
-	 * just rejects a foreign file before it even opens.
+	 * True when the downloaded app is signed with the key of the installed one. Android checks this
+	 * again when installing; checking here refuses a foreign file before the installer opens.
 	 */
 	private static boolean sameSigner(PackageInfo archive, PackageInfo installed) {
-		// old Android versions can't read signing info here; the installer still checks
+		// Older Android versions cannot read the signing info; the installer still checks it there.
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return true;
 		if (archive.signingInfo == null || installed.signingInfo == null) return false;
 		Signature[] downloaded = archive.signingInfo.getApkContentsSigners();

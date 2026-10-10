@@ -16,20 +16,23 @@ import androidx.media3.common.util.UnstableApi;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.squareup.picasso.Picasso;
+import com.testtube.app.filter.ContentFilters;
 import com.testtube.app.R;
+import com.testtube.app.nav.MediaItemMenuPayload;
 import com.testtube.app.downloader.ui.DownloadDialog;
 import com.testtube.app.extractor.YoutubeExtractor;
-import com.testtube.app.filter.ContentFilters;
-import com.testtube.app.nav.MediaItemMenuPayload;
 import com.testtube.app.player.TestTubePlayer;
 import com.testtube.app.player.queue.QueueItem;
 import com.testtube.app.player.queue.QueueRepository;
 import com.testtube.app.util.ToastUtils;
+import com.squareup.picasso.Picasso;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * Builds the media item action dialog.
+ */
 @UnstableApi
 public final class MediaItemMenuDialog {
 	@NonNull
@@ -64,6 +67,7 @@ public final class MediaItemMenuDialog {
 	}
 
 	public void show() {
+		// Bind the preview image and action handlers.
 		View view = LayoutInflater.from(context).inflate(R.layout.dialog_media_item_menu, null, false);
 		AlertDialog dialog = new MaterialAlertDialogBuilder(context)
 						.setView(view)
@@ -130,13 +134,14 @@ public final class MediaItemMenuDialog {
 	}
 
 	/**
-	 * Looks the channel up from the video itself (pages don't always show it), then asks to confirm.
+	 * Looks the channel up from the video itself, because the page does not always show the
+	 * channel name next to a video, then asks for confirmation.
 	 */
 	private void resolveChannelAndConfirm(@Nullable String pageChannel) {
 		ToastUtils.show(context, R.string.looking_up_channel);
 		Handler main = new Handler(Looper.getMainLooper());
 		AtomicBoolean handled = new AtomicBoolean(false);
-		// use the name from the page if the lookup takes too long
+		// Fall back to the name shown on the page if the lookup takes too long.
 		main.postDelayed(() -> {
 			if (!handled.compareAndSet(false, true)) return;
 			if (pageChannel != null && !pageChannel.isEmpty()) {
@@ -199,6 +204,7 @@ public final class MediaItemMenuDialog {
 	}
 
 	private void addToQueue() {
+		// Reject queue items that are missing core metadata.
 		QueueItem queueItem = item.toQueueItem();
 		String videoId = queueItem.getVideoId();
 		if (queueItem.getVideoUrl() == null || videoId == null || videoId.isBlank()
@@ -215,6 +221,7 @@ public final class MediaItemMenuDialog {
 	}
 
 	private void share() {
+		// Share the original video URL as plain text.
 		Intent send = new Intent(Intent.ACTION_SEND);
 		send.putExtra(Intent.EXTRA_TEXT, item.videoUrl());
 		send.setType("text/plain");

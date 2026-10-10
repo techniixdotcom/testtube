@@ -6,7 +6,9 @@ import androidx.annotation.Nullable;
 import java.io.File;
 import java.util.concurrent.CompletableFuture;
 
-/** Downloads a single stream over several connections at once. */
+/**
+ * Download video/audio stream in multiple threads.
+ */
 public interface StreamDownloader {
 	int DEFAULT_THREADS = 4;
 
@@ -14,6 +16,9 @@ public interface StreamDownloader {
 		return download(url, output, callback, DEFAULT_THREADS);
 	}
 
+	/**
+	 * Downloads one stream using at most {@code threads} parallel connections for this file.
+	 */
 	CompletableFuture<File> download(@NonNull String url, @NonNull File output, @Nullable ProgressCallback callback, int threads);
 
 	void pause(@NonNull String url);

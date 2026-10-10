@@ -9,6 +9,8 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
@@ -66,8 +68,35 @@ public final class Utils {
         return toRemove.replaceAll("\\D+", "");
     }
 
+    private static final Map<String, Long> ENGLISH_NUMBER_WORDS = Map.of(
+            "k", 1_000L, "m", 1_000_000L, "b", 1_000_000_000L, "t", 1_000_000_000_000L);
+    /** Decimal and grouping marks that can stand between the digits of a count. */
+    private static final String NUMBER_MARKS = ".,'’    ٫٬";
+
     /**
-     * Convert a mixed number word to a long.
+     * Lower-case words that stand for a power of ten in a short count, like "K" in "1.2K", "mil"
+     * in "345 mil" or "万" in "1.2万". English unless {@link #setNumberWords(Map)} was called.
+     */
+    private static volatile Map<String, Long> numberWords = ENGLISH_NUMBER_WORDS;
+
+    /**
+     * Sets the words the content language uses in short counts, e.g. "mil" = 1000 in Spanish or
+     * "B" = 1000 in Turkish. They take precedence over the English ones, which stay known.
+     */
+    public static void setNumberWords(@Nonnull final Map<String, Long> words) {
+        final Map<String, Long> merged = new HashMap<>(ENGLISH_NUMBER_WORDS);
+        for (final Map.Entry<String, Long> word : words.entrySet()) {
+            final String key = normalizeNumberText(word.getKey()).replaceAll("\\.+$", "");
+            if (!key.isEmpty() && word.getValue() > 1) {
+                merged.put(key, word.getValue());
+            }
+        }
+        numberWords = Map.copyOf(merged);
+    }
+
+    /**
+     * Convert a short or full count, written the way YouTube writes it in the content language,
+     * to a long.
      *
      * <p>
      * Examples:
@@ -75,8 +104,9 @@ public final class Utils {
      *
      * <ul>
      *     <li>123 -&gt; 123</li>
-     *     <li>1.23K -&gt; 1230</li>
-     *     <li>1.23M -&gt; 1230000</li>
+     *     <li>1.23K, 1,23 mil -&gt; 1230</li>
+     *     <li>1.23M, 1,23 M de visualizaciones, 123万 -&gt; 1230000</li>
+     *     <li>1,234 views, 1.234 Aufrufe, 1 234 vues -&gt; 1234</li>
      * </ul>
      *
      * @param numberWord string to be converted to a long
@@ -84,23 +114,89 @@ public final class Utils {
      */
     public static long mixedNumberWordToLong(final String numberWord)
             throws NumberFormatException, ParsingException {
-        String multiplier = "";
-        try {
-            multiplier = Parser.matchGroup("[\\d]+([\\.,][\\d]+)?([KMBkmb])+", numberWord, 2);
-        } catch (final ParsingException ignored) {
+        final int length = numberWord.length();
+        int start = 0;
+        while (start < length && !Character.isDigit(numberWord.charAt(start))) {
+            start++;
         }
-        final double count = Double.parseDouble(
-                Parser.matchGroup1("([\\d]+([\\.,][\\d]+)?)", numberWord).replace(",", "."));
-        switch (multiplier.toUpperCase()) {
-            case "K":
-                return (long) (count * 1e3);
-            case "M":
-                return (long) (count * 1e6);
-            case "B":
-                return (long) (count * 1e9);
-            default:
-                return (long) (count);
+        if (start == length) {
+            throw new ParsingException("Could not find a number in \"" + numberWord + "\"");
         }
+        // The digits (in any script), with each mark between them written as '.'
+        final StringBuilder number = new StringBuilder();
+        int end = start;
+        for (; end < length; end++) {
+            final char c = numberWord.charAt(end);
+            if (Character.isDigit(c)) {
+                number.append(Character.forDigit(Character.digit(c, 10), 10));
+            } else if (NUMBER_MARKS.indexOf(c) >= 0 && end + 1 < length
+                    && Character.isDigit(numberWord.charAt(end + 1))) {
+                number.append('.');
+            } else {
+                break;
+            }
+        }
+        final long multiplier = numberWordValue(numberWord.substring(end),
+                numberWord.substring(0, start));
+        final String digits = number.toString();
+        final int mark = digits.lastIndexOf('.');
+        // Short counts have one or two decimals; marks before three digits group thousands
+        if (multiplier == 1 || mark < 0 || digits.length() - mark - 1 == 3) {
+            return Long.parseLong(digits.replace(".", "")) * multiplier;
+        }
+        final double value = Double.parseDouble(
+                digits.substring(0, mark).replace(".", "") + "." + digits.substring(mark + 1));
+        return Math.round(value * multiplier);
+    }
+
+    /**
+     * The value of the number word right after the count ("M de visualizaciones") or, in
+     * languages that write it first, right before it ("elfu 1.2"); 1 when there is none.
+     */
+    private static long numberWordValue(@Nonnull final String after,
+                                        @Nonnull final String before) {
+        final String next = normalizeNumberText(after);
+        final String previous = normalizeNumberText(before);
+        long value = 1;
+        int matched = 0;
+        for (final Map.Entry<String, Long> word : numberWords.entrySet()) {
+            final String key = word.getKey();
+            if (key.length() > matched
+                    && (startsWithWord(next, key) || endsWithWord(previous, key))) {
+                value = word.getValue();
+                matched = key.length();
+            }
+        }
+        return value;
+    }
+
+    private static boolean startsWithWord(@Nonnull final String text, @Nonnull final String word) {
+        // "m" must not match "mil"; "万" is written right before the next word ("1.2万次")
+        return text.startsWith(word) && (text.length() == word.length()
+                || !Character.isLetter(text.charAt(word.length()))
+                || isCjk(word.charAt(word.length() - 1)));
+    }
+
+    private static boolean endsWithWord(@Nonnull final String text, @Nonnull final String word) {
+        final int before = text.length() - word.length() - 1;
+        return text.endsWith(word) && (before < 0 || !Character.isLetter(text.charAt(before))
+                || isCjk(word.charAt(0)));
+    }
+
+    private static boolean isCjk(final char c) {
+        final Character.UnicodeScript script = Character.UnicodeScript.of(c);
+        return script == Character.UnicodeScript.HAN || script == Character.UnicodeScript.HANGUL
+                || script == Character.UnicodeScript.HIRAGANA
+                || script == Character.UnicodeScript.KATAKANA;
+    }
+
+    /** Lower case, every kind of space as ' ', direction marks removed, trimmed. */
+    @Nonnull
+    private static String normalizeNumberText(@Nonnull final String text) {
+        return text.replaceAll("[\\u00A0\\u202F\\u2009]", " ")
+                .replaceAll("[\\u200E\\u200F\\u061C]", "")
+                .toLowerCase(Locale.ROOT)
+                .trim();
     }
 
     /**

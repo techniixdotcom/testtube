@@ -175,4 +175,22 @@
     <string name="page_play_all">모두 재생</string>
     <string name="login_subtitle">Google 계정으로 로그인</string>
     <string name="watch_history_remove">기록에서 삭제</string>
+    <string-array name="discover_queries">
+        <item>인기 급상승</item>
+        <item>오늘의 인기</item>
+        <item>이번 주 신작</item>
+        <item>조회수 많은</item>
+        <item>다큐멘터리</item>
+        <item>음악</item>
+        <item>게임</item>
+        <item>과학</item>
+        <item>작동 원리</item>
+        <item>여행</item>
+        <item>요리</item>
+        <item>코미디</item>
+        <item>테크 리뷰</item>
+        <item>역사</item>
+        <item>스포츠 하이라이트</item>
+        <item>팟캐스트</item>
+    </string-array>
 </resources>

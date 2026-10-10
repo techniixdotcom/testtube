@@ -18,9 +18,10 @@ import com.testtube.app.Constant;
 import com.testtube.app.R;
 
 /**
- * Google sign-in overlay. Plain WebView on purpose (content blockers break Google sign-in).
- * Closes once we land on YouTube or a Google session cookie exists. Cookies are shared with the
- * other WebViews through the default CookieManager.
+ * First-run Google sign-in overlay. A plain WebView (no content blockers, those would break
+ * Google sign-in) loads the YouTube account login page; once the user lands on YouTube, or a
+ * Google session cookie exists, the overlay closes and the main app starts. Cookies are shared
+ * with the app's other WebViews through the default CookieManager.
  */
 public final class LoginController {
 	private static final String STORE_ID = "testtube_login";
@@ -45,6 +46,9 @@ public final class LoginController {
 		this.store = MMKV.mmkvWithID(STORE_ID);
 	}
 
+	/**
+	 * True when the user has already signed in, or a Google session cookie is present.
+	 */
 	public boolean isSignedIn() {
 		if (store.decodeBool(KEY_DONE, false)) return true;
 		String cookies = CookieManager.getInstance().getCookie("https://accounts.google.com");
@@ -55,7 +59,9 @@ public final class LoginController {
 		return false;
 	}
 
-	/** Signs out by removing the account cookies (shared by all WebViews). */
+	/**
+	 * Forgets the Google session: removes the account cookies shared by all WebViews.
+	 */
 	public void signOut() {
 		store.encode(KEY_DONE, false);
 		CookieManager cookies = CookieManager.getInstance();
@@ -63,6 +69,9 @@ public final class LoginController {
 		cookies.flush();
 	}
 
+	/**
+	 * Shows the login overlay and calls back once sign-in completes.
+	 */
 	@SuppressLint("SetJavaScriptEnabled")
 	public void show(@NonNull Runnable onComplete) {
 		show(onComplete, null);
@@ -110,7 +119,7 @@ public final class LoginController {
 					complete(container, onComplete);
 					return true;
 				}
-				// https only for sign-in pages; intent:, file:, javascript: and plain http are refused
+				// Sign-in pages are https only; intent:, file:, javascript: and plain http are refused.
 				return !url.regionMatches(true, 0, "https://", 0, 8);
 			}
 		});
@@ -130,9 +139,9 @@ public final class LoginController {
 	}
 
 	/**
-	 * Back while the overlay is up goes back in the WebView first.
+	 * Back pressed while the login overlay is up: navigate the login WebView first.
 	 *
-	 * @return true if consumed
+	 * @return true when the back press was consumed
 	 */
 	public boolean handleBack() {
 		WebView view = webView;
@@ -141,7 +150,7 @@ public final class LoginController {
 			view.goBack();
 			return true;
 		}
-		// sign-in is optional, backing out of the first page just closes the overlay
+		// Signing in is optional: leaving the first page closes the overlay.
 		ViewGroup container = overlay;
 		Runnable cancel = onCancel;
 		webView = null;

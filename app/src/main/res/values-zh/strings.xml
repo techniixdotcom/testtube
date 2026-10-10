@@ -175,4 +175,22 @@
     <string name="page_play_all">全部播放</string>
     <string name="login_subtitle">使用 Google 账号登录</string>
     <string name="watch_history_remove">从历史记录中移除</string>
+    <string-array name="discover_queries">
+        <item>热门</item>
+        <item>今日热门</item>
+        <item>本周新片</item>
+        <item>最多观看</item>
+        <item>纪录片</item>
+        <item>音乐</item>
+        <item>游戏</item>
+        <item>科学</item>
+        <item>原理解析</item>
+        <item>旅行</item>
+        <item>美食</item>
+        <item>搞笑</item>
+        <item>科技评测</item>
+        <item>历史</item>
+        <item>体育集锦</item>
+        <item>播客</item>
+    </string-array>
 </resources>

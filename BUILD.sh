@@ -48,7 +48,7 @@ cleanup() {
 		rm -rf "$TMP_DIR"
 	fi
 	restore_project_access
-	# let the log writer flush
+	# Give the log writer a moment to flush the final lines.
 	[[ -s "$LOG_FILE" ]] && sleep 1
 }
 on_error() {
@@ -178,7 +178,8 @@ fi
 [[ -f "$LOG_FILE" ]] && mv -f "$LOG_FILE" "$ROOT/build.previous.log"
 rm -f "$ROOT/build-errors.log"
 : > "$LOG_FILE"
-# from here on everything also goes to build.log (timestamped, no colours)
+# Everything printed from here on goes to the terminal and, line by line as it happens, to
+# build.log (timestamped, colour codes removed).
 if command -v perl >/dev/null 2>&1; then
 	exec > >(tee >(perl -MPOSIX -pe 'BEGIN { $| = 1 } s/\e\[[0-9;?]*[A-Za-z]//g; s/\r\n/\n/; s/\r/\n/g; $_ = strftime("[%H:%M:%S] ", localtime) . $_' >> "$LOG_FILE")) 2>&1
 else
@@ -488,7 +489,7 @@ gradle_heap_mb() {
 	echo "$heap"
 }
 
-# pull the useful lines out of a failed gradle run into build-errors.log
+# Copies the lines that explain a failed Gradle run into build-errors.log and shows them.
 extract_errors() {
 	local src="$1" out="$ROOT/build-errors.log"
 	{
@@ -526,7 +527,7 @@ run_gradle() {
 			rm -f "$gradle_out"
 			return 0
 		fi
-		# only retry on network errors, a compile error will just fail again
+		# Only network trouble is worth another try; a code error will fail the same way again.
 		if ! grep -qiE 'Could not (resolve|GET|HEAD|download)|timed out|Connection (reset|refused)|UnknownHost|SSLHandshake|Premature end' "$gradle_out"; then
 			extract_errors "$gradle_out"
 			rm -f "$gradle_out"
@@ -704,8 +705,8 @@ install_apk() {
 	die "Installation failed"
 }
 
-# Stuff older versions had that's gone now. If someone unzips over an old checkout these
-# would be left behind and gradle would try to compile them.
+# Files and folders that earlier versions had and this one removed. Unzipping a new version over an
+# old project folder leaves them behind, and Gradle would then try to compile them.
 remove_retired_files() {
 	local main="app/src/main"
 	local retired=(

@@ -24,6 +24,9 @@ import org.schabi.newpipe.extractor.services.youtube.dashmanifestcreators.Youtub
 import org.schabi.newpipe.extractor.services.youtube.dashmanifestcreators.YoutubePostLiveStreamDvrDashManifestCreator;
 import org.schabi.newpipe.extractor.services.youtube.dashmanifestcreators.YoutubeProgressiveDashManifestCreator;
 
+/**
+ * Component that handles app logic.
+ */
 @UnstableApi
 final class PlayerDataSource {
 	private static final int MANIFEST_CACHE_SIZE = 500;
@@ -114,8 +117,10 @@ final class PlayerDataSource {
 						.setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR);
 	}
 
-	// Stream URLs change on every extraction, so cache by what stays the same (video, format,
-	// size). Otherwise every replay gets stored again.
+	/**
+	 * Stream URLs change with every extraction, so they are cached under the parts that stay the
+	 * same (video, format and size). Otherwise every replay would be stored again.
+	 */
 	@NonNull
 	static String cacheKey(@NonNull DataSpec spec) {
 		if (spec.key != null) return spec.key;

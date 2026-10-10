@@ -14,7 +14,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
-/** Watch progress per video (for greying out) and the list of blocked channels. */
+/**
+ * Stores how much of every video has been watched and which channels are blocked, so watched
+ * videos can be greyed out and blocked channels hidden.
+ */
 public final class ContentFilters {
 	private static final String WATCH_STORE_ID = "testtube_watch_history";
 	private static final String KEY_BLOCKED_CHANNELS = "blocked_channels";
@@ -54,7 +57,9 @@ public final class ContentFilters {
 		return packed >>> PERCENT_BITS;
 	}
 
-	/** Saves watch progress. Never lowers the stored percentage. */
+	/**
+	 * Records playback progress. Only ever raises the stored percentage.
+	 */
 	public void recordProgress(@Nullable String videoId, long positionMs, long durationMs) {
 		if (!isVideoId(videoId) || durationMs <= 0L || positionMs < 0L) return;
 		int percent = (int) Math.min(100L, Math.max(0L, positionMs * 100L / durationMs));
@@ -103,7 +108,9 @@ public final class ContentFilters {
 		}
 	}
 
-	/** Normalizes a channel link to its path, e.g. "/@handle" or "/channel/UCxxxx". */
+	/**
+	 * Normalises a channel link to its path, e.g. "/@handle" or "/channel/UCxxxx".
+	 */
 	@Nullable
 	public static String channelPath(@Nullable String url) {
 		if (url == null || url.isBlank()) return null;
@@ -161,7 +168,9 @@ public final class ContentFilters {
 		mmkv.encode(KEY_BLOCKED_CHANNELS, gson.toJson(items.toArray(new BlockedChannel[0])));
 	}
 
-	/** Returns false if the name is unusable. */
+	/**
+	 * Blocks a channel. Returns false when the name is unusable.
+	 */
 	public synchronized boolean blockChannel(@Nullable String name, @Nullable String url, @Nullable String altUrl) {
 		String display = name == null ? "" : name.split("[•·|]", 2)[0].trim();
 		if (display.isEmpty()) return false;

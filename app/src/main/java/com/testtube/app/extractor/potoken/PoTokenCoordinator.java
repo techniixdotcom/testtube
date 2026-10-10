@@ -30,6 +30,9 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 
+/**
+ * Loads and mints YouTube client PoTokens.
+ */
 public final class PoTokenCoordinator {
 	private static final String REQUEST_KEY = "O43z0dpjhgX20SCx4KAo";
 	private static final long INIT_TIMEOUT_MS = 4_000L;
@@ -70,7 +73,7 @@ public final class PoTokenCoordinator {
 			return null;
 		}
 		synchronized (lock) {
-			// reuse the session if it's still valid for this host generation
+			// Reuse the active session when it is still valid for this host generation.
 			poTokenHost.prewarm();
 			if (!poTokenHost.awaitReady(4_000L)) {
 				session = null;
@@ -129,6 +132,7 @@ public final class PoTokenCoordinator {
 
 	@Nullable
 	private PoTokenSession initializeSession(long hostGeneration) {
+		// Build and verify the session in order.
 		if (!ensureScriptLoaded(hostGeneration)) {
 			return null;
 		}
@@ -320,6 +324,9 @@ public final class PoTokenCoordinator {
 		return prefix + "-" + requestCounter;
 	}
 
+/**
+ * Value object for app logic.
+ */
 	private record GenerateItResult(@NonNull String integrityTokenBase64, long expirationSeconds) {
 	}
 }

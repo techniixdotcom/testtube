@@ -175,4 +175,22 @@
     <string name="page_play_all">Tout lire</string>
     <string name="login_subtitle">Connectez-vous avec votre compte Google</string>
     <string name="watch_history_remove">Retirer de l\'historique</string>
+    <string-array name="discover_queries">
+        <item>tendances</item>
+        <item>populaire aujourd\'hui</item>
+        <item>nouveautés de la semaine</item>
+        <item>les plus regardées</item>
+        <item>documentaire</item>
+        <item>musique</item>
+        <item>jeux vidéo</item>
+        <item>science</item>
+        <item>comment ça marche</item>
+        <item>voyage</item>
+        <item>recettes de cuisine</item>
+        <item>humour</item>
+        <item>test high-tech</item>
+        <item>histoire</item>
+        <item>résumé sportif</item>
+        <item>podcast</item>
+    </string-array>
 </resources>

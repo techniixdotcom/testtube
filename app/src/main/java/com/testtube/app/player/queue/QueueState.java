@@ -6,6 +6,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Snapshot of queue enablement and items.
+ */
 public record QueueState(boolean enabled, @NonNull List<QueueItem> items) {
 	public QueueState {
 		List<QueueItem> copies = new ArrayList<>(items.size());

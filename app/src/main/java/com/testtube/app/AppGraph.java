@@ -38,7 +38,6 @@ import com.testtube.app.player.sponsor.SponsorBlockManager;
 import com.testtube.app.update.UpdateManager;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -51,6 +50,8 @@ import okhttp3.Cache;
 import okhttp3.ConnectionPool;
 import okhttp3.Dispatcher;
 import okhttp3.OkHttpClient;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 @UnstableApi
 public final class AppGraph {
@@ -161,7 +162,10 @@ public final class AppGraph {
 		return simpleCache;
 	}
 
-	// Seeds for Home: a few random recent videos and titles, so it's relevant but never the same.
+	/**
+	 * What Home is built around: a few random videos and titles from the recent history, so the
+	 * suggestions are relevant but different every time.
+	 */
 	@NonNull
 	private FeedClient.Taste historyTaste() {
 		List<WatchHistory.Entry> entries = new ArrayList<>(watchHistory().entries());
@@ -268,10 +272,11 @@ public final class AppGraph {
 	@NonNull
 	public synchronized FeedClient feedClient() {
 		if (feedClient == null) {
-			// youtubeExtractor() initialises NewPipe, which these sources rely on.
+			// The extractor sets up NewPipe, which the feed requests go through.
 			youtubeExtractor();
 			feedClient = new FeedClient(extractorDownloader(), nativeAuth(), executor());
 			feedClient.setTaste(this::historyTaste);
+			feedClient.setGeneralQueries(() -> Arrays.asList(context.getResources().getStringArray(R.array.discover_queries)));
 		}
 		return feedClient;
 	}
@@ -279,6 +284,7 @@ public final class AppGraph {
 	@NonNull
 	public synchronized PageSource pageSource() {
 		if (pageSource == null) {
+			// The extractor sets up NewPipe, which the page requests go through.
 			youtubeExtractor();
 			pageSource = new PageSource(extractorDownloader(), nativeAuth(), executor());
 		}
@@ -288,6 +294,7 @@ public final class AppGraph {
 	@NonNull
 	public synchronized PlaylistSource playlistSource() {
 		if (playlistSource == null) {
+			// The extractor sets up NewPipe, which the playlist requests go through.
 			youtubeExtractor();
 			playlistSource = new PlaylistSource(extractorDownloader(), nativeAuth(), executor());
 		}

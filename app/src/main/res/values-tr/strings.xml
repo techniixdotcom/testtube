@@ -177,4 +177,22 @@
     <string name="page_play_all">Tümünü oynat</string>
     <string name="login_subtitle">Google hesabınızla oturum açın</string>
     <string name="watch_history_remove">Geçmişten kaldır</string>
+    <string-array name="discover_queries">
+        <item>trendler</item>
+        <item>bugün popüler</item>
+        <item>bu haftanın yenileri</item>
+        <item>en çok izlenenler</item>
+        <item>belgesel</item>
+        <item>müzik</item>
+        <item>oyun</item>
+        <item>bilim</item>
+        <item>nasıl çalışır</item>
+        <item>seyahat</item>
+        <item>yemek tarifleri</item>
+        <item>komedi</item>
+        <item>teknoloji incelemesi</item>
+        <item>tarih</item>
+        <item>maç özetleri</item>
+        <item>podcast</item>
+    </string-array>
 </resources>

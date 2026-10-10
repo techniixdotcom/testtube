@@ -28,7 +28,9 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
-/** NewPipe {@link org.schabi.newpipe.extractor.downloader.Downloader} backed by OkHttp. */
+/**
+ * Bridge that adapts NewPipe extraction into the app extractor flow.
+ */
 public final class DownloaderImpl extends Downloader {
 	private static final String YOUTUBE_RESTRICTED_MODE_COOKIE = "PREF=f2=8000000";
 
@@ -70,13 +72,14 @@ public final class DownloaderImpl extends Downloader {
 
 		final Request.Builder builder = new Request.Builder().url(url).method(httpMethod, requestBody).header("User-Agent", Constant.USER_AGENT);
 		ExtractionSession session = scope.get();
-		// VISIONOS is an anonymous client. Sending it account cookies/auth makes YouTube reject
-		// or bind the stream URLs.
+		// Native app clients (VISIONOS) are anonymous clients: sending account cookies or
+		// authorization to them makes YouTube reject or bind the stream URLs.
 		AuthContext auth = session != null && !isAppClientRequest(headers) ? session.getAuth() : null;
 		String mergedCookies = mergeCookiesForUrl(
 						url,
 						auth != null ? auth.cookies() : null);
 
+		// Override with headers from request
 		if (headers != null) {
 			for (final Map.Entry<String, List<String>> entry : headers.entrySet()) {
 				String headerName = entry.getKey();
@@ -212,6 +215,9 @@ public final class DownloaderImpl extends Downloader {
 		return false;
 	}
 
+/**
+ * Contract for app logic.
+ */
 	@FunctionalInterface
 	interface StreamInfoSupplier<T> {
 		T get() throws org.schabi.newpipe.extractor.exceptions.ExtractionException, IOException;

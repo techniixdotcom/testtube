@@ -3,10 +3,9 @@ package com.testtube.app.downloader.core.impl;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.tencent.mmkv.MMKV;
 import com.testtube.app.downloader.core.ProgressCallback;
 import com.testtube.app.downloader.core.StreamDownloader;
-
+import com.tencent.mmkv.MMKV;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
 
 import java.io.File;
@@ -34,7 +33,9 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
-/** Chunked, resumable stream download. Resume state lives in MMKV. */
+/**
+ * Streams a file by chunk and keeps resume state in MMKV.
+ */
 public class StreamDownloaderImpl implements StreamDownloader {
 	private final OkHttpClient client;
 	private final MMKV mmkv;
@@ -43,7 +44,10 @@ public class StreamDownloaderImpl implements StreamDownloader {
 	private static final long CHUNK_BYTES = 512L * 1024L;
 	private static final int MAX_THREADS = 8;
 	private static final char[] HEX = "0123456789abcdef".toCharArray();
-	// "dl2_" since the chunk layout changed. Old "dl_" resume data is invalid and gets removed.
+	/**
+	 * Resume state key. "dl2_" because the chunk layout changed; resume data stored under the
+	 * old "dl_" keys is no longer valid and is removed.
+	 */
 	private static final String KEY_PREFIX = "dl2_";
 	private static final String LEGACY_KEY_PREFIX = "dl_";
 
@@ -120,9 +124,11 @@ public class StreamDownloaderImpl implements StreamDownloader {
 
 	@NonNull
 	private static Request.Builder streamRequest(@NonNull String url) {
-		// No HTTP cache for downloads, it would just double the disk usage.
+		// Downloads go straight to their file; storing them in the HTTP cache too would double
+		// the space they take.
 		Request.Builder builder = new Request.Builder().url(url).header("Cache-Control", "no-store");
-		// googlevideo rejects requests whose UA doesn't match the client that produced the URL.
+		// googlevideo rejects stream requests whose user agent does not match the client that
+		// produced the URL.
 		if (YoutubeParsingHelper.isVisionOsStreamingUrl(url)) {
 			builder.header("User-Agent", YoutubeParsingHelper.getVisionOsUserAgent(null));
 		}
@@ -132,7 +138,7 @@ public class StreamDownloaderImpl implements StreamDownloader {
 	private void runTask(TaskContext task) {
 		RandomAccessFile raf = null;
 		try {
-			// Size and range support
+			// 1. fetch metadata
 			final long total;
 			final boolean range;
 			try (Response head = client.newCall(streamRequest(task.url).head().build()).execute()) {
@@ -141,15 +147,16 @@ public class StreamDownloaderImpl implements StreamDownloader {
 				range = head.code() == 206 || "bytes".equalsIgnoreCase(head.header("Accept-Ranges"));
 			}
 
+			// 2. calculate chunk count
 			int chunks;
 			if (total <= 0 || !range) chunks = 1;
 			else {
-				// ~512 KB per chunk, capped at 128
+				// One chunk per 512 KB, between 1 and 128 chunks.
 				chunks = (int) Math.max(1L, Math.min(128L, total / CHUNK_BYTES));
 			}
 			long part = total > 0 ? total / chunks : total;
 
-			// Pick up where a previous run stopped
+			// 3. resume or initialize
 			byte[] saved = mmkv.decodeBytes(task.key);
 			BitSet bits = (range && saved != null) ? BitSet.valueOf(saved) : new BitSet();
 			task.done.set(bits.cardinality());
@@ -165,9 +172,11 @@ public class StreamDownloaderImpl implements StreamDownloader {
 			if (total > 0) raf.setLength(total);
 			else raf.setLength(0);
 
+			// 4. submit task
 			if (task.done.get() < chunks) {
 				RandomAccessFile finalRaf = raf;
-				// task.threads workers pull the remaining chunks off a shared queue
+				// Each download uses its own number of connections: that many workers take the
+				// unfinished chunks one by one.
 				ConcurrentLinkedQueue<Integer> pending = new ConcurrentLinkedQueue<>();
 				IntStream.range(0, chunks).filter(i -> !bits.get(i)).forEach(pending::add);
 				int workers = Math.min(task.threads, pending.size());
@@ -184,6 +193,7 @@ public class StreamDownloaderImpl implements StreamDownloader {
 				CompletableFuture.allOf(running).join();
 			}
 
+			// 5. clean up
 			if (!task.isInactive()) {
 				mmkv.removeValueForKey(task.key);
 				tasks.remove(task.url);

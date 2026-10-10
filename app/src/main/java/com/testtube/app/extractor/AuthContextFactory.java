@@ -8,6 +8,9 @@ import androidx.annotation.Nullable;
 import com.testtube.app.extractor.potoken.PoTokenContextStore;
 import com.testtube.app.extractor.potoken.PoTokenWebViewContext;
 
+/**
+ * Factory that builds extractor auth snapshots.
+ */
 public final class AuthContextFactory {
 	@NonNull
 	private final PoTokenContextStore store;
@@ -22,7 +25,7 @@ public final class AuthContextFactory {
 	@NonNull
 	public AuthContext create(@NonNull String url) {
 		PoTokenWebViewContext page = store.getSnapshot();
-		// no YouTube page opened yet (native screens), use the signed-in cookies directly
+		// No YouTube page has been open yet (native screens): use the signed-in cookies directly.
 		if (page == null) return nativeAuth.current(false);
 		String cookieUrl = page != null ? page.url() : url;
 		String cookies = normalize(CookieManager.getInstance().getCookie(cookieUrl));

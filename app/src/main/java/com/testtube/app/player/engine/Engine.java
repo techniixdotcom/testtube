@@ -30,10 +30,11 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 
 import com.testtube.app.Constant;
 import com.testtube.app.R;
+import com.testtube.app.nav.TabManager;
 import com.testtube.app.extractor.Delivery;
-import com.testtube.app.extractor.DeliveryCatalog;
 import com.testtube.app.extractor.FeedClient;
 import com.testtube.app.extractor.FeedItem;
+import com.testtube.app.extractor.DeliveryCatalog;
 import com.testtube.app.extractor.PlaybackDetails;
 import com.testtube.app.extractor.PlaybackMode;
 import com.testtube.app.extractor.PlaybackPlan;
@@ -45,7 +46,7 @@ import com.testtube.app.extractor.VideoDetails;
 import com.testtube.app.extractor.YoutubeExtractor;
 import com.testtube.app.filter.ContentFilters;
 import com.testtube.app.history.WatchHistory;
-import com.testtube.app.nav.TabManager;
+import com.testtube.app.util.ToastUtils;
 import com.testtube.app.player.TestTubePlayerView;
 import com.testtube.app.player.common.PlayerLoopMode;
 import com.testtube.app.player.common.PlayerPreferences;
@@ -55,7 +56,6 @@ import com.testtube.app.player.queue.QueueNav;
 import com.testtube.app.player.queue.QueueRepository;
 import com.testtube.app.player.sponsor.SponsorBlockManager;
 import com.testtube.app.util.StringUtils;
-import com.testtube.app.util.ToastUtils;
 import com.testtube.app.util.UrlUtils;
 
 import org.schabi.newpipe.extractor.stream.AudioStream;
@@ -80,7 +80,9 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-/** Owns the ExoPlayer instance: loads videos, follows the queue and handles autoplay. */
+/**
+ * Coordinates playback state and queue navigation.
+ */
 @UnstableApi
 public class Engine {
 	private static final String TAG = "TestTubePlayback";
@@ -131,7 +133,7 @@ public class Engine {
 				lastPersistAt = now;
 				saveProgress(pos, duration);
 			}
-			// skip sponsor segments, wake up right when the next one starts
+			// Skip sponsor segments, and wake up exactly when the next one starts.
 			long delay = TICK_MS;
 			for (final long[] segment : sponsor.getSegments()) {
 				if (pos >= segment[0] && pos < segment[1]) {
@@ -149,7 +151,8 @@ public class Engine {
 	private long lastPersistAt;
 
 	/**
-	 * Saves progress. At the end the saved position is dropped so the video starts over next time.
+	 * Persists playback progress. Once the end of the video is reached the saved position is
+	 * dropped, so a finished video starts from the beginning when it is opened again.
 	 */
 	private void saveCurrentProgress() {
 		if (player.getPlaybackState() == Player.STATE_IDLE) return;
@@ -194,7 +197,10 @@ public class Engine {
 	private final ContentFilters contentFilters;
 	@NonNull
 	private final WatchHistory watchHistory;
-	// single thread for history writes: keeps them in order and out of the extraction pool
+	/**
+	 * One background thread for history writes, so they happen in order and never queue behind
+	 * extraction work.
+	 */
 	private static final ExecutorService HISTORY_WRITER =
 					Executors.newSingleThreadExecutor(runnable -> {
 						Thread thread = new Thread(runnable, "testtube-history");
@@ -213,12 +219,16 @@ public class Engine {
 	private static final long PREFETCH_BEFORE_END_MS = 45_000L;
 	@Nullable
 	private String prefetchedFor;
-	// video the "Up next" notice was shown for, and the one it was cancelled for
+	/**
+	 * The video the "Up next" notice was shown for, and the one it was cancelled for.
+	 */
 	@Nullable
 	private String upNextShownFor;
 	@Nullable
 	private String upNextCancelledFor;
-	// for the previous button, newest last
+	/**
+	 * Videos played before the current one, newest last, for the previous button.
+	 */
 	@NonNull
 	private final ArrayDeque<String> history = new ArrayDeque<>();
 	@Nullable
@@ -282,7 +292,7 @@ public class Engine {
 						contentFilters.recordProgress(videoId, 1L, 1L);
 					}
 					if (loopMode.skipsToNextOnEnded()) {
-						// "Up next" was cancelled, just let the video end
+						// Cancelled in the "Up next" notice: the video just ends.
 						if (videoId != null && videoId.equals(upNextCancelledFor)) return;
 						String endedId = videoId;
 						skipToNext(false);
@@ -351,13 +361,19 @@ public class Engine {
 		return client == null || client.isBlank() ? UNKNOWN_CLIENT : client;
 	}
 
+	/**
+	 * A queued video leaves the queue once it has been played, whether it ran to the end or was
+	 * skipped.
+	 */
 	private void removeFromQueue(@Nullable String id) {
 		if (id != null && queueRepository.containsVideo(id)) {
 			queueRepository.remove(id);
 		}
 	}
 
-	/** How much of the end can be left unwatched and still count as watched. */
+	/**
+	 * Length of the tail of a video after which it counts as watched.
+	 */
 	static long watchedTailMs(long durationMs) {
 		return Math.max(MIN_WATCHED_TAIL_MS, Math.min(MAX_WATCHED_TAIL_MS, durationMs / 20L));
 	}
@@ -406,7 +422,7 @@ public class Engine {
 				history.addLast(this.videoId);
 				while (history.size() > MAX_HISTORY) history.removeFirst();
 			}
-			// leaving a queued video (finished or skipped) removes it from the queue
+			// Leaving a queued video (watched to the end or skipped) takes it out of the queue.
 			removeFromQueue(this.videoId);
 			failedAdaptiveCandidates.clear();
 			failedClients.clear();
@@ -414,7 +430,7 @@ public class Engine {
 			autoplayToken++;
 			upNextShownFor = null;
 			upNextCancelledFor = null;
-			// history writes serialize the whole list, keep that off the main thread
+			// History writes serialize whole lists, so they stay off the main thread.
 			String id = video.getId();
 			String title = video.getTitle();
 			String author = video.getAuthor();
@@ -449,6 +465,7 @@ public class Engine {
 		this.player.setMediaSource(PlaybackSourceFactory.create(sources, details, plan));
 		this.player.setPlaybackParameters(new PlaybackParameters(1.0f));
 
+		// Resume position
 		long resumePos = prefs.getResumePosition(videoId);
 		if (resumePos > SAFE_ZONE_MS && resumePos < duration - watchedTailMs(duration)) {
 			this.player.seekTo(resumePos);
@@ -462,6 +479,10 @@ public class Engine {
 		this.player.play();
 	}
 
+	/**
+	 * Reloads the same video with freshly extracted stream URLs and continues at the given
+	 * position. Used when every stream of the current extraction has been rejected.
+	 */
 	public void replace(@NonNull PlaybackDetails details, long positionMs) {
 		VideoDetails video = details.video();
 		PlaybackPlan plan = details.plan();
@@ -490,10 +511,11 @@ public class Engine {
 	}
 
 	/**
-	 * Tries other streams of the current extraction after one got rejected. A 403 blocks the whole
-	 * InnerTube client that produced the stream, since YouTube enforces restrictions per client and
-	 * other formats from it would fail too. Returns false when nothing usable is left (caller should
-	 * re-extract).
+	 * Tries to continue playback with other streams of the current extraction after a stream was
+	 * rejected. An HTTP 403 blocks the whole InnerTube client that produced the stream, because
+	 * YouTube enforces its restrictions per client, so retrying other formats of the same client
+	 * would only fail again. Returns false when nothing usable is left, in which case the caller
+	 * should re-extract the video.
 	 */
 	public boolean recoverFromPlaybackError(@NonNull PlaybackException error) {
 		PlaybackRecoveryReason reason = playbackRecoveryReason(error);
@@ -528,9 +550,9 @@ public class Engine {
 	}
 
 	/**
-	 * Counts a re-extraction against the per-video retry budget.
+	 * Counts a re-extraction attempt against the per-video recovery budget.
 	 *
-	 * @return false once the budget is used up
+	 * @return false when the budget is exhausted and no further attempt should be made
 	 */
 	public boolean consumeRecoveryAttempt() {
 		if (recoveries >= MAX_RECOVERIES_PER_VIDEO) {
@@ -610,7 +632,7 @@ public class Engine {
 		return this.player.getVideoSize();
 	}
 
-	/** Video track off/on, audio keeps playing. */
+	/** Turns the picture off and on; the sound keeps playing without it. */
 	public void setVideoEnabled(boolean enabled) {
 		this.player.setTrackSelectionParameters(this.player.getTrackSelectionParameters().buildUpon()
 						.setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, !enabled)
@@ -660,8 +682,8 @@ public class Engine {
 	}
 
 	/**
-	 * @param manual true if the user asked for next (button, notification, bar), false if the
-	 *               video just ended
+	 * @param manual true when the user asked for the next video (button, notification, bar);
+	 *               false when the current video ended on its own
 	 */
 	public void skipToNext(boolean manual) {
 		boolean queueEnabled = queueRepository.isEnabled();
@@ -673,9 +695,9 @@ public class Engine {
 		if (queueContext) {
 			QueueItem item = queueRepository.findRelative(watchId, 1);
 			boolean inQueue = queueRepository.containsVideo(watchId);
-			// Inside the queue we follow the user's order. Coming from outside (e.g. an autoplayed
-			// suggestion) we only re-enter the queue with something not played recently, otherwise
-			// finished queues would loop forever.
+			// Inside the queue the user's order is followed. Coming from outside the queue (for
+			// example from an autoplayed suggestion) the queue is only re-entered with a video that
+			// has not been played recently, otherwise finished queues would loop forever.
 			if (item != null && item.getVideoUrl() != null
 							&& (inQueue
 							|| queueRepository.isPlayNext(item.getVideoId())
@@ -697,10 +719,10 @@ public class Engine {
 	}
 
 	/**
-	 * Skips unplayable queue/playlist videos (removed, private, blocked) instead of stopping with
-	 * an error.
+	 * A video in the queue or a playlist that cannot be played (removed, private, blocked) is
+	 * skipped instead of stopping playback with an error.
 	 *
-	 * @return true if the video was skipped
+	 * @return true when the video was skipped
 	 */
 	public boolean skipUnavailable(@NonNull String unavailableId) {
 		boolean queueContext = queueRepository.isEnabled() && queueRepository.hasItems();
@@ -712,15 +734,16 @@ public class Engine {
 	}
 
 	/**
-	 * Autoplay. Tries the extractor's suggestions, then YouTube's "next" list, a search and Home.
+	 * Plays the next suggested video, like YouTube's autoplay. Suggestions come from the
+	 * extractor first, then from YouTube's "next" list, a search and the Home feed.
 	 *
-	 * @param manual true if the user pressed next, false if the video ended
+	 * @param manual true when the user pressed next; false when the video ended on its own
 	 */
 	private void autoplaySuggestion(@Nullable String fromId, boolean manual) {
 		String sourceId = fromId != null ? fromId : videoId;
 		if (sourceId == null) return;
 		if (!manual && prefetchedPick != null && sourceId.equals(prefetchedFor)) {
-			// already picked and preloaded, starts right away
+			// Picked and loaded before the video ended, so it starts right away.
 			Candidate pick = prefetchedPick;
 			prefetchedPick = null;
 			startNext(pick);
@@ -730,13 +753,19 @@ public class Engine {
 		requestSuggestions(sourceId, manual, token);
 	}
 
+	/**
+	 * A video that could play next.
+	 */
 	private record Candidate(@NonNull String id, @Nullable String title, @Nullable String author) {
 	}
 
+	/**
+	 * Shows the "Up next" notice during the last seconds of a video.
+	 */
 	public interface UpNextListener {
 		/**
-		 * @param delayMs  how long the notice stays up (until the video ends)
-		 * @param onCancel cancels the switch, the next video won't start
+		 * @param delayMs  how long the notice stays, until the video ends
+		 * @param onCancel stops the switch; the next video then does not start
 		 */
 		void show(@NonNull String title, long delayMs, @NonNull Runnable onCancel);
 	}
@@ -756,7 +785,7 @@ public class Engine {
 	private void requestSuggestions(@NonNull String sourceId, boolean manual, long token, int attempt) {
 		gatherSuggestions(sourceId, token, found -> {
 			if (found.isEmpty() && attempt < SUGGESTION_RETRIES) {
-				// nothing yet (slow network etc.), retry shortly instead of giving up
+				// Nothing yet (slow network, page still loading): try again shortly instead of giving up.
 				handler.postDelayed(() -> {
 					if (token == autoplayToken) requestSuggestions(sourceId, manual, token, attempt + 1);
 				}, SUGGESTION_RETRY_DELAY_MS);
@@ -767,8 +796,9 @@ public class Engine {
 	}
 
 	/**
-	 * Candidates for what plays next: extractor suggestions, YouTube's "next" list, a title search,
-	 * then Home. The first source with results wins.
+	 * Finds videos to continue with, trying in turn: the extractor's suggestions, YouTube's "next"
+	 * suggestions, a search for the current video's title, and finally the Home feed. The first
+	 * source that has videos wins, so a next video is found whenever YouTube answers at all.
 	 */
 	private void gatherSuggestions(@NonNull String sourceId, long token, @NonNull Consumer<List<Candidate>> done) {
 		extractor.getRelatedVideos(sourceId).whenComplete((related, error) -> handler.post(() -> {
@@ -837,7 +867,7 @@ public class Engine {
 	}
 
 	private void playSuggestion(@NonNull String sourceId, @NonNull List<Candidate> found, boolean manual) {
-		// user already moved on to another video
+		// The user moved on to another video in the meantime.
 		if (!Objects.equals(sourceId, watchVideoId())) return;
 		Candidate pick = pickSuggestion(sourceId, found);
 		if (pick == null) {
@@ -848,14 +878,18 @@ public class Engine {
 		startNext(pick);
 	}
 
-	/** Switches right away; the "Up next" notice already gave a chance to cancel. */
+	/**
+	 * Switches to the picked video. The "Up next" notice already gave the person the chance to
+	 * cancel, so the switch is immediate.
+	 */
 	private void startNext(@NonNull Candidate pick) {
 		recordAuthor(pick.author());
 		tabManager.playInWatch(Constant.HOME_URL + "/watch?v=" + pick.id());
 	}
 
 	/**
-	 * Shows "Up next" near the end once the next video is known, otherwise retried on the next tick.
+	 * Shows the "Up next" notice for the last seconds of a video, once the next video is known.
+	 * Until then it is tried again on the next tick.
 	 */
 	private void showUpNext(@NonNull String currentId, long remainingMs) {
 		UpNextListener listener = upNextListener;
@@ -866,7 +900,10 @@ public class Engine {
 		listener.show(title, remainingMs, () -> upNextCancelledFor = currentId);
 	}
 
-	/** Title of what plays next, or null if not known (yet) or it comes from a playlist. */
+	/**
+	 * Title of the video that plays after this one, or null when it is not known (yet) or comes
+	 * from a playlist.
+	 */
 	@Nullable
 	private String nextTitle(@NonNull String currentId) {
 		if (queueRepository.isEnabled() && queueRepository.hasItems()) {
@@ -886,8 +923,10 @@ public class Engine {
 	}
 
 	/**
-	 * Random pick among the top suggestions. Prefers videos not played or watched recently and
-	 * avoids the channel that just played. Falls back to any suggestion so playback never stops.
+	 * Picks the next video at random among the top suggestions. Videos that were not played lately
+	 * and not watched yet come first, and a channel that just played is avoided, so autoplay does
+	 * not stay on one channel. When nothing qualifies it falls back to any suggestion, so
+	 * playback never stops.
 	 */
 	@Nullable
 	private Candidate pickSuggestion(@NonNull String sourceId, @NonNull List<Candidate> found) {
@@ -918,6 +957,10 @@ public class Engine {
 		return top.get(ThreadLocalRandom.current().nextInt(top.size()));
 	}
 
+	/**
+	 * Near the end of a video, works out what plays next and extracts it in the background, so
+	 * the next video starts without waiting.
+	 */
 	private void prefetchNext(@NonNull String sourceId) {
 		if (!loopMode.skipsToNextOnEnded()) return;
 		if (queueRepository.isEnabled() && queueRepository.hasItems()) {
@@ -936,7 +979,7 @@ public class Engine {
 	}
 
 	private void warm(@NonNull String url) {
-		// only warms the cache, the next play picks it up
+		// Only fills the cache; the next play picks it up.
 		extractor.getInfo(url, null);
 	}
 
@@ -965,6 +1008,10 @@ public class Engine {
 		playPreviousFromHistory();
 	}
 
+	/**
+	 * Goes back to the video played before this one. Works the same in the full player, the
+	 * mini player and the bottom bar because the player is told directly.
+	 */
 	private void playPreviousFromHistory() {
 		String previous = history.pollLast();
 		while (previous != null && previous.equals(videoId)) {
@@ -1042,7 +1089,7 @@ public class Engine {
 				}
 			}
 		} catch (IllegalArgumentException ignored) {
-			// fall back to the cached engine id
+			// Fall back to the cached engine id.
 		}
 		return videoId;
 	}
@@ -1077,7 +1124,7 @@ public class Engine {
 				if (!resolutions.contains(res)) resolutions.add(res);
 			}
 		}
-		// if empty, fall back to the active tracks (DASH/HLS)
+		// If empty, fall back to the active tracks, such as DASH or HLS.
 		if (resolutions.isEmpty()) {
 			for (final Tracks.Group group : this.player.getCurrentTracks().getGroups()) {
 				if (group.getType() == C.TRACK_TYPE_VIDEO) {
@@ -1272,7 +1319,7 @@ public class Engine {
 	public List<StreamSegment> getSegments() {
 		if (!segments.isEmpty()) return segments;
 
-		// No chapters: one segment named after the video
+		// Create default segment with video title at 0 seconds
 		List<StreamSegment> segments = new ArrayList<>();
 		VideoDetails video = videoDetails;
 		if (video != null) segments.add(new StreamSegment(video.getTitle() != null ? video.getTitle() : "", 0));
@@ -1407,9 +1454,15 @@ public class Engine {
 		this.player.release();
 	}
 
+/**
+ * Value object for app logic.
+ */
 	private record TrackOverride(@NonNull TrackGroup group, int track) {
 	}
 
+/**
+ * Snapshot of the active playback state.
+ */
 	private record State(@NonNull VideoDetails video,
 	                     @NonNull StreamCatalog catalog,
 	                     @NonNull DeliveryCatalog deliveries,

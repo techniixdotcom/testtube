@@ -18,6 +18,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
+/**
+ * Repository that persists the playback queue in MMKV.
+ */
 public final class QueueRepository {
 	static final String KEY_QUEUE_ITEMS = "local_queue_items";
 	static final String KEY_QUEUE_ENABLED = "local_queue_enabled";
@@ -87,9 +90,10 @@ public final class QueueRepository {
 	}
 
 	/**
-	 * Inserts after the playing video (or at the front if that isn't queued) so it plays next.
+	 * Puts an item right after the video that is playing now, or at the front of the queue when
+	 * the playing video is not part of it, so it plays next.
 	 *
-	 * @return false if the item is the playing video
+	 * @return false when the item is the video that is playing now
 	 */
 	public boolean addNext(@NonNull QueueItem item, @Nullable String playingVideoId) {
 		String videoId = item.getVideoId();
@@ -114,7 +118,10 @@ public final class QueueRepository {
 		return true;
 	}
 
-	/** Added with "Play next" and not played yet. These play even if watched recently. */
+	/**
+	 * True for items added with "Play next" that have not been played yet. They are played
+	 * even if they were watched recently.
+	 */
 	public synchronized boolean isPlayNext(@Nullable String videoId) {
 		return videoId != null && readPlayNext().contains(videoId);
 	}
@@ -201,8 +208,8 @@ public final class QueueRepository {
 			return offset > 0 ? items.get(0).copy() : items.get(items.size() - 1).copy();
 		}
 		int target = index + offset;
-		// No wrap-around: past either end there's nothing, so callers fall back to suggestions
-		// instead of replaying watched videos.
+		// The queue never wraps around: past either end there is no relative item, so callers
+		// can fall back to suggestions instead of replaying videos that were already watched.
 		if (target < 0 || target >= items.size()) return null;
 		return items.get(target).copy();
 	}

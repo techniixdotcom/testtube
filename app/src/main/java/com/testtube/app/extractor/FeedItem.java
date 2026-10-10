@@ -3,17 +3,23 @@ package com.testtube.app.extractor;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import org.schabi.newpipe.extractor.NewPipe;
+import org.schabi.newpipe.extractor.localization.TimeAgoParser;
+import org.schabi.newpipe.extractor.localization.TimeAgoPatternsManager;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Map;
 
 /**
- * A row in a native list: video, channel or playlist.
+ * One entry of a native list: a video, a channel or a playlist.
  *
- * @param durationSeconds -1 if unknown
- * @param count           views (videos), video count (playlists) or subscribers (channels),
- *                        -1 if unknown
+ * @param durationSeconds -1 when unknown
+ * @param count           views for videos, video count for playlists, subscribers for channels;
+ *                        -1 when unknown
  */
 public record FeedItem(@NonNull Kind kind,
                        @NonNull String url,
@@ -32,48 +38,38 @@ public record FeedItem(@NonNull Kind kind,
 		PLAYLIST
 	}
 
-	// 320x180: already 16:9 and about a third the size of the 480x360 one (which has black bars)
+	/**
+	 * The thumbnail for list rows: 320x180 and already 16:9, about a third of the data of the
+	 * 480x360 one, which also carries black bars.
+	 */
 	@NonNull
 	public static String thumbnailFor(@NonNull String videoId) {
 		return "https://i.ytimg.com/vi/" + videoId + "/mqdefault.jpg";
 	}
 
-	private static final Pattern AGE = Pattern.compile(
-					"(\\d+)\\s*(second|minute|hour|day|week|month|year)s?\\s+ago", Pattern.CASE_INSENSITIVE);
-
 	/**
-	 * Age in seconds, parsed from YouTube's "3 days ago" text.
-	 *
-	 * @return -1 if missing or not in that format
+	 * Puts the newest uploads first, reading YouTube's dates ("3 days ago", "hace 3 días") in the
+	 * content language. The order stays as it is when a date cannot be read, so a list is never
+	 * scrambled.
 	 */
-	public static long ageSeconds(@Nullable String published) {
-		if (published == null) return -1;
-		Matcher matcher = AGE.matcher(published);
-		if (!matcher.find()) return -1;
-		long amount = Long.parseLong(matcher.group(1));
-		return amount * switch (matcher.group(2).toLowerCase(Locale.ROOT)) {
-			case "second" -> 1L;
-			case "minute" -> 60L;
-			case "hour" -> 3_600L;
-			case "day" -> 86_400L;
-			case "week" -> 604_800L;
-			case "month" -> 2_592_000L;
-			default -> 31_536_000L;
-		};
-	}
-
-	// Newest first. If any date can't be read the order is left alone, so languages we
-	// can't parse don't get scrambled.
 	public static void sortNewestFirst(@NonNull List<FeedItem> items) {
+		TimeAgoParser parser = TimeAgoPatternsManager.getTimeAgoParserFor(NewPipe.getPreferredLocalization());
+		if (parser == null) return;
+		Instant now = Instant.now();
+		Map<FeedItem, Long> ages = new HashMap<>();
 		for (FeedItem item : items) {
-			if (item.kind() == Kind.VIDEO && !item.live() && ageSeconds(item.published()) < 0) return;
+			long age = -1;
+			try {
+				if (item.published() != null) {
+					age = Duration.between(parser.parse(item.published()).getInstant(), now).getSeconds();
+				}
+			} catch (Exception ignored) {
+				// Not a date: an announced premiere, or a form the patterns do not know.
+			}
+			if (item.kind() == Kind.VIDEO && !item.live() && age < 0) return;
+			// Live streams and non-video rows stay near the top, where YouTube put them.
+			ages.put(item, Math.max(age, 0L));
 		}
-		items.sort((a, b) -> Long.compare(ageOf(a), ageOf(b)));
-	}
-
-	private static long ageOf(@NonNull FeedItem item) {
-		long age = ageSeconds(item.published());
-		// live streams and non-video rows stay near the top where YouTube put them
-		return age < 0 ? 0 : age;
+		items.sort(Comparator.comparingLong(ages::get));
 	}
 }

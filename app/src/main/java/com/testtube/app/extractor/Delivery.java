@@ -12,6 +12,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Playback delivery candidate assembled from stream options.
+ */
 public class Delivery {
 	@NonNull
 	private PlaybackMode mode = PlaybackMode.NONE;

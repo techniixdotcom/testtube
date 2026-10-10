@@ -157,12 +157,13 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         assertPageFetched();
         String title;
 
-        // Try to get the video's original title, which is untranslated
-        title = playerResponse.getObject(VIDEO_DETAILS)
-                .getString(TITLE);
+        // TestTube: the title as YouTube shows it in the content language (translated when the
+        // video has a translation), like in the lists; the original title otherwise
+        title = getTextFromObject(getVideoPrimaryInfoRenderer().getObject(TITLE));
 
         if (isNullOrEmpty(title)) {
-            title = getTextFromObject(getVideoPrimaryInfoRenderer().getObject(TITLE));
+            title = playerResponse.getObject(VIDEO_DETAILS)
+                    .getString(TITLE);
 
             if (isNullOrEmpty(title)) {
                 throw new ParsingException("Could not get name");
@@ -811,12 +812,17 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         final Localization localization = getExtractorLocalization();
         final ContentCountry contentCountry = getExtractorContentCountry();
+        // TestTube: the player requests stay in English: why a video cannot play (age limit, bot
+        // check, country...) is only recognised in English (checkPlayabilityStatus). The "next"
+        // request, with the title, description and suggestions, uses the content language.
+        final Localization playerLocalization = Localization.DEFAULT;
+        final ContentCountry playerCountry = ContentCountry.DEFAULT;
 
         // TestTube: the WEB metadata and "next" requests do not depend on the VISIONOS player
         // response, so they run while it is in flight instead of one after another.
         final CompletableFuture<JsonObject> webMetadata = requestAsync(() ->
                 YoutubeStreamHelper.getWebMetadataPlayerResponse(
-                        localization, contentCountry, videoId));
+                        playerLocalization, playerCountry, videoId));
         final CompletableFuture<JsonObject> next = requestAsync(() -> {
             final byte[] nextBody = JsonWriter.string(
                     prepareDesktopJsonBuilder(localization, contentCountry)
@@ -828,7 +834,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             return getJsonPostResponse(NEXT, nextBody, localization);
         });
 
-        fetchVisionOsClient(localization, contentCountry, videoId);
+        fetchVisionOsClient(playerLocalization, playerCountry, videoId);
         setStreamType();
 
         applyWebClientMetadataAndSetThumbnails(webMetadata, videoId);

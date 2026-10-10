@@ -13,6 +13,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * Repository for persisted download history records.
+ */
 public final class DownloadHistoryRepository {
 	public static final String KEY_DOWNLOAD_HISTORY = "download_history";
 

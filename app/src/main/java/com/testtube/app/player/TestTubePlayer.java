@@ -5,16 +5,15 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.media3.common.C;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.ui.DefaultTimeBar;
 
-import com.tencent.mmkv.MMKV;
 import com.testtube.app.PlaybackService;
 import com.testtube.app.R;
+import com.testtube.app.util.ToastUtils;
 import com.testtube.app.extractor.ExtractionSession;
 import com.testtube.app.extractor.PlaybackDetails;
 import com.testtube.app.extractor.PlaybackPlan;
@@ -33,7 +32,7 @@ import com.testtube.app.player.queue.QueueRepository;
 import com.testtube.app.player.sponsor.SponsorBlockManager;
 import com.testtube.app.player.sponsor.SponsorOverlayView;
 import com.testtube.app.ui.ErrorDialog;
-import com.testtube.app.util.ToastUtils;
+import com.tencent.mmkv.MMKV;
 
 import org.schabi.newpipe.extractor.exceptions.SignInConfirmNotBotException;
 
@@ -53,7 +52,11 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import androidx.media3.common.C;
 
+/**
+ * Playback facade that tracks the current media session and UI state.
+ */
 @UnstableApi
 public class TestTubePlayer {
 	private static final String KEY_LAST_AUDIO_LANG = "last_audio_lang";
@@ -262,8 +265,9 @@ public class TestTubePlayer {
 		ExtractionSession session = new ExtractionSession();
 		extractSession = session;
 
-		// SponsorBlock loads alongside extraction, not before it, so playback isn't held up.
-		// Segments and seek bar markers get applied whenever they arrive.
+		// SponsorBlock runs next to the extraction, never in front of it, so the video
+		// starts as soon as the streams are known; segments are picked up the moment
+		// they arrive and the seek bar markers are redrawn then.
 		CompletableFuture.runAsync(() -> sponsor.load(videoId), executor)
 						.thenRunAsync(() -> {
 							if (!Objects.equals(this.queuedId, videoId) || activeDurationSeconds <= 0L) return;
@@ -341,10 +345,10 @@ public class TestTubePlayer {
 	}
 
 	/**
-	 * Re-extracts with fresh stream URLs and resumes where we were. For when every stream of the
-	 * current extraction got rejected (expired/blocked).
+	 * Re-extracts the current video with fresh stream URLs and resumes at the current position.
+	 * Used when every stream of the current extraction was rejected (expired or blocked URLs).
 	 *
-	 * @return true if a refresh was started
+	 * @return true when a refresh was started
 	 */
 	private boolean refreshStreams(@NonNull PlaybackException cause) {
 		String videoId = activeId;
@@ -375,7 +379,9 @@ public class TestTubePlayer {
 		return true;
 	}
 
-	// removed, private, blocked etc.
+	/**
+	 * Removed, private, blocked or otherwise unplayable videos.
+	 */
 	private static boolean isUnavailable(@Nullable Throwable error) {
 		for (Throwable t = error; t != null; t = t.getCause()) {
 			if (t instanceof org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException) return true;
@@ -470,7 +476,7 @@ public class TestTubePlayer {
 		if (task != null) task.cancel(true);
 		activity.runOnUiThread(() -> {
 			playerView.disableAutoPiP();
-			// nothing playing anymore, close the mini player without opening the full one
+			// Leave the mini player without showing the full player: nothing is playing anymore.
 			if (inMiniPlayer) leaveMiniPlayer();
 			setMiniPlayerCallbacks(null, null);
 			playerView.hide();
@@ -517,6 +523,9 @@ public class TestTubePlayer {
 		return playerView.getVisibility() == View.VISIBLE;
 	}
 
+	/**
+	 * Moves the video into the bar at the bottom of the screen; playback continues.
+	 */
 	public void enterInAppMiniPlayer() {
 		inMiniPlayer = true;
 		stateStore.setInMiniPlayer(true);
@@ -530,8 +539,8 @@ public class TestTubePlayer {
 	}
 
 	/**
-	 * Back from the mini player to full size. No-op if the mini player isn't showing, so a late
-	 * call after {@link #hide()} can't bring back an empty black player.
+	 * Restores the full player from the mini player. Does nothing when the mini player is not
+	 * shown, so a late call after {@link #hide()} can never bring back an empty black player.
 	 */
 	public void exitInAppMiniPlayer() {
 		if (!inMiniPlayer) return;
@@ -591,7 +600,12 @@ public class TestTubePlayer {
 		miniBar().show();
 	}
 
-	/** null until the first video has loaded */
+	/**
+	 * Receives the details of each video once it starts, on the main thread.
+	 */
+	/**
+	 * Details of the video that is playing, or null before one has loaded.
+	 */
 	@Nullable
 	public VideoDetails currentDetails() {
 		return Objects.equals(activeId, currentDetails == null ? null : currentDetails.getId()) ? currentDetails : null;

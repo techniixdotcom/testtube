@@ -9,6 +9,9 @@ import org.schabi.newpipe.extractor.stream.VideoStream;
 
 import java.io.File;
 
+/**
+ * Download task description used by the download engine.
+ */
 public record Task(@NonNull String videoId, @Nullable VideoStream video,
                    @Nullable AudioStream audio, @Nullable SubtitlesStream subtitle,
                    @Nullable String thumbnail, @NonNull String fileName, @NonNull File desDir,

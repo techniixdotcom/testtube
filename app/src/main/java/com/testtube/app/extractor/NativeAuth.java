@@ -18,8 +18,9 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 
 /**
- * Signed-in request context from the Google sign-in cookies, so we can call YouTube without a
- * page open. Page config (account id, visitor data) is fetched once and cached.
+ * Builds the signed-in request context from the cookies of the one-time Google sign-in, so the
+ * app can call YouTube directly without a YouTube page open. The page configuration (account
+ * id, visitor data) is read once from YouTube and cached.
  */
 public final class NativeAuth {
 	private static final String TAG = "NativeAuth";
@@ -73,7 +74,7 @@ public final class NativeAuth {
 			String cookies = CookieManager.getInstance().getCookie(COOKIE_URL);
 			return cookies == null || cookies.isBlank() ? null : cookies;
 		} catch (RuntimeException e) {
-			// WebView can be missing or mid-update
+			// The WebView provider can be missing or updating.
 			return null;
 		}
 	}

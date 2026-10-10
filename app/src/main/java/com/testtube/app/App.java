@@ -2,6 +2,7 @@ package com.testtube.app;
 
 import android.app.Application;
 import android.content.pm.PackageInfo;
+import android.content.res.Configuration;
 import android.os.Build;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -14,6 +15,7 @@ import androidx.webkit.WebViewCompat;
 import com.squareup.picasso.LruCache;
 import com.squareup.picasso.Picasso;
 import com.tencent.mmkv.MMKV;
+import com.testtube.app.extractor.ContentLanguage;
 import com.testtube.app.util.UserAgents;
 
 @UnstableApi
@@ -31,12 +33,23 @@ public class App extends Application {
 				WebView.setDataDirectorySuffix(processName);
 			}
 		}
+		ContentLanguage.apply(this);
 		graph = new AppGraph(this);
 		initImageLoader();
 		initUserAgent();
 	}
 
-	// Memory cache capped at 1/8 of the heap, Picasso's disk cache handles the rest.
+	/** The phone's language changed: YouTube is asked in the new one from now on. */
+	@Override
+	public void onConfigurationChanged(@NonNull Configuration newConfig) {
+		super.onConfigurationChanged(newConfig);
+		ContentLanguage.apply(this);
+	}
+
+	/**
+	 * Thumbnails are kept in memory up to an eighth of the app's heap; Picasso's own disk cache
+	 * stays on, so a list that was seen before opens without a network request.
+	 */
 	private void initImageLoader() {
 		long heap = Runtime.getRuntime().maxMemory();
 		Picasso.setSingletonInstance(new Picasso.Builder(this)
@@ -44,8 +57,11 @@ public class App extends Application {
 						.build());
 	}
 
-	// UA follows the WebView's Chrome version. Reading it spins up the whole WebView, so it's
-	// cached per WebView version and only re-read in the background after an update.
+	/**
+	 * The user agent follows the Chrome version of the phone's WebView. Reading it starts the
+	 * whole WebView engine, so the result is cached per WebView version and only read again, in
+	 * the background, after the WebView was updated.
+	 */
 	private void initUserAgent() {
 		MMKV store = MMKV.defaultMMKV();
 		String webViewVersion = webViewVersion();
@@ -65,7 +81,7 @@ public class App extends Application {
 			try {
 				userAgent = WebSettings.getDefaultUserAgent(this);
 			} catch (RuntimeException e) {
-				// WebView can be missing or mid-update
+				// The WebView provider can be missing or updating.
 				return;
 			}
 			String major = UserAgents.chromeMajor(userAgent);

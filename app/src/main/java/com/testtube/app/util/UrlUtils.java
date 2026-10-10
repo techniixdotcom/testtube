@@ -6,14 +6,19 @@ import androidx.annotation.Nullable;
 import com.testtube.app.Constant;
 
 import java.net.URI;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Arrays;
 
+/**
+ * URL helpers for page classification and host checks.
+ */
 public final class UrlUtils {
 	private static final Locale NORMAL_LOCALE = Locale.ROOT;
 
-	/** https links to youtube.com (incl. subdomains) or youtu.be */
+	/**
+	 * True for https links to youtube.com (and its subdomains) or youtu.be.
+	 */
 	public static boolean isYoutubeLink(@Nullable String url) {
 		if (url == null || url.isEmpty()) return false;
 		try {
@@ -78,6 +83,9 @@ public final class UrlUtils {
 		}
 	}
 
+	/**
+	 * Channel pages the app shows natively: the channel and all of its tabs.
+	 */
 	public static boolean isNativeChannelUrl(@Nullable String url) {
 		List<String> segments = youtubePath(url);
 		if (segments == null || segments.isEmpty()) return false;
@@ -90,10 +98,13 @@ public final class UrlUtils {
 		} else {
 			return false;
 		}
-		// every channel tab (videos, shorts, playlists, about...) opens the native channel page
+		// Every tab of a channel (videos, shorts, playlists, about, ...) opens the native channel page.
 		return segments.size() >= base;
 	}
 
+	/**
+	 * Playlist pages the app shows natively.
+	 */
 	public static boolean isNativePlaylistUrl(@Nullable String url) {
 		List<String> segments = youtubePath(url);
 		if (segments == null || segments.size() != 1 || !"playlist".equalsIgnoreCase(segments.get(0))) return false;

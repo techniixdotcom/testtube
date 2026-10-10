@@ -3,6 +3,9 @@ package com.testtube.app.player.queue;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+/**
+ * Value object for one queue entry.
+ */
 public final class QueueItem {
 	@Nullable
 	private String videoId;

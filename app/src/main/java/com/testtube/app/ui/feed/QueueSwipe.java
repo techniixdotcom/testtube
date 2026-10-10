@@ -18,15 +18,22 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.testtube.app.R;
 import com.testtube.app.extractor.FeedItem;
 
-/** Swipe right to queue a video; the row slides back afterwards. */
+/**
+ * Swiping a video to the right adds it to the queue. The row slides back into place afterwards.
+ */
 final class QueueSwipe extends ItemTouchHelper.SimpleCallback {
 	interface Target {
-		/** @return the row's video, or null if it can't be swiped */
+		/**
+		 * @return the video behind this row, or null when the row cannot be swiped
+		 */
 		@Nullable
 		FeedItem itemFor(@NonNull RecyclerView.ViewHolder holder);
 
 		void enqueue(@NonNull FeedItem item);
 
+		/**
+		 * Follows the channel of this video (swipe to the left).
+		 */
 		void follow(@NonNull FeedItem item);
 	}
 
@@ -100,7 +107,7 @@ final class QueueSwipe extends ItemTouchHelper.SimpleCallback {
 			int logoSize = (int) (40 * density);
 			int gap = (int) (6 * density);
 			int block = logoSize + gap + (int) (16 * density);
-			// show the logo and label once there's room for them
+			// The logo and its word appear once the row has slid far enough to hold them.
 			if (logo != null && width > block + 16 * density) {
 				float centerX = right ? row.getLeft() + 56 * density : row.getRight() - 56 * density;
 				int top = row.getTop() + (row.getHeight() - block) / 2;

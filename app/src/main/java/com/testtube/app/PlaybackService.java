@@ -32,15 +32,18 @@ import com.testtube.app.player.engine.Engine;
 import com.testtube.app.player.queue.QueueNav;
 import com.testtube.app.ui.MainActivity;
 
+import java.io.InterruptedIOException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InterruptedIOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 
+/**
+ * Playback service that owns background notifications and controls.
+ */
 @UnstableApi
 public class PlaybackService extends Service {
 	private static final String TAG = "PlaybackService";
@@ -384,6 +387,9 @@ public class PlaybackService extends Service {
 		return destroyed || Thread.currentThread().isInterrupted();
 	}
 
+/**
+ * Component that handles app logic.
+ */
 	public class PlaybackBinder extends Binder {
 		public PlaybackService getService() {
 			return PlaybackService.this;

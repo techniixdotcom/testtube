@@ -1,6 +1,8 @@
 package com.testtube.app.player.queue;
 
-/** Works out which queue actions (next, previous, shuffle) are available right now. */
+/**
+ * Helper that finds the next queue item to play.
+ */
 public record QueueNav(boolean queue,
                        boolean next,
                        boolean shuffle,

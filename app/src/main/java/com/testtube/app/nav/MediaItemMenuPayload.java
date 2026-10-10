@@ -5,6 +5,9 @@ import androidx.annotation.Nullable;
 
 import com.testtube.app.player.queue.QueueItem;
 
+/**
+ * The video a menu acts on.
+ */
 public record MediaItemMenuPayload(@NonNull String videoId, @NonNull String videoUrl,
                                    @NonNull String title, @Nullable String author,
                                    @Nullable String thumbnailUrl, @Nullable String channelUrl) {

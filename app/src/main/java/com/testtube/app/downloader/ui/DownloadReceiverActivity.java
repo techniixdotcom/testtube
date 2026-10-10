@@ -10,7 +10,9 @@ import androidx.media3.common.util.UnstableApi;
 
 import com.testtube.app.ui.MainActivity;
 
-/** Share target: hands the link over to MainActivity and finishes. */
+/**
+ * Component that handles app logic.
+ */
 @UnstableApi
 public class DownloadReceiverActivity extends AppCompatActivity {
 	@Override
@@ -20,7 +22,7 @@ public class DownloadReceiverActivity extends AppCompatActivity {
 		if (intent != null) {
 			Intent forwardIntent = new Intent(this, MainActivity.class);
 			forwardIntent.setAction("TRIGGER_DOWNLOAD_FROM_SHARE");
-			// forward only the link, drop any other extras
+			// Only the shared link travels on; any other extras of the incoming intent are dropped.
 			CharSequence text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
 			if (text != null && text.length() <= 4096) forwardIntent.putExtra(Intent.EXTRA_TEXT, text.toString());
 			Uri data = intent.getData();

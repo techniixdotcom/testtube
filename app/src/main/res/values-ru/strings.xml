@@ -175,4 +175,22 @@
     <string name="page_play_all">Воспроизвести все</string>
     <string name="login_subtitle">Войдите с помощью аккаунта Google</string>
     <string name="watch_history_remove">Удалить из истории</string>
+    <string-array name="discover_queries">
+        <item>в тренде</item>
+        <item>популярное сегодня</item>
+        <item>новинки недели</item>
+        <item>самые просматриваемые</item>
+        <item>документальный фильм</item>
+        <item>музыка</item>
+        <item>игры</item>
+        <item>наука</item>
+        <item>как это работает</item>
+        <item>путешествия</item>
+        <item>рецепты</item>
+        <item>юмор</item>
+        <item>обзор техники</item>
+        <item>история</item>
+        <item>спортивные моменты</item>
+        <item>подкаст</item>
+    </string-array>
 </resources>

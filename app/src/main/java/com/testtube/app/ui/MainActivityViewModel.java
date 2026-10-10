@@ -18,6 +18,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * View model that owns the main screen state.
+ */
 public final class MainActivityViewModel extends ViewModel {
 	@NonNull
 	private final QueueRepository queueRepository;
@@ -96,6 +99,9 @@ public final class MainActivityViewModel extends ViewModel {
 						player.miniPlayer()));
 	}
 
+/**
+ * Value object for app logic.
+ */
 	public record UiState(boolean queueEnabled,
 	                      @NonNull List<QueueItem> items,
 	                      @Nullable String videoId,

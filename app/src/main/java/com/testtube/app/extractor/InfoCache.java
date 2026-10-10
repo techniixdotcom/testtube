@@ -6,12 +6,17 @@ import androidx.annotation.Nullable;
 import com.google.gson.Gson;
 import com.tencent.mmkv.MMKV;
 
+import org.schabi.newpipe.extractor.NewPipe;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+/**
+ * Cache for extractor playback and video details.
+ */
 public final class InfoCache {
 	private static final String STORE_ID = "testtube_extractor_cache";
 	private static final String STREAM_KEY = "extractor:stream:";
@@ -20,8 +25,10 @@ public final class InfoCache {
 	private static final String LEGACY_PREFIX = "extractor:";
 	private static final int PRUNE_EVERY_WRITES = 50;
 
-	// Own MMKV store so expired entries can be swept and the file trimmed without touching settings.
-	// Expiry is kept under separate keys so sweeping doesn't have to parse payloads.
+	/**
+	 * A store of its own, so expired entries can be swept and the file shrunk without touching
+	 * settings. Expiry times are kept under separate keys so sweeping never parses payloads.
+	 */
 	@NonNull
 	private final MMKV store;
 	@NonNull
@@ -42,29 +49,35 @@ public final class InfoCache {
 
 	@Nullable
 	public PlaybackDetails getPlaybackDetails(@NonNull String videoId) {
-		return read(STREAM_KEY + videoId, PlaybackDetails.class);
+		return read(STREAM_KEY + language() + videoId, PlaybackDetails.class);
 	}
 
 	public void putPlaybackDetails(@NonNull String videoId,
 	                               @NonNull PlaybackDetails details) {
-		// Stream URLs are good for hours. If one did expire, playback recovers by re-extracting,
-		// so reopening a recent video can skip extraction completely.
-		write(STREAM_KEY + videoId, details, TimeUnit.MINUTES.toMillis(30));
+		// Stream links stay valid for hours; if one has expired anyway, playback recovers by
+		// extracting again, so re-opening a recent video can skip extraction entirely.
+		write(STREAM_KEY + language() + videoId, details, TimeUnit.MINUTES.toMillis(30));
 	}
 
 	public void removePlaybackDetails(@NonNull String videoId) {
-		remove(STREAM_KEY + videoId);
+		remove(STREAM_KEY + language() + videoId);
 	}
 
 	@Nullable
 	public List<RelatedVideo> getRelatedVideos(@NonNull String videoId) {
-		RelatedVideo[] items = read(RELATED_KEY + videoId, RelatedVideo[].class);
+		RelatedVideo[] items = read(RELATED_KEY + language() + videoId, RelatedVideo[].class);
 		return items == null ? null : new ArrayList<>(Arrays.asList(items));
 	}
 
 	public void putRelatedVideos(@NonNull String videoId,
 	                             @NonNull List<RelatedVideo> items) {
-		write(RELATED_KEY + videoId, items.toArray(new RelatedVideo[0]), TimeUnit.HOURS.toMillis(6));
+		write(RELATED_KEY + language() + videoId, items.toArray(new RelatedVideo[0]), TimeUnit.HOURS.toMillis(6));
+	}
+
+	/** Titles and suggestions come in the content language, so each language keeps its own entries. */
+	@NonNull
+	private static String language() {
+		return NewPipe.getPreferredLocalization().getLocalizationCode() + ":";
 	}
 
 	@Nullable
@@ -88,7 +101,7 @@ public final class InfoCache {
 	private void write(@NonNull String key,
 	                   @NonNull Object value,
 	                   final long ttlMs) {
-		// expiry first, so a concurrent sweep never sees a value without one
+		// Expiry first: a sweep running in between never sees a value without one.
 		store.encode(UNTIL_PREFIX + key, System.currentTimeMillis() + ttlMs);
 		store.encode(key, gson.toJson(value));
 		if (writes.incrementAndGet() % PRUNE_EVERY_WRITES == 0) {
@@ -124,7 +137,10 @@ public final class InfoCache {
 		if (removed) store.trim();
 	}
 
-	// Old versions kept this cache in the main settings and never cleaned it. Removed once.
+	/**
+	 * Earlier versions kept this cache in the main settings store and never deleted expired
+	 * entries; those are removed once.
+	 */
 	private static void removeLegacyEntries(@NonNull MMKV kv) {
 		String[] keys = kv.allKeys();
 		if (keys == null) return;

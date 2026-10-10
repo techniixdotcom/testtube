@@ -18,6 +18,9 @@ import com.testtube.app.util.ImageUtils;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Adapter that binds queue items into the bottom sheet list.
+ */
 public final class QueueAdapter extends RecyclerView.Adapter<QueueAdapter.ViewHolder> {
 	@NonNull
 	private final List<QueueItem> items = new ArrayList<>();
@@ -80,16 +83,22 @@ public final class QueueAdapter extends RecyclerView.Adapter<QueueAdapter.ViewHo
 		try {
 			task.run();
 		} catch (NullPointerException ignored) {
-			// the JVM test stub of RecyclerView.Adapter has no observer list until attached
+			// The JVM unit-test stub for RecyclerView.Adapter has no observer list until attached.
 		}
 	}
 
+/**
+ * Contract for app logic.
+ */
 	public interface Actions {
 		void onPlayRequested(@NonNull QueueItem item);
 
 		void onDeleteRequested(@NonNull QueueItem item);
 	}
 
+/**
+ * Component that handles app logic.
+ */
 	static final class ViewHolder extends RecyclerView.ViewHolder {
 		@NonNull
 		private final ImageView thumbnailView;

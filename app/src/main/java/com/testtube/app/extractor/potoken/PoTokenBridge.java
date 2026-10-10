@@ -8,6 +8,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+/**
+ * Bridge between the WebView and PoToken extraction flow.
+ */
 public final class PoTokenBridge {
 	public static final String JS_INTERFACE = "TestTubePoTokenBridge";
 

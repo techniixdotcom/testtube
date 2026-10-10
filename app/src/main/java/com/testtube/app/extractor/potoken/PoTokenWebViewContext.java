@@ -7,6 +7,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+/**
+ * WebView snapshot used to build PoToken context.
+ */
 public record PoTokenWebViewContext(@NonNull String url,
                                     long pageEpoch,
                                     @Nullable String visitorData,

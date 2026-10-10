@@ -18,7 +18,9 @@ import java.util.Locale;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-/** Picks how a video is played (DASH, muxed, audio only, live) from what the extractor found. */
+/**
+ * Planner that selects the best playback delivery path.
+ */
 @OptIn(markerClass = UnstableApi.class)
 public final class PlaybackPlanner {
 	private PlaybackPlanner() {

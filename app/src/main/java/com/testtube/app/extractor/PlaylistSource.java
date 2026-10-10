@@ -13,7 +13,6 @@ import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.playlist.PlaylistInfo;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -23,7 +22,12 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.io.IOException;
 
+/**
+ * Loads the videos of a playlist or mix natively, for the watch screen and playlist navigation.
+ * Results are kept in memory for the session.
+ */
 public final class PlaylistSource {
 	private static final int MAX_ITEMS = 500;
 	private static final int MAX_PAGES = 12;
@@ -111,7 +115,7 @@ public final class PlaylistSource {
 			ListExtractor.InfoItemsPage<StreamInfoItem> page = PlaylistInfo.getMoreItems(ServiceList.YouTube, url, next);
 			int before = items.size();
 			add(items, seen, page.getItems());
-			// mixes are endless, stop once a page adds nothing new
+			// Mixes never end: stop once a page adds nothing new.
 			if (items.size() == before) break;
 			next = page.hasNextPage() ? page.getNextPage() : null;
 		}
@@ -124,7 +128,7 @@ public final class PlaylistSource {
 		for (StreamInfoItem stream : page) {
 			if (items.size() >= MAX_ITEMS) return;
 			String videoId = YoutubeExtractor.getVideoId(stream.getUrl());
-			if (videoId == null || !seen.add(videoId)) continue;
+			if (videoId == null || PageSource.isUnavailable(stream) || !seen.add(videoId)) continue;
 			items.add(new FeedItem(FeedItem.Kind.VIDEO, Constant.HOME_URL + "/watch?v=" + videoId, videoId,
 							stream.getName(), stream.getUploaderName(), FeedClient.mobile(stream.getUploaderUrl()),
 							FeedItem.thumbnailFor(videoId), stream.getDuration(),

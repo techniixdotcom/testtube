@@ -6,15 +6,18 @@ import androidx.annotation.Nullable;
 import com.testtube.app.Constant;
 
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/**
+ * Builds YouTube auth headers from the current session snapshot.
+ */
 public final class YoutubeAuth {
 	private YoutubeAuth() {
 	}

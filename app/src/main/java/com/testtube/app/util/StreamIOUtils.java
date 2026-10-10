@@ -16,6 +16,9 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 
+/**
+ * Small stream and file helpers.
+ */
 public final class StreamIOUtils {
 	private static final String TAG = "StreamIOUtils";
 	private static final int BUFFER = 64 * 1024;
@@ -76,7 +79,9 @@ public final class StreamIOUtils {
 		}
 	}
 
-	/** Fails if the target already exists. */
+	/**
+	 * Moves a file, failing if the target already exists.
+	 */
 	public static void moveFile(@NonNull File source, @NonNull File target) throws IOException {
 		if (target.exists()) throw new IOException("Target already exists: " + target);
 		if (source.renameTo(target)) return;

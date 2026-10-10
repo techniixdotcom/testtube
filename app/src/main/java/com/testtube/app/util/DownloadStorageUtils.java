@@ -23,6 +23,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Locale;
 
+/**
+ * Utility that publishes completed downloads into shared storage.
+ */
 public final class DownloadStorageUtils {
 	private static final String WORK_DIR_NAME = "download_work";
 
@@ -51,7 +54,7 @@ public final class DownloadStorageUtils {
 			throw new IOException("Unable to create downloads directory: " + targetDir.getAbsolutePath());
 		}
 
-		// make the file name unique if it already exists
+		// Keep the filename unique when the target already exists.
 		File destination = new File(targetDir, displayName);
 		if (destination.exists()) {
 			int dot = displayName.lastIndexOf('.');

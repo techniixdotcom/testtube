@@ -14,8 +14,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Channels followed without a YouTube account. Their videos come from the public channel feeds,
- * so no login needed.
+ * The channels the person follows without a YouTube account. Their latest videos come from the
+ * public channel feeds, so nothing here needs a login.
  */
 public final class LocalSubscriptions {
 	private static final String KEY = "local_subscriptions";
@@ -50,7 +50,7 @@ public final class LocalSubscriptions {
 				}
 			}
 		} catch (RuntimeException ignored) {
-			// corrupt list, drop it instead of crashing
+			// A damaged list is dropped rather than crashing the app.
 		}
 	}
 
@@ -108,6 +108,9 @@ public final class LocalSubscriptions {
 		save();
 	}
 
+	/**
+	 * Fills in a name that was missing in the imported list.
+	 */
 	public synchronized void rename(@NonNull String id, @NonNull String name) {
 		int index = indexOf(id);
 		if (index < 0 || name.isBlank() || !channels.get(index).name().isBlank()) return;
@@ -128,7 +131,8 @@ public final class LocalSubscriptions {
 	}
 
 	/**
-	 * Exports in Google Takeout's subscriptions.csv format ({@link #parseImport} reads it back).
+	 * The followed channels in the layout of a Google Takeout subscriptions.csv, which
+	 * {@link #parseImport} reads back.
 	 */
 	@NonNull
 	public synchronized String exportCsv() {
@@ -147,7 +151,10 @@ public final class LocalSubscriptions {
 		return matcher.find() ? matcher.group() : null;
 	}
 
-	/** Parses a Takeout csv, a NewPipe export, OPML, or just text with channel links in it. */
+	/**
+	 * Reads the channels out of an exported list: a Google Takeout subscriptions.csv, a NewPipe
+	 * export, an OPML file or just a text with channel links.
+	 */
 	@NonNull
 	public static List<Channel> parseImport(@NonNull String text) {
 		Map<String, String> found = new LinkedHashMap<>();

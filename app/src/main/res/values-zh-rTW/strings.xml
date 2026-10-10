@@ -175,4 +175,22 @@
     <string name="page_play_all">全部播放</string>
     <string name="login_subtitle">使用 Google 帳戶登入</string>
     <string name="watch_history_remove">從記錄中移除</string>
+    <string-array name="discover_queries">
+        <item>發燒影片</item>
+        <item>今日熱門</item>
+        <item>本週新片</item>
+        <item>最多觀看</item>
+        <item>紀錄片</item>
+        <item>音樂</item>
+        <item>遊戲</item>
+        <item>科學</item>
+        <item>原理解說</item>
+        <item>旅遊</item>
+        <item>美食</item>
+        <item>搞笑</item>
+        <item>科技開箱</item>
+        <item>歷史</item>
+        <item>體育精華</item>
+        <item>Podcast</item>
+    </string-array>
 </resources>
