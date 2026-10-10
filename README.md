@@ -43,8 +43,8 @@ Subscriptions come from one of two places. By default the app shows the latest v
 ## Screenshots
 
 <p align="center">
-<img src="screens/11.jpeg" alt="" width="200">
-<img src="screens/2.jped" alt="" width="200">
+<img src="screens/1.jpeg" alt="" width="200">
+<img src="screens/2.jpeg" alt="" width="200">
 <img src="screens/3.jpeg" alt="" width="200">
 </p>
 
