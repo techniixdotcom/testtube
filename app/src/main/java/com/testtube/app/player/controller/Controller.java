@@ -1,0 +1,953 @@
+package com.testtube.app.player.controller;
+
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.content.pm.ActivityInfo;
+import android.graphics.Typeface;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.format.DateUtils;
+import android.util.TypedValue;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
+import android.widget.FrameLayout;
+import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.ListAdapter;
+import android.widget.ListPopupWindow;
+import android.widget.ListView;
+import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
+import androidx.lifecycle.Lifecycle;
+import androidx.lifecycle.LifecycleEventObserver;
+import androidx.lifecycle.LifecycleOwner;
+import androidx.media3.common.Format;
+import androidx.media3.common.Player;
+import androidx.media3.common.Tracks;
+import androidx.media3.common.util.UnstableApi;
+import androidx.media3.exoplayer.DecoderCounters;
+
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.testtube.app.Constant;
+import com.testtube.app.R;
+import com.testtube.app.nav.TabManager;
+import com.testtube.app.extractor.StreamCatalog;
+import com.testtube.app.player.TestTubePlayerView;
+import com.testtube.app.player.common.PlayerLoopMode;
+import com.testtube.app.player.common.PlayerPreferences;
+import com.testtube.app.player.common.PlayerUtils;
+import com.testtube.app.player.controller.gesture.PlayerGestureListener;
+import com.testtube.app.player.controller.gesture.ZoomTouchListener;
+import com.testtube.app.player.engine.Engine;
+import com.testtube.app.player.queue.QueueNav;
+import com.testtube.app.util.DeviceUtils;
+import com.testtube.app.util.ImageUtils;
+import com.testtube.app.util.ViewUtils;
+
+import org.schabi.newpipe.extractor.stream.AudioStream;
+import org.schabi.newpipe.extractor.stream.StreamSegment;
+import org.schabi.newpipe.extractor.stream.VideoStream;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * Enumeration of app logic.
+ */
+enum PlaybackPrimaryAction {
+	PLAY(R.drawable.ic_play, R.string.action_play, false, false),
+	PAUSE(R.drawable.ic_pause, R.string.action_pause, true, false),
+	REPLAY(R.drawable.ic_replay, R.string.action_replay, false, true);
+
+	private final int iconRes;
+	private final int contentDescriptionRes;
+	private final boolean showsPauseButton;
+	private final boolean restartsCurrentItem;
+
+	PlaybackPrimaryAction(int iconRes,
+	                      final int contentDescriptionRes,
+	                      final boolean showsPauseButton,
+	                      final boolean restartsCurrentItem) {
+		this.iconRes = iconRes;
+		this.contentDescriptionRes = contentDescriptionRes;
+		this.showsPauseButton = showsPauseButton;
+		this.restartsCurrentItem = restartsCurrentItem;
+	}
+
+	@NonNull
+	static PlaybackPrimaryAction get(boolean isPlaying,
+	                                 final int playbackState,
+	                                 @NonNull PlayerLoopMode loopMode,
+	                                 final boolean inMiniPlayer,
+	                                 final boolean inQueue,
+	                                 final boolean hasPlaylistContext) {
+		if (isPlaying) return PAUSE;
+		if (!inMiniPlayer
+						&& playbackState == Player.STATE_ENDED
+						&& (loopMode == PlayerLoopMode.PAUSE_AT_END || (!inQueue && !hasPlaylistContext))) {
+			return REPLAY;
+		}
+		return PLAY;
+	}
+
+	int iconRes() {
+		return iconRes;
+	}
+
+	int contentDescriptionRes() {
+		return contentDescriptionRes;
+	}
+
+	boolean showsPauseButton() {
+		return showsPauseButton;
+	}
+
+	boolean restartsCurrentItem() {
+		return restartsCurrentItem;
+	}
+}
+
+/**
+ * Playback controller that translates engine state into UI actions.
+ */
+@UnstableApi
+public class Controller {
+	private static final long SEEK_STEP_MS = 10_000L;
+	static final float DISABLED_BUTTON_ALPHA = 0.38f;
+	@NonNull
+	private final Activity activity;
+	@NonNull
+	private final TestTubePlayerView playerView;
+	@NonNull
+	private final Engine engine;
+	@NonNull
+	private final ZoomTouchListener zoomListener;
+	private final PlayerGestureListener gestureListener;
+	@NonNull
+	private final PlayerPreferences prefs;
+	@NonNull
+	private final TabManager tabManager;
+	@NonNull
+	private final Handler handler = new Handler(Looper.getMainLooper());
+	@Nullable
+	private TextView hintText;
+	@NonNull
+	private ControllerState state = ControllerState.initial();
+	private long lastVideoRenderedCount = 0;
+	private long lastFpsUpdateTime = 0;
+	private float fps = 0;
+
+	public Controller(@NonNull Activity activity, @NonNull TestTubePlayerView playerView, @NonNull Engine engine, @NonNull PlayerPreferences prefs, @NonNull ZoomTouchListener zoomListener, @NonNull TabManager tabManager) {
+		this.activity = activity;
+		this.playerView = playerView;
+		this.engine = engine;
+		this.prefs = prefs;
+		this.zoomListener = zoomListener;
+		this.tabManager = tabManager;
+		this.gestureListener = new PlayerGestureListener(activity, playerView, engine, this);
+		this.zoomListener.setOnShowReset(show ->
+						showReset(show && isControlsVisible() && state.mode() == ControllerState.Mode.FULLSCREEN_UNLOCK));
+
+		playerView.post(() -> {
+			setupHintOverlay();
+			setupListeners();
+			setupButtonListeners();
+			refreshPlaybackButtons();
+			refreshQueueNavigationAvailability(engine.getQueueNavigationAvailability());
+			playerView.showController();
+		});
+	}
+
+	public static boolean shouldEnablePrevious(@NonNull QueueNav availability) {
+		return availability.isPreviousActionEnabled();
+	}	@NonNull
+	private final Runnable hideControls = () -> setControlsVisible(false);
+
+	public static boolean shouldEnableNext(@NonNull QueueNav availability) {
+		return availability.isNextActionEnabled();
+	}
+
+	static float previousButtonAlpha(@NonNull QueueNav availability) {
+		return shouldEnablePrevious(availability) ? 1.0f : DISABLED_BUTTON_ALPHA;
+	}
+
+	static float nextButtonAlpha(@NonNull QueueNav availability) {
+		return shouldEnableNext(availability) ? 1.0f : DISABLED_BUTTON_ALPHA;
+	}
+
+	static int fsOrientation(boolean portrait) {
+		return portrait
+						? ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+						: ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
+	}
+
+	static boolean shouldAutoHideControls(boolean isPlaying, boolean isInPictureInPicture) {
+		return isPlaying && !isInPictureInPicture;
+	}
+
+	public void refreshQueueNavigationAvailability(@NonNull QueueNav availability) {
+		playerView.post(() -> {
+			applyPreviousButtonState(availability);
+			applyNextButtonState(availability);
+		});
+	}
+
+	private void refreshPlaybackButtons() {
+		updateCenterPlaybackButtons(getCenterPrimaryAction());
+	}
+
+	@NonNull
+	private PlaybackPrimaryAction getCenterPrimaryAction() {
+		return PlaybackPrimaryAction.get(
+						engine.isPlaying(),
+						engine.getPlaybackState(),
+						getLoopMode(),
+						state.isInMiniPlayer(),
+						engine.isCurrentVideoInQueue(),
+						tabManager.watchHasPlaylist());
+	}
+
+	private void updateCenterPlaybackButtons(@NonNull PlaybackPrimaryAction action) {
+		ImageButton play = playerView.findViewById(R.id.btn_play);
+		View pause = playerView.findViewById(R.id.btn_pause);
+		if (play != null) {
+			if (!action.showsPauseButton()) {
+				play.setImageResource(action.iconRes());
+				play.setContentDescription(activity.getString(action.contentDescriptionRes()));
+			}
+			play.setVisibility(action.showsPauseButton() ? View.GONE : View.VISIBLE);
+		}
+		if (pause != null) {
+			pause.setVisibility(action.showsPauseButton() ? View.VISIBLE : View.GONE);
+		}
+	}
+
+	private void setupHintOverlay() {
+		this.hintText = playerView.findViewById(R.id.hint_text);
+		if (this.hintText != null) {
+			int pad = ViewUtils.dpToPx(activity, 8);
+			this.hintText.setPadding(pad, pad / 2, pad, pad / 2);
+			final FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) this.hintText.getLayoutParams();
+			lp.topMargin = ViewUtils.dpToPx(activity, 24);
+			this.hintText.setLayoutParams(lp);
+		}
+	}
+
+	public void setLongPressAction(@Nullable Runnable action) {
+		gestureListener.setLongPressAction(action);
+	}
+
+	@SuppressLint("ClickableViewAccessibility")
+	private void setupListeners() {
+		// Wire gestures and player callbacks.
+		GestureDetector detector = new GestureDetector(activity, gestureListener);
+		playerView.setOnTouchListener((v, ev) -> {
+			if (state.isInMiniPlayer()) {
+				return false;
+			}
+			int action = ev.getAction();
+			if (action == MotionEvent.ACTION_DOWN && isControlsVisible()) {
+				handler.removeCallbacks(hideControls);
+			}
+			boolean handled = detector.onTouchEvent(ev);
+			if (!handled && isFullscreen()) zoomListener.onTouch(ev);
+			if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+				gestureListener.onTouchRelease();
+				if (isControlsVisible()) hideControlsAutomatically();
+			}
+			return handled;
+		});
+
+		engine.addListener(new Player.Listener() {
+			@Override
+			public void onIsPlayingChanged(boolean isPlaying) {
+				refreshPlaybackButtons();
+				playerView.setKeepScreenOn(isPlaying);
+				if (isControlsVisible()) hideControlsAutomatically();
+			}
+
+			@Override
+			public void onPlaybackStateChanged(int playbackState) {
+				refreshPlaybackButtons();
+				if (playbackState == Player.STATE_ENDED && getLoopMode() == PlayerLoopMode.PAUSE_AT_END) {
+					setControlsVisible(true);
+				} else if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
+					hideControlsAutomatically();
+				} else if (playbackState == Player.STATE_BUFFERING && isControlsVisible()) {
+					setControlsVisible(true);
+				}
+				if (playbackState == Player.STATE_READY) {
+					playerView.post(() -> {
+						TextView qualityView = playerView.findViewById(R.id.btn_quality);
+						if (qualityView != null) qualityView.setText(qualityButtonLabel());
+					});
+				}
+			}
+
+			@Override
+			public void onTracksChanged(@NonNull Tracks tracks) {
+				updateSubtitleButtonState();
+				playerView.post(() -> {
+					TextView qualityView = playerView.findViewById(R.id.btn_quality);
+					if (qualityView != null) qualityView.setText(qualityButtonLabel());
+				});
+			}
+
+			@Override
+			public void onPositionDiscontinuity(@NonNull Player.PositionInfo oldPosition, @NonNull Player.PositionInfo newPosition, int reason) {
+				if (reason == Player.DISCONTINUITY_REASON_SEEK) {
+					handler.removeCallbacks(hideControls);
+					setControlsVisible(true);
+				}
+			}
+		});
+	}
+
+	private void setupButtonListeners() {
+		// Wire the controller buttons after the view is ready.
+		setupPlaybackButtons();
+		setupQualityAndSpeedButtons();
+		setupSubtitleAndSegmentButtons();
+		setupOverlayAndMoreButtons();
+	}
+
+	private void setupPlaybackButtons() {
+		setClick(R.id.btn_play, v -> {
+			if (getCenterPrimaryAction().restartsCurrentItem()) {
+				engine.seekTo(0);
+			}
+			engine.play();
+			setControlsVisible(true);
+		});
+		setClicks(new int[]{R.id.btn_pause}, v -> {
+			engine.pause();
+			setControlsVisible(true);
+		});
+		setClicks(new int[]{R.id.btn_prev}, v -> {
+			engine.skipToPrevious();
+			setControlsVisible(true);
+		});
+		setClicks(new int[]{R.id.btn_next}, v -> {
+			engine.skipToNext();
+			setControlsVisible(true);
+		});
+		setClicks(new int[]{R.id.btn_seek_back}, v -> {
+			engine.seekBy(-SEEK_STEP_MS);
+			setControlsVisible(true);
+		});
+		setClicks(new int[]{R.id.btn_seek_forward}, v -> {
+			engine.seekBy(SEEK_STEP_MS);
+			setControlsVisible(true);
+		});
+
+		ImageButton lockBtn = playerView.findViewById(R.id.btn_lock);
+		if (lockBtn != null) {
+			lockBtn.setOnClickListener(v -> {
+				toggleLockState();
+				showHint(activity.getString(state.isLocked() ? R.string.lock_screen : R.string.unlock_screen),
+								com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+			});
+		}
+
+		ImageButton fsBtn = playerView.findViewById(R.id.btn_fullscreen);
+		if (fsBtn != null) {
+			fsBtn.setOnClickListener(v -> {
+				if (!isFullscreen()) {
+					enterFullscreen();
+				} else {
+					exitFullscreen();
+				}
+			});
+		}
+
+		ImageButton loopBtn = playerView.findViewById(R.id.btn_loop);
+		if (loopBtn != null) {
+			applyLoopMode(loopBtn, prefs.getLoopMode());
+			loopBtn.setOnClickListener(v -> {
+				PlayerLoopMode newMode = getLoopMode().next();
+				setLoopMode(newMode);
+				showHint(activity.getString(getLoopModeLabelRes(newMode)), com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+				setControlsVisible(true);
+			});
+		}
+
+		setClick(R.id.btn_reset, v -> zoomListener.reset());
+	}
+
+	private void applyLoopMode(@NonNull ImageButton loopBtn, @NonNull PlayerLoopMode mode) {
+		engine.setLoopMode(mode);
+		loopBtn.setImageResource(getLoopModeIconRes(mode));
+		loopBtn.setContentDescription(activity.getString(getLoopModeLabelRes(mode)));
+	}
+
+	@NonNull
+	public PlayerLoopMode getLoopMode() {
+		return prefs.getLoopMode();
+	}
+
+	public void setLoopMode(@NonNull PlayerLoopMode mode) {
+		prefs.setLoopMode(mode);
+		ImageButton loopBtn = playerView.findViewById(R.id.btn_loop);
+		if (loopBtn != null) {
+			applyLoopMode(loopBtn, mode);
+		} else {
+			engine.setLoopMode(mode);
+		}
+		refreshPlaybackButtons();
+	}
+
+	private int getLoopModeIconRes(@NonNull PlayerLoopMode mode) {
+		return switch (mode) {
+			case PLAYLIST_NEXT -> R.drawable.ic_playback_end_next;
+			case LOOP_ONE -> R.drawable.ic_playback_end_loop;
+			case PAUSE_AT_END -> R.drawable.ic_playback_end_pause;
+			case PLAYLIST_RANDOM -> R.drawable.ic_playback_end_shuffle;
+		};
+	}
+
+	private int getLoopModeLabelRes(@NonNull PlayerLoopMode mode) {
+		return switch (mode) {
+			case PLAYLIST_NEXT -> R.string.playback_end_next;
+			case LOOP_ONE -> R.string.playback_end_loop;
+			case PAUSE_AT_END -> R.string.playback_end_pause;
+			case PLAYLIST_RANDOM -> R.string.playback_end_playlist_random;
+		};
+	}
+
+	private void setupQualityAndSpeedButtons() {
+		// Keep the picker aligned with the active playback options.
+		TextView qualityView = playerView.findViewById(R.id.btn_quality);
+
+		if (qualityView != null) {
+			qualityView.setText(qualityButtonLabel());
+			qualityView.setOnClickListener(v -> {
+				List<String> available = engine.getAvailableResolutions();
+				if (available.isEmpty()) return;
+				String[] labels = available.toArray(new String[0]);
+				String[] values = available.toArray(new String[0]);
+				int checked = prefs.getPreferredQuality() == null ? -1 : Arrays.asList(values).indexOf(engine.getQuality());
+				showSelectionPopup(v, labels, checked, (index, label) -> {
+					String selected = values[index];
+					engine.onQualitySelected(selected);
+					qualityView.setText(label);
+				});
+			});
+		}
+	}
+
+	@NonNull
+	private String qualityButtonLabel() {
+		if (prefs.getPreferredQuality() != null) {
+			return engine.getQualityLabel();
+		}
+		if (engine.getPlaybackState() == Player.STATE_IDLE) {
+			return activity.getString(R.string.player_quality_auto);
+		}
+		String quality = engine.getQuality();
+		if (quality == null || quality.isEmpty()) {
+			return activity.getString(R.string.player_quality_auto);
+		}
+		return activity.getString(R.string.player_quality_auto) + " " + quality;
+	}
+
+	private void setupSubtitleAndSegmentButtons() {
+		// Build compact pickers for subtitle, segment, and audio choices.
+		ImageButton subBtn = playerView.findViewById(R.id.btn_subtitles);
+		updateSubtitleButtonState();
+		if (subBtn != null) {
+			subBtn.setOnClickListener(v -> {
+				List<String> available = engine.getSubtitles();
+				if (available.isEmpty()) {
+					showHint(activity.getString(R.string.no_subtitles), com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+					hideControlsAutomatically();
+					return;
+				}
+				String[] options = available.toArray(new String[0]);
+				String sel = engine.getSelectedSubtitle();
+				int checked = (engine.areSubtitlesEnabled() && sel != null) ? available.indexOf(sel) : -1;
+				showSelectionPopup(subBtn, options, checked, (index, label) -> {
+					if (index == checked) {
+						engine.setSubtitlesEnabled(false);
+						showHint(activity.getString(R.string.subtitles_off), com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+					} else {
+						engine.setSubtitlesEnabled(true);
+						engine.setSubtitleLanguage(label);
+						showHint(activity.getString(R.string.subtitles_on) + ": " + label, com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+					}
+					updateSubtitleButtonState();
+				});
+			});
+		}
+		setClick(R.id.btn_segments, anchor -> {
+			List<StreamSegment> segments = engine.getSegments();
+			String[] titles = new String[segments.size()];
+			int idx = -1;
+			long posSec = engine.position() / 1000;
+			for (int i = 0; i < segments.size(); i++) {
+				StreamSegment seg = segments.get(i);
+				titles[i] = DateUtils.formatElapsedTime(Math.max(seg.getStartTimeSeconds(), 0)) + " - " + seg.getTitle();
+				if (posSec >= seg.getStartTimeSeconds()) idx = i;
+			}
+			showSelectionPopup(anchor, titles, idx, new SelectionCallback() {
+				@Override
+				public void onSelected(int index, String label) {
+					StreamSegment segment = segments.get(index);
+					engine.seekTo(segment.getStartTimeSeconds() * 1000L);
+					showHint(activity.getString(R.string.jumped_to_segment, segment.getTitle()), com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+				}
+
+				@Override
+				public void onLongClick(int index, String label) {
+					StreamSegment segment = segments.get(index);
+					MaterialAlertDialogBuilder b = new MaterialAlertDialogBuilder(activity);
+					View v = activity.getLayoutInflater().inflate(R.layout.dialog_segment, null, false);
+					((TextView) v.findViewById(R.id.segment_title)).setText(segment.getTitle());
+					((TextView) v.findViewById(R.id.segment_time)).setText(DateUtils.formatElapsedTime(Math.max(segment.getStartTimeSeconds(), 0)));
+					ImageUtils.loadThumb(v.findViewById(R.id.segment_thumbnail),
+									segment.getPreviewUrl() != null ? segment.getPreviewUrl() : engine.getThumbnailUrl());
+					b.setView(v).setPositiveButton(R.string.jump, (d, w) -> {
+						engine.seekTo(segment.getStartTimeSeconds() * 1000L);
+						showHint(activity.getString(R.string.jumped_to_segment, segment.getTitle()), com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+						hideControlsAutomatically();
+					}).setNegativeButton(R.string.close, null).show();
+				}
+			});
+		});
+	}
+
+	private void updateSubtitleButtonState() {
+		ImageButton subBtn = playerView.findViewById(R.id.btn_subtitles);
+		if (subBtn == null) return;
+		boolean hasSubtitles = !engine.getSubtitles().isEmpty();
+		boolean isEnabled = engine.areSubtitlesEnabled();
+		subBtn.setImageResource(isEnabled ? R.drawable.ic_subtitles_on : R.drawable.ic_subtitles_off);
+		subBtn.setAlpha(hasSubtitles ? 1.0f : 0.7f);
+	}
+
+	private void setupOverlayAndMoreButtons() {
+		setClick(R.id.btn_more, v -> {
+			setControlsVisible(true);
+			if (activity.isInPictureInPictureMode()) return;
+			BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(activity);
+			View bottomSheetView = activity.getLayoutInflater().inflate(
+							R.layout.bottom_sheet_more_options,
+							new FrameLayout(activity),
+							false);
+			bottomSheetDialog.setContentView(bottomSheetView);
+
+			FrameLayout bottomSheet = bottomSheetDialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+			if (bottomSheet != null) {
+				BottomSheetBehavior<FrameLayout> behavior = BottomSheetBehavior.from(bottomSheet);
+				bottomSheetView.measure(View.MeasureSpec.makeMeasureSpec(ViewUtils.getScreenWidth(activity), View.MeasureSpec.AT_MOST), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+				behavior.setPeekHeight(bottomSheetView.getMeasuredHeight());
+			}
+
+			if (activity instanceof LifecycleOwner lifecycleOwner) {
+				LifecycleEventObserver observer = (source, event) -> {
+					if (event == Lifecycle.Event.ON_PAUSE && activity.isInPictureInPictureMode())
+						bottomSheetDialog.dismiss();
+				};
+				lifecycleOwner.getLifecycle().addObserver(observer);
+				bottomSheetDialog.setOnDismissListener(dialog -> {
+					lifecycleOwner.getLifecycle().removeObserver(observer);
+					hideControlsAutomatically();
+				});
+			} else {
+				bottomSheetDialog.setOnDismissListener(dialog -> hideControlsAutomatically());
+			}
+
+			setupBottomSheetOption(bottomSheetView, R.id.option_audio_track, b -> {
+				showAudioTrackOptions();
+				bottomSheetDialog.dismiss();
+			});
+			setupBottomSheetOption(bottomSheetView, R.id.option_pip, b -> {
+				playerView.enterPiP();
+				bottomSheetDialog.dismiss();
+			});
+			setupBottomSheetOption(bottomSheetView, R.id.option_stream_details, b -> {
+				showVideoDetails();
+				bottomSheetDialog.dismiss();
+			});
+			bottomSheetDialog.show();
+		});
+	}
+
+	private void showAudioTrackOptions() {
+		List<AudioStream> audioTracks = engine.getAvailableAudioTracks();
+		if (audioTracks.isEmpty()) return;
+		String[] options = new String[audioTracks.size()];
+		for (int i = 0; i < audioTracks.size(); i++) {
+			AudioStream s = audioTracks.get(i);
+			int bitrate = s.getAverageBitrate() > 0 ? s.getAverageBitrate() : s.getBitrate();
+			options[i] = s.getAudioTrackName() == null ? bitrate + "kbps" : String.format("%s (%s)", s.getAudioTrackName(), bitrate + "kbps");
+		}
+		int checked = -1;
+		AudioStream sel = engine.getAudioTrack();
+		if (sel != null) {
+			for (int i = 0; i < audioTracks.size(); i++)
+				if (audioTracks.get(i).getContent().equals(sel.getContent())) checked = i;
+		}
+		new MaterialAlertDialogBuilder(activity).setTitle(R.string.audio_track).setAdapter(getAdapter(checked, options), (dialog, which) -> {
+			engine.setAudioTrack(audioTracks.get(which));
+			showHint(options[which], com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+			hideControlsAutomatically();
+		}).setNegativeButton(R.string.cancel, null).show();
+	}
+
+	@NonNull
+	private ListAdapter getAdapter(int checkedItem, String[] options) {
+		return new ArrayAdapter<>(activity, R.layout.dialog_resize_mode_item, options) {
+			@NonNull
+			@Override
+			public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+				View view = (convertView == null) ? activity.getLayoutInflater().inflate(R.layout.dialog_resize_mode_item, parent, false) : convertView;
+				ImageView icon = view.findViewById(R.id.icon);
+				TextView text = view.findViewById(R.id.text);
+				icon.setImageResource(R.drawable.ic_track);
+				text.setText(getItem(position));
+				TypedValue tv = new TypedValue();
+				if (position == checkedItem) {
+					activity.getTheme().resolveAttribute(android.R.attr.colorPrimary, tv, true);
+					icon.setColorFilter(tv.data);
+					text.setTextColor(tv.data);
+					text.setTypeface(null, Typeface.BOLD);
+				} else {
+					activity.getTheme().resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, tv, true);
+					icon.setColorFilter(activity.getColor(android.R.color.darker_gray));
+					text.setTextColor(tv.data);
+					text.setTypeface(null, Typeface.NORMAL);
+				}
+				return view;
+			}
+		};
+	}
+
+	private void showVideoDetails() {
+		StreamCatalog details = engine.getStreamCatalog();
+		if (details == null) {
+			showHint(activity.getString(R.string.unable_to_get_stream_info), com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+			hideControlsAutomatically();
+			return;
+		}
+		MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(activity);
+		builder.setTitle(R.string.info).setPositiveButton(R.string.confirm, null);
+		String[] info = {getVideoDetailsText(details)};
+		builder.setMessage(info[0]).setNeutralButton(R.string.copy, (dialog, which) -> {
+			DeviceUtils.copyToClipboard(activity, "Video Details", info[0]);
+			showHint(activity.getString(R.string.debug_info_copied), com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+		});
+		AlertDialog dialog = builder.show();
+		hideControlsAutomatically();
+		Handler updateHandler = new Handler(Looper.getMainLooper());
+		updateHandler.post(new Runnable() {
+			@Override
+			public void run() {
+				if (dialog.isShowing()) {
+					info[0] = getVideoDetailsText(details);
+					dialog.setMessage(info[0]);
+					updateHandler.postDelayed(this, 1000);
+				}
+			}
+		});
+	}
+
+	@NonNull
+	private String getVideoDetailsText(@NonNull StreamCatalog details) {
+		// Assemble the debug info shown in the info dialog.
+		StringBuilder sb = new StringBuilder();
+		Format vF = engine.getVideoFormat();
+		Format aF = engine.getAudioFormat();
+		DecoderCounters counters = engine.getVideoDecoderCounters();
+		if (counters != null) {
+			long now = System.currentTimeMillis();
+			if (lastFpsUpdateTime > 0) {
+				long diff = now - lastFpsUpdateTime;
+				if (diff >= 1000) {
+					fps = ((counters.renderedOutputBufferCount - lastVideoRenderedCount) * 1000f) / diff;
+					lastVideoRenderedCount = counters.renderedOutputBufferCount;
+					lastFpsUpdateTime = now;
+				}
+			} else {
+				lastVideoRenderedCount = counters.renderedOutputBufferCount;
+				lastFpsUpdateTime = now;
+			}
+			sb.append(activity.getString(R.string.fps)).append(": ").append(String.format(Locale.getDefault(), "%.2f", fps)).append("\n");
+			sb.append(activity.getString(R.string.dropped_frames)).append(": ").append(counters.droppedBufferCount).append("\n");
+		}
+		if (vF != null)
+			sb.append(activity.getString(R.string.video_format)).append(": ").append(vF.sampleMimeType).append("\n").append(activity.getString(R.string.resolution)).append(": ").append(vF.width).append("x").append(vF.height).append("\n").append(activity.getString(R.string.bitrate)).append(": ").append(vF.bitrate / 1000).append(" kbps\n");
+		if (aF != null) {
+			sb.append(activity.getString(R.string.audio_format)).append(": ").append(aF.sampleMimeType).append("\n");
+			if (aF.bitrate > 0)
+				sb.append(activity.getString(R.string.bitrate)).append(": ").append(aF.bitrate / 1000).append(" kbps\n");
+			if (aF.channelCount > 0)
+				sb.append(activity.getString(R.string.channels)).append(": ").append(aF.channelCount).append("\n");
+			if (aF.sampleRate > 0)
+				sb.append(activity.getString(R.string.sample_rate)).append(": ").append(aF.sampleRate).append(" Hz\n");
+		}
+		String q = engine.getQuality();
+		for (VideoStream vs : details.getVideoStreams())
+			if (vs.getResolution().equals(q)) {
+				sb.append(activity.getString(R.string.active_stream_video, 1, activity.getString(R.string.active_label), vs.getResolution(), vs.getFormat() != null ? vs.getFormat().name() : activity.getString(R.string.unknown), vs.getCodec())).append("\n");
+				break;
+			}
+		int aIdx = engine.getSelectedAudioTrackIndex();
+		if (aIdx >= 0) {
+			AudioStream a = engine.getAvailableAudioTracks().get(aIdx);
+			sb.append(activity.getString(R.string.active_stream_audio, a.getFormat() != null ? a.getFormat().name() : activity.getString(R.string.unknown), a.getCodec(), a.getAverageBitrate() > 0 ? a.getAverageBitrate() + "kbps" : activity.getString(R.string.unknown_bitrate)));
+		}
+		return sb.toString();
+	}
+
+	private void setupBottomSheetOption(@NonNull View root, int id, @NonNull View.OnClickListener l) {
+		View o = root.findViewById(id);
+		if (o != null) o.setOnClickListener(l);
+	}
+
+	/**
+	 * Fullscreen is only entered from the fullscreen button or an upward swipe, and it locks
+	 * the screen to the video's orientation. Once in fullscreen, rotating the phone does
+	 * nothing — the only way out is the minimise button (or the system back action).
+	 */
+	public void enterFullscreen() {
+		if (state.isFullscreen()) return;
+		final ControllerState.Mode previousState = state.mode();
+		state = state.enterFullscreen();
+		applyControllerState(previousState, true);
+	}
+
+	public void exitFullscreen() {
+		exitNow();
+	}
+
+	public void exitFullscreenImmediately() {
+		exitNow();
+	}
+
+	private void exitNow() {
+		if (!state.isFullscreen()) return;
+		final ControllerState.Mode previousState = state.mode();
+		state = state.exitFullscreen();
+		applyControllerState(previousState, true);
+		zoomListener.reset();
+	}
+
+	public void release() {
+	}
+
+	public void onPictureInPictureModeChanged(boolean isInPiP) {
+		final ControllerState.Mode previousState = state.mode();
+		state = isInPiP ? state.enterPip() : state.exitPip();
+		applyControllerState(previousState, !isInPiP);
+	}
+
+	/**
+	 * Sends the playing video to the bar at the bottom of the screen.
+	 */
+	public boolean minimizeToBar() {
+		return tabManager.minimizeWatch();
+	}
+
+	public void enterMiniPlayer() {
+		final ControllerState.Mode previousState = state.mode();
+		state = state.enterMiniPlayer();
+		applyControllerState(previousState, true);
+	}
+
+	public void exitMiniPlayer() {
+		final ControllerState.Mode previousState = state.mode();
+		state = state.exitMiniPlayer();
+		applyControllerState(previousState, true);
+	}
+
+	private void applyRenderState(@NonNull ControllerState.RenderState renderState) {
+		View center = playerView.findViewById(R.id.center_controls);
+		View other = playerView.findViewById(R.id.other_controls);
+		View bar = playerView.findViewById(R.id.exo_progress);
+		ImageButton lockBtn = playerView.findViewById(R.id.btn_lock);
+		updateLockButton(lockBtn);
+		if (center != null) {
+			ViewUtils.animateViewAlpha(center, renderState.centerVisible() ? 1.0f : 0.0f, View.GONE);
+		}
+		if (other != null) {
+			ViewUtils.animateViewAlpha(other, renderState.otherVisible() ? 1.0f : 0.0f, View.GONE);
+		}
+		if (bar != null) {
+			ViewUtils.animateViewAlpha(bar, renderState.progressVisible() ? 1.0f : 0.0f, View.GONE);
+		}
+		showReset(renderState.resetVisible());
+		if (lockBtn != null) {
+			ViewUtils.animateViewAlpha(lockBtn, renderState.lockVisible() ? 1.0f : 0.0f, View.GONE);
+		}
+	}
+
+	private void showReset(boolean show) {
+		View btn = playerView.findViewById(R.id.btn_reset);
+		if (btn != null) btn.setVisibility(show ? View.VISIBLE : View.GONE);
+	}
+
+	private void hideControlsAutomatically() {
+		handler.removeCallbacks(hideControls);
+		if (shouldAutoHideControls(engine.isPlaying(), state.isInPictureInPicture())) {
+			handler.postDelayed(hideControls, 3000);
+		}
+	}
+
+	public void showHint(@NonNull String text, long durationMs) {
+		if (hintText == null || activity.isInPictureInPictureMode() || state.isInPictureInPicture() || state.isInMiniPlayer())
+			return;
+		hintText.setText(text);
+		ViewUtils.animateViewAlpha(hintText, 1.0f, View.GONE);
+		handler.removeCallbacks(this::hideHint);
+		if (durationMs > 0) handler.postDelayed(this::hideHint, durationMs);
+	}
+
+	public boolean isFullscreen() {
+		return state.isFullscreen();
+	}
+
+	public boolean isControlsVisible() {
+		return state.controlsVisible();
+	}
+
+	public void setControlsVisible(boolean visible) {
+		state = state.withControlsVisible(visible);
+		handler.removeCallbacks(hideControls);
+		final ControllerState.RenderState renderState = state.renderState(
+						engine.getPlaybackState() == Player.STATE_BUFFERING,
+						zoomListener.isZoomed());
+		applyRenderState(renderState);
+		if (renderState.controlsVisible()) {
+			hideControlsAutomatically();
+		}
+	}
+
+	private void toggleLockState() {
+		final ControllerState.Mode previousState = state.mode();
+		state = state.toggleLock();
+		applyControllerState(previousState, true);
+	}
+
+	private void applyControllerState(@NonNull ControllerState.Mode previousState,
+	                                  final boolean controlsVisible) {
+		playerView.applyControllerState(
+						previousState,
+						state.mode(),
+						fsOrientation(PlayerUtils.isPortrait(engine)));
+		if (state.isInPictureInPicture() || state.isInMiniPlayer()) {
+			hideHint();
+		}
+		refreshPlaybackButtons();
+		setControlsVisible(controlsVisible);
+	}
+
+	private void updateLockButton(@Nullable ImageButton lockBtn) {
+		if (lockBtn == null) return;
+		lockBtn.setImageResource(state.isLocked() ? R.drawable.ic_lock : R.drawable.ic_unlock);
+		lockBtn.setContentDescription(activity.getString(
+						state.isLocked() ? R.string.lock_screen : R.string.unlock_screen));
+	}
+
+	public void hideHint() {
+		if (hintText != null) ViewUtils.animateViewAlpha(hintText, 0.0f, View.GONE);
+	}
+
+	private void showSelectionPopup(@NonNull View anchor, @NonNull String[] options, int checkedIndex, @NonNull SelectionCallback callback) {
+		// Show a compact popup and keep long-press actions in the same flow.
+		setControlsVisible(true);
+		ListPopupWindow popup = new ListPopupWindow(activity);
+		popup.setAnchorView(anchor);
+		popup.setModal(true);
+		ArrayAdapter<String> adapter = createSelectionAdapter(checkedIndex, options);
+		popup.setAdapter(adapter);
+		popup.setWidth(calculatePopupWidth(adapter, options.length));
+		popup.setOnItemClickListener((p, v, pos, id) -> {
+			callback.onSelected(pos, options[pos]);
+			popup.dismiss();
+			hideControlsAutomatically();
+		});
+		popup.show();
+		ListView lv = popup.getListView();
+		if (lv != null) lv.setOnItemLongClickListener((p, v, pos, id) -> {
+			callback.onLongClick(pos, options[pos]);
+			popup.dismiss();
+			return true;
+		});
+	}
+
+	private ArrayAdapter<String> createSelectionAdapter(int checked, @NonNull String[] options) {
+		return new ArrayAdapter<>(activity, R.layout.item_menu_list, options) {
+			@NonNull
+			@Override
+			public View getView(int pos, @Nullable View conv, @NonNull ViewGroup parent) {
+				TextView tv = (TextView) super.getView(pos, conv, parent);
+				TypedValue out = new TypedValue();
+				if (pos == checked) {
+					activity.getTheme().resolveAttribute(android.R.attr.colorPrimary, out, true);
+					tv.setTextColor(out.data);
+					tv.setTypeface(null, Typeface.BOLD);
+				} else {
+					activity.getTheme().resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, out, true);
+					tv.setTextColor(out.data);
+					tv.setTypeface(null, Typeface.NORMAL);
+				}
+				return tv;
+			}
+		};
+	}
+
+	private int calculatePopupWidth(@NonNull ListAdapter adapter, int itemCount) {
+		int maxWidth = 0;
+		for (int i = 0; i < itemCount; i++) {
+			View view = adapter.getView(i, null, new ListView(activity));
+			view.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+			maxWidth = Math.max(maxWidth, view.getMeasuredWidth());
+		}
+		return Math.min(maxWidth, (int) (ViewUtils.getScreenWidth(activity) * 0.8));
+	}
+
+	private void setClick(int id, View.OnClickListener l) {
+		View v = playerView.findViewById(id);
+		if (v != null) v.setOnClickListener(l);
+	}
+
+	private void setClicks(@NonNull int[] ids, @NonNull View.OnClickListener listener) {
+		for (int id : ids) {
+			setClick(id, listener);
+		}
+	}
+
+	private void applyPreviousButtonState(@NonNull QueueNav availability) {
+		View button = playerView.findViewById(R.id.btn_prev);
+		if (button == null) return;
+		button.setEnabled(shouldEnablePrevious(availability));
+		button.setAlpha(previousButtonAlpha(availability));
+	}
+
+	private void applyNextButtonState(@NonNull QueueNav availability) {
+		View button = playerView.findViewById(R.id.btn_next);
+		if (button == null) return;
+		button.setEnabled(shouldEnableNext(availability));
+		button.setAlpha(nextButtonAlpha(availability));
+	}
+
+/**
+ * Contract for app logic.
+ */
+	private interface SelectionCallback {
+		void onSelected(int index, String label);
+
+		default void onLongClick(int index, String label) {
+		}
+	}
+}
+
