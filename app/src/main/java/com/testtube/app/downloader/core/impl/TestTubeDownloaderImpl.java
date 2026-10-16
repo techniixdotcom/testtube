@@ -4,13 +4,13 @@ import android.content.Context;
 
 import androidx.annotation.NonNull;
 
-import com.testtube.app.util.StreamIOUtils;
-import com.testtube.app.downloader.core.TestTubeDownloader;
 import com.testtube.app.downloader.core.MediaMuxer;
 import com.testtube.app.downloader.core.ProgressCallback;
 import com.testtube.app.downloader.core.ProgressCallback2;
 import com.testtube.app.downloader.core.StreamDownloader;
 import com.testtube.app.downloader.core.Task;
+import com.testtube.app.downloader.core.TestTubeDownloader;
+import com.testtube.app.util.StreamIOUtils;
 
 import org.schabi.newpipe.extractor.stream.Stream;
 
@@ -25,16 +25,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.IntConsumer;
 
-/**
- * Runs file downloads and merge callbacks.
- */
 public class TestTubeDownloaderImpl implements TestTubeDownloader {
 	private final Context context;
 	private final StreamDownloader streamDL;
 	private final MediaMerger mediaMerger;
-	/**
-	 * Subtitles and thumbnails: a few small files at a time on daemon threads.
-	 */
+	/** Small files (subtitles, thumbnails), a few at a time. */
 	private final ExecutorService executor = Executors.newFixedThreadPool(3, runnable -> {
 		Thread thread = new Thread(runnable, "testtube-download-file");
 		thread.setDaemon(true);
@@ -259,9 +254,6 @@ public class TestTubeDownloaderImpl implements TestTubeDownloader {
 		}
 	}
 
-/**
- * Contract for app logic.
- */
 	interface RunnableIOC {
 		void run() throws Exception;
 	}
@@ -270,9 +262,6 @@ public class TestTubeDownloaderImpl implements TestTubeDownloader {
 		void merge(@NonNull File videoFile, @NonNull File audioFile, @NonNull File outputFile) throws Exception;
 	}
 
-/**
- * Contract for app logic.
- */
 	interface CallbackAction {
 		void run(ProgressCallback2 cb);
 	}
@@ -281,9 +270,6 @@ public class TestTubeDownloaderImpl implements TestTubeDownloader {
 		void onUpdate(int progress, long downloaded, long total);
 	}
 
-/**
- * Component that handles app logic.
- */
 	private static class Aggregator {
 		final long vSz, aSz, tot;
 		final ProgressUpdateListener listener;

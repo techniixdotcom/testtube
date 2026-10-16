@@ -16,9 +16,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
 
-/**
- * Small stream and file helpers.
- */
 public final class StreamIOUtils {
 	private static final String TAG = "StreamIOUtils";
 	private static final int BUFFER = 64 * 1024;

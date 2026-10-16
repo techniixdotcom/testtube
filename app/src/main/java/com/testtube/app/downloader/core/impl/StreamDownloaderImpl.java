@@ -3,9 +3,15 @@ package com.testtube.app.downloader.core.impl;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.tencent.mmkv.MMKV;
 import com.testtube.app.downloader.core.ProgressCallback;
 import com.testtube.app.downloader.core.StreamDownloader;
-import com.tencent.mmkv.MMKV;
+
+import okhttp3.Dispatcher;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
 
 import java.io.File;
@@ -28,11 +34,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 
-import okhttp3.Dispatcher;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-
 /**
  * Streams a file by chunk and keeps resume state in MMKV.
  */
@@ -44,10 +45,7 @@ public class StreamDownloaderImpl implements StreamDownloader {
 	private static final long CHUNK_BYTES = 512L * 1024L;
 	private static final int MAX_THREADS = 8;
 	private static final char[] HEX = "0123456789abcdef".toCharArray();
-	/**
-	 * Resume state key. "dl2_" because the chunk layout changed; resume data stored under the
-	 * old "dl_" keys is no longer valid and is removed.
-	 */
+	/** Resume state key. "dl2_" since the chunk layout changed; old "dl_" entries are deleted. */
 	private static final String KEY_PREFIX = "dl2_";
 	private static final String LEGACY_KEY_PREFIX = "dl_";
 
@@ -124,8 +122,7 @@ public class StreamDownloaderImpl implements StreamDownloader {
 
 	@NonNull
 	private static Request.Builder streamRequest(@NonNull String url) {
-		// Downloads go straight to their file; storing them in the HTTP cache too would double
-		// the space they take.
+		// No HTTP cache for downloads, it would only double the disk usage.
 		Request.Builder builder = new Request.Builder().url(url).header("Cache-Control", "no-store");
 		// googlevideo rejects stream requests whose user agent does not match the client that
 		// produced the URL.
@@ -175,8 +172,7 @@ public class StreamDownloaderImpl implements StreamDownloader {
 			// 4. submit task
 			if (task.done.get() < chunks) {
 				RandomAccessFile finalRaf = raf;
-				// Each download uses its own number of connections: that many workers take the
-				// unfinished chunks one by one.
+				// One worker per connection, each taking the next unfinished chunk.
 				ConcurrentLinkedQueue<Integer> pending = new ConcurrentLinkedQueue<>();
 				IntStream.range(0, chunks).filter(i -> !bits.get(i)).forEach(pending::add);
 				int workers = Math.min(task.threads, pending.size());

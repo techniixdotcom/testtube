@@ -30,30 +30,30 @@ import com.google.gson.JsonParser;
 import com.tencent.mmkv.MMKV;
 import com.testtube.app.R;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.FileOutputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Locale;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
 import okhttp3.Call;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 /**
- * Looks for a newer release on GitHub, downloads the APK with a progress bar and hands it to the
- * system installer. Android only installs the file if it is signed with the same key as the
- * installed app, so a tampered download cannot replace TestTube.
+ * In-app updates from GitHub releases: checks, downloads the APK with progress and hands it to
+ * the installer. Android only installs it when it is signed with the same key.
  */
 public final class UpdateManager {
 	private static final String LATEST_URL =
@@ -77,7 +77,7 @@ public final class UpdateManager {
 	private volatile Call activeDownload;
 
 	public UpdateManager(@NonNull OkHttpClient client) {
-		// A private copy without the shared HTTP cache or response rewriting, so the APK arrives untouched.
+		// Own client: no shared HTTP cache, no response rewriting
 		OkHttpClient.Builder builder = client.newBuilder().cache(null);
 		builder.networkInterceptors().clear();
 		this.client = builder.build();
@@ -91,7 +91,7 @@ public final class UpdateManager {
 		store.encode(KEY_AUTO, enabled);
 	}
 
-	/** Called on start-up: checks 5 seconds later and stays quiet unless something is new. */
+	/** Quiet check 5 s after startup; only shows up when there is an update. */
 	public void checkOnStart(@NonNull Activity activity) {
 		deleteOldDownloads(activity);
 		if (!autoCheckEnabled()) return;
@@ -100,7 +100,7 @@ public final class UpdateManager {
 		}, START_DELAY_MS);
 	}
 
-	/** Checks now. A manual check also reports "up to date" and failures. */
+	/** Manual check, also reports "up to date" and errors. */
 	public void check(@NonNull Activity activity, boolean manual) {
 		if (manual) Toast.makeText(activity, R.string.update_checking, Toast.LENGTH_SHORT).show();
 		executor.execute(() -> {
@@ -326,11 +326,11 @@ public final class UpdateManager {
 	}
 
 	/**
-	 * True when the downloaded app is signed with the key of the installed one. Android checks this
-	 * again when installing; checking here refuses a foreign file before the installer opens.
+	 * Whether the APK is signed with our key. The installer checks again; this just rejects
+	 * foreign files early.
 	 */
 	private static boolean sameSigner(PackageInfo archive, PackageInfo installed) {
-		// Older Android versions cannot read the signing info; the installer still checks it there.
+		// Signing info isn't available before API 28; the installer still checks it
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return true;
 		if (archive.signingInfo == null || installed.signingInfo == null) return false;
 		Signature[] downloaded = archive.signingInfo.getApkContentsSigners();
@@ -350,7 +350,7 @@ public final class UpdateManager {
 	private static MessageDigest sha256() throws IOException {
 		try {
 			return MessageDigest.getInstance("SHA-256");
-		} catch (java.security.NoSuchAlgorithmException e) {
+		} catch (NoSuchAlgorithmException e) {
 			throw new IOException(e);
 		}
 	}

@@ -14,9 +14,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Cache for extractor playback and video details.
- */
 public final class InfoCache {
 	private static final String STORE_ID = "testtube_extractor_cache";
 	private static final String STREAM_KEY = "extractor:stream:";
@@ -26,8 +23,8 @@ public final class InfoCache {
 	private static final int PRUNE_EVERY_WRITES = 50;
 
 	/**
-	 * A store of its own, so expired entries can be swept and the file shrunk without touching
-	 * settings. Expiry times are kept under separate keys so sweeping never parses payloads.
+	 * Separate store, so pruning never touches the settings. Expiry times have their own keys, so
+	 * pruning doesn't need to parse the values.
 	 */
 	@NonNull
 	private final MMKV store;
@@ -54,8 +51,7 @@ public final class InfoCache {
 
 	public void putPlaybackDetails(@NonNull String videoId,
 	                               @NonNull PlaybackDetails details) {
-		// Stream links stay valid for hours; if one has expired anyway, playback recovers by
-		// extracting again, so re-opening a recent video can skip extraction entirely.
+		// Stream URLs last for hours; an expired one just triggers a new extraction.
 		write(STREAM_KEY + language() + videoId, details, TimeUnit.MINUTES.toMillis(30));
 	}
 
@@ -74,7 +70,7 @@ public final class InfoCache {
 		write(RELATED_KEY + language() + videoId, items.toArray(new RelatedVideo[0]), TimeUnit.HOURS.toMillis(6));
 	}
 
-	/** Titles and suggestions come in the content language, so each language keeps its own entries. */
+	/** Titles are localized, so keys include the content language. */
 	@NonNull
 	private static String language() {
 		return NewPipe.getPreferredLocalization().getLocalizationCode() + ":";
@@ -101,7 +97,7 @@ public final class InfoCache {
 	private void write(@NonNull String key,
 	                   @NonNull Object value,
 	                   final long ttlMs) {
-		// Expiry first: a sweep running in between never sees a value without one.
+		// Expiry first, so a concurrent prune never sees a value without one.
 		store.encode(UNTIL_PREFIX + key, System.currentTimeMillis() + ttlMs);
 		store.encode(key, gson.toJson(value));
 		if (writes.incrementAndGet() % PRUNE_EVERY_WRITES == 0) {
@@ -137,10 +133,7 @@ public final class InfoCache {
 		if (removed) store.trim();
 	}
 
-	/**
-	 * Earlier versions kept this cache in the main settings store and never deleted expired
-	 * entries; those are removed once.
-	 */
+	/** Removes entries that old versions left in the default store. */
 	private static void removeLegacyEntries(@NonNull MMKV kv) {
 		String[] keys = kv.allKeys();
 		if (keys == null) return;

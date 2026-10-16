@@ -11,10 +11,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * Local list of played videos, newest first. It is only a record: nothing else in the app reads
- * it to make decisions.
- */
+/** Played videos, newest first. */
 public final class WatchHistory {
 	private static final String STORE_ID = "testtube_watch_log";
 	private static final String KEY_ENTRIES = "entries";
@@ -33,9 +30,7 @@ public final class WatchHistory {
 		this.store = MMKV.mmkvWithID(STORE_ID);
 	}
 
-	/**
-	 * Puts a video at the top of the history, moving it there if it was already listed.
-	 */
+	/** Adds a video at the top, moving it there if it is already listed. */
 	public synchronized void record(@Nullable String videoId,
 	                                @Nullable String title,
 	                                @Nullable String author,

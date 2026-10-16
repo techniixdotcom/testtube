@@ -53,8 +53,8 @@ public class Localization implements Serializable {
     }
 
     public Localization(@Nonnull final String languageCode, @Nullable final String countryCode) {
-        // TestTube: old and new ISO codes, named the way YouTube and the time ago patterns name
-        // them (Android's Locale still returns "in" for Indonesian, newer Java "he" for Hebrew)
+        // TestTube: the codes YouTube and the timeago patterns use (Android still returns "in"
+        // for Indonesian, newer JDKs "he" for Hebrew)
         this.languageCode = switch (languageCode) {
             case "in" -> "id";
             case "he" -> "iw";
@@ -62,8 +62,7 @@ public class Localization implements Serializable {
             case "tl" -> "fil";
             default -> languageCode;
         };
-        // TestTube: an empty country (from Locale#getCountry) is no country; otherwise the code
-        // would read "es-" and two equal languages would not be equal
+        // TestTube: an empty country (Locale#getCountry) is no country, not "es-"
         this.countryCode = countryCode == null || countryCode.isEmpty() ? null : countryCode;
     }
 

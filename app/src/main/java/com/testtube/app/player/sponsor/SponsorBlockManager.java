@@ -11,6 +11,12 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.testtube.app.player.common.PlayerPreferences;
 
+import okhttp3.Call;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -20,15 +26,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import okhttp3.Call;
-import okhttp3.HttpUrl;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-
-/**
- * Manager that loads SponsorBlock segments and skip rules.
- */
 public final class SponsorBlockManager {
 	private static final String API_URL = "https://sponsor.ajay.app/api/skipSegments/";
 	@NonNull
@@ -40,9 +37,7 @@ public final class SponsorBlockManager {
 	@NonNull
 	// Written by the loader thread, read by the player thread.
 	private volatile List<long[]> segments = Collections.emptyList();
-	/**
-	 * Bumped on every load and clear, so a stale request can never publish its result.
-	 */
+	/** Incremented on every load and clear so stale requests can't publish their results. */
 	private final AtomicInteger loadToken = new AtomicInteger();
 	private volatile Call inFlight;
 

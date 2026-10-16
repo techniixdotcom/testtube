@@ -3,31 +3,32 @@ package com.testtube.app.extractor;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.testtube.app.Constant;
+import com.testtube.app.AppSettings;
 
 import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.InfoItem;
 import org.schabi.newpipe.extractor.ListExtractor;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.ServiceList;
+import org.schabi.newpipe.extractor.channel.ChannelExtractor;
 import org.schabi.newpipe.extractor.channel.ChannelInfo;
 import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo;
 import org.schabi.newpipe.extractor.channel.tabs.ChannelTabs;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.playlist.PlaylistInfo;
+import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeChannelExtractor;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamType;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
-/**
- * Loads channel and playlist pages natively: a header and the videos, page by page.
- */
+/** Channel and playlist pages: a header plus the rows of a tab, page by page. */
 public final class PageSource {
 	public enum Kind {
 		CHANNEL,
@@ -35,7 +36,46 @@ public final class PageSource {
 	}
 
 	/**
-	 * @param subtitle subscribers for channels, uploader and video count for playlists
+	 * Channel tabs shown, in this order. Shorts only when they are switched on.
+	 */
+	private static final List<String> TAB_ORDER = List.of(ChannelTabs.VIDEOS, ChannelTabs.SHORTS,
+					ChannelTabs.LIVESTREAMS, ChannelTabs.PLAYLISTS, ChannelTabs.PODCASTS, ChannelTabs.COURSES,
+					ChannelTabs.ALBUMS);
+
+	/** Banners narrower than this look blurry across a phone screen. */
+	private static final int BANNER_MIN_WIDTH = 1060;
+
+	/**
+	 * A tab of a channel page.
+	 *
+	 * @see ChannelTabs
+	 */
+	public static final class Tab {
+		@NonNull
+		private final String id;
+		@NonNull
+		final ListLinkHandler handler;
+
+		Tab(@NonNull String id, @NonNull ListLinkHandler handler) {
+			this.id = id;
+			this.handler = handler;
+		}
+
+		/** One of the {@link ChannelTabs} names, such as {@link ChannelTabs#VIDEOS}. */
+		@NonNull
+		public String id() {
+			return id;
+		}
+	}
+
+	/**
+	 * @param subtitle   uploader for playlists, null for channels
+	 * @param count      subscribers for channels, videos for playlists; -1 when unknown
+	 * @param handle     channel handle such as "@name", or null
+	 * @param stats      channel counts as YouTube words them ("465K subscribers", "108 videos"),
+	 *                   empty when unknown
+	 * @param channelId  id (UC...) of the channel, null for playlists
+	 * @param tabs       tabs of the channel, empty for playlists
 	 */
 	public record Header(@NonNull Kind kind,
 	                     @NonNull String title,
@@ -43,7 +83,13 @@ public final class PageSource {
 	                     long count,
 	                     @Nullable String avatarUrl,
 	                     @Nullable String description,
-	                     @Nullable String playlistId) {
+	                     @Nullable String playlistId,
+	                     @Nullable String bannerUrl,
+	                     @Nullable String handle,
+	                     @NonNull List<String> stats,
+	                     boolean verified,
+	                     @Nullable String channelId,
+	                     @NonNull List<Tab> tabs) {
 	}
 
 	/**
@@ -68,10 +114,12 @@ public final class PageSource {
 	}
 
 	/**
-	 * @param header null for following pages
+	 * @param header null for following pages and tabs
 	 * @param next   null at the end of the list
+	 * @param tab    id of the channel tab the rows belong to; null for playlists
 	 */
-	public record Result(@Nullable Header header, @NonNull List<FeedItem> items, @Nullable Cursor next) {
+	public record Result(@Nullable Header header, @NonNull List<FeedItem> items, @Nullable Cursor next,
+	                     @Nullable String tab) {
 	}
 
 	@NonNull
@@ -94,12 +142,20 @@ public final class PageSource {
 	}
 
 	/**
-	 * First page of a channel or playlist.
+	 * Header and first rows of a channel (its first tab) or playlist.
 	 */
 	@NonNull
 	public CompletableFuture<Result> open(@NonNull Kind kind, @NonNull String url) {
 		String desktopUrl = url.replaceFirst("^https?://(m\\.|www\\.)?youtube\\.com", "https://www.youtube.com");
 		return run(() -> kind == Kind.CHANNEL ? channel(desktopUrl) : playlist(desktopUrl));
+	}
+
+	/**
+	 * First rows of another tab of a channel.
+	 */
+	@NonNull
+	public CompletableFuture<Result> openTab(@NonNull Tab tab) {
+		return run(() -> tabPage(tab));
 	}
 
 	@NonNull
@@ -108,14 +164,14 @@ public final class PageSource {
 			if (cursor.kind == Kind.PLAYLIST && cursor.playlistUrl != null) {
 				ListExtractor.InfoItemsPage<StreamInfoItem> page =
 								PlaylistInfo.getMoreItems(ServiceList.YouTube, cursor.playlistUrl, cursor.page);
-				return new Result(null, videos(page.getItems()),
-								page.hasNextPage() ? new Cursor(cursor.kind, cursor.playlistUrl, null, page.getNextPage()) : null);
+				return new Result(null, items(page.getItems()), nextOf(cursor.kind, cursor.playlistUrl, null,
+								page.hasNextPage() ? page.getNextPage() : null), null);
 			}
-			if (cursor.tab == null) return new Result(null, List.of(), null);
+			if (cursor.tab == null) return new Result(null, List.of(), null, null);
 			ListExtractor.InfoItemsPage<InfoItem> page =
 							ChannelTabInfo.getMoreItems(ServiceList.YouTube, cursor.tab, cursor.page);
-			return new Result(null, videos(page.getItems()),
-							page.hasNextPage() ? new Cursor(cursor.kind, null, cursor.tab, page.getNextPage()) : null);
+			return new Result(null, items(page.getItems()), nextOf(cursor.kind, null, cursor.tab,
+							page.hasNextPage() ? page.getNextPage() : null), tabId(cursor.tab));
 		});
 	}
 
@@ -124,6 +180,7 @@ public final class PageSource {
 		CompletableFuture<Result> future = new CompletableFuture<>();
 		try {
 			executor.execute(() -> {
+				if (future.isDone()) return;
 				try {
 					ExtractionSession session = new ExtractionSession(auth.current(true));
 					future.complete(downloader.withExtractionSession(load::run, session));
@@ -139,53 +196,91 @@ public final class PageSource {
 
 	@NonNull
 	private static Result channel(@NonNull String url) throws IOException, ExtractionException {
-		ChannelInfo info = ChannelInfo.getInfo(ServiceList.YouTube, url);
+		ChannelExtractor extractor = ServiceList.YouTube.getChannelExtractor(url);
+		extractor.fetchPage();
+		ChannelInfo info = ChannelInfo.getInfo(extractor);
+		String handle = null;
+		List<String> stats = List.of();
+		if (extractor instanceof YoutubeChannelExtractor youtube) {
+			handle = youtube.getChannelHandle();
+			stats = youtube.getHeaderCountTexts();
+		}
+		List<Tab> tabs = tabs(info.getTabs());
+		String avatar = largest(info.getAvatars());
+		String channelUrl = "https://www.youtube.com/channel/" + info.getId();
+		AvatarCache.get().remember(channelUrl, avatar);
+		AvatarCache.get().remember(url, avatar);
 		Header header = new Header(Kind.CHANNEL, info.getName(), null, info.getSubscriberCount(),
-						image(info.getAvatars()), info.getDescription(), null);
-		ListLinkHandler videosTab = null;
-		for (ListLinkHandler tab : info.getTabs()) {
-			if (tab.getContentFilters().contains(ChannelTabs.VIDEOS)) {
-				videosTab = tab;
-				break;
+						avatar, info.getDescription(), null, banner(info.getBanners()), handle, stats,
+						info.isVerified(), info.getId(), tabs);
+		if (tabs.isEmpty()) return new Result(header, List.of(), null, null);
+		Result first = tabPage(tabs.get(0));
+		return new Result(header, first.items(), first.next(), first.tab());
+	}
+
+	@NonNull
+	private static Result tabPage(@NonNull Tab tab) throws IOException, ExtractionException {
+		ChannelTabInfo info = ChannelTabInfo.getInfo(ServiceList.YouTube, tab.handler);
+		return new Result(null, items(info.getRelatedItems()), nextOf(Kind.CHANNEL, null, tab.handler,
+						info.hasNextPage() ? info.getNextPage() : null), tab.id());
+	}
+
+	@NonNull
+	private static List<Tab> tabs(@Nullable List<ListLinkHandler> handlers) {
+		List<Tab> out = new ArrayList<>();
+		if (handlers == null) return out;
+		boolean shorts = AppSettings.showShorts();
+		for (String id : TAB_ORDER) {
+			if (id.equals(ChannelTabs.SHORTS) && !shorts) continue;
+			for (ListLinkHandler handler : handlers) {
+				if (handler != null && id.equals(tabId(handler))) {
+					out.add(new Tab(id, handler));
+					break;
+				}
 			}
 		}
-		if (videosTab == null) return new Result(header, List.of(), null);
-		ChannelTabInfo tabInfo = ChannelTabInfo.getInfo(ServiceList.YouTube, videosTab);
-		return new Result(header, videos(tabInfo.getRelatedItems()),
-						tabInfo.hasNextPage() ? new Cursor(Kind.CHANNEL, null, videosTab, tabInfo.getNextPage()) : null);
+		return Collections.unmodifiableList(out);
+	}
+
+	@Nullable
+	private static String tabId(@NonNull ListLinkHandler handler) {
+		List<String> filters = handler.getContentFilters();
+		return filters == null || filters.isEmpty() ? null : filters.get(0);
 	}
 
 	@NonNull
 	private static Result playlist(@NonNull String url) throws IOException, ExtractionException {
 		PlaylistInfo info = PlaylistInfo.getInfo(ServiceList.YouTube, url);
 		Header header = new Header(Kind.PLAYLIST, info.getName(), info.getUploaderName(), info.getStreamCount(),
-						null, info.getDescription() != null ? info.getDescription().content() : null, info.getId());
-		return new Result(header, videos(info.getRelatedItems()),
-						info.hasNextPage() ? new Cursor(Kind.PLAYLIST, url, null, info.getNextPage()) : null);
+						null, info.getDescription() != null ? info.getDescription().content() : null, info.getId(),
+						null, null, List.of(), false, null, List.of());
+		return new Result(header, items(info.getRelatedItems()), nextOf(Kind.PLAYLIST, url, null,
+						info.hasNextPage() ? info.getNextPage() : null), null);
 	}
 
+	@Nullable
+	private static Cursor nextOf(@NonNull Kind kind, @Nullable String playlistUrl, @Nullable ListLinkHandler tab,
+	                             @Nullable Page page) {
+		return page != null && Page.isValid(page) ? new Cursor(kind, playlistUrl, tab, page) : null;
+	}
+
+	/** Videos, playlists and channels of a page; Shorts and unavailable entries are skipped. */
 	@NonNull
-	private static List<FeedItem> videos(@Nullable List<? extends InfoItem> items) {
+	private static List<FeedItem> items(@Nullable List<? extends InfoItem> items) {
 		List<FeedItem> out = new ArrayList<>();
 		if (items == null) return out;
 		for (InfoItem item : items) {
-			if (!(item instanceof StreamInfoItem stream) || stream.isShortFormContent()) continue;
-			String videoId = YoutubeExtractor.getVideoId(stream.getUrl());
-			if (videoId == null) continue;
-			StreamType type = stream.getStreamType();
-			boolean live = type == StreamType.LIVE_STREAM || type == StreamType.AUDIO_LIVE_STREAM;
-			if (isUnavailable(stream)) continue;
-			out.add(new FeedItem(FeedItem.Kind.VIDEO, Constant.HOME_URL + "/watch?v=" + videoId, videoId,
-							stream.getName(), stream.getUploaderName(), FeedClient.mobile(stream.getUploaderUrl()),
-							FeedItem.thumbnailFor(videoId), stream.getDuration(),
-							stream.getViewCount(), stream.getTextualUploadDate(), live));
+			if (item == null) continue;
+			if (item instanceof StreamInfoItem stream && isUnavailable(stream)) continue;
+			FeedItem converted = FeedClient.convert(item);
+			if (converted != null) out.add(converted);
 		}
 		return out;
 	}
 
 	/**
-	 * A private or deleted entry of a playlist: no length, views or date. The extractor drops
-	 * these by their title, which it only recognises in English.
+	 * Private or deleted playlist entry: no duration, views or date. The extractor only recognizes
+	 * these by their English titles.
 	 */
 	static boolean isUnavailable(@NonNull StreamInfoItem stream) {
 		StreamType type = stream.getStreamType();
@@ -195,12 +290,28 @@ public final class PageSource {
 	}
 
 	@Nullable
-	private static String image(@Nullable List<Image> images) {
+	private static String largest(@Nullable List<Image> images) {
 		if (images == null || images.isEmpty()) return null;
 		Image best = null;
 		for (Image image : images) {
+			if (image == null || image.getUrl() == null || image.getUrl().isBlank()) continue;
 			if (best == null || image.getWidth() > best.getWidth()) best = image;
 		}
 		return best != null ? best.getUrl() : null;
+	}
+
+	/** The smallest banner that is still sharp across a phone screen, or the largest one. */
+	@Nullable
+	private static String banner(@Nullable List<Image> images) {
+		if (images == null || images.isEmpty()) return null;
+		Image best = null;
+		Image largest = null;
+		for (Image image : images) {
+			if (image == null || image.getUrl() == null || image.getUrl().isBlank()) continue;
+			if (largest == null || image.getWidth() > largest.getWidth()) largest = image;
+			if (image.getWidth() >= BANNER_MIN_WIDTH && (best == null || image.getWidth() < best.getWidth())) best = image;
+		}
+		Image chosen = best != null ? best : largest;
+		return chosen != null ? chosen.getUrl() : null;
 	}
 }

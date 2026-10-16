@@ -14,9 +14,6 @@ import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.util.List;
 
-/**
- * Utility that merges audio and video streams into one file.
- */
 public final class MediaMuxer {
 	public static void merge(@NonNull File videoFile, @NonNull File audioFile, @NonNull File outputFile) throws IOException {
 		Movie video = MovieCreator.build(videoFile.getAbsolutePath());
@@ -37,9 +34,6 @@ public final class MediaMuxer {
 		}
 	}
 
-/**
- * Component that handles app logic.
- */
 	private static class EmptyTrackException extends RuntimeException {
 		public EmptyTrackException() {
 			super("No video or audio tracks found in the provided files.");

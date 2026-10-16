@@ -11,13 +11,18 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.util.Log;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -25,6 +30,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.ViewModel;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.media3.common.util.UnstableApi;
@@ -37,59 +43,56 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.switchmaterial.SwitchMaterial;
+import com.tencent.mmkv.MMKV;
 import com.testtube.app.AppGraph;
+import com.testtube.app.AppSettings;
 import com.testtube.app.Constant;
 import com.testtube.app.PlaybackService;
 import com.testtube.app.R;
-import com.testtube.app.nav.MediaItemMenuPayload;
-import com.testtube.app.nav.TabManager;
 import com.testtube.app.downloader.ui.DownloadActivity;
 import com.testtube.app.downloader.ui.DownloadDialog;
 import com.testtube.app.downloader.ui.DownloadPermissionHost;
 import com.testtube.app.downloader.ui.PlaylistDownloadDialog;
 import com.testtube.app.downloader.ui.PlaylistDownloadItem;
-import com.tencent.mmkv.MMKV;
-import android.util.Log;
-import com.testtube.app.extractor.LocalSubscriptions;
 import com.testtube.app.extractor.FeedItem;
-import com.testtube.app.extractor.VideoDetails;
+import com.testtube.app.extractor.LocalSubscriptions;
 import com.testtube.app.extractor.PageSource;
+import com.testtube.app.extractor.VideoDetails;
 import com.testtube.app.extractor.YoutubeExtractor;
+import com.testtube.app.filter.AiChannelList;
 import com.testtube.app.filter.ContentFilters;
 import com.testtube.app.history.LocalHistoryController;
 import com.testtube.app.history.WatchHistory;
+import com.testtube.app.nav.MediaItemMenuPayload;
+import com.testtube.app.nav.TabManager;
 import com.testtube.app.player.TestTubePlayer;
-import com.testtube.app.update.UpdateManager;
 import com.testtube.app.player.common.PlayerLoopMode;
+import com.testtube.app.player.engine.ShortsEngine;
 import com.testtube.app.player.queue.QueueItem;
 import com.testtube.app.player.queue.QueueRepository;
 import com.testtube.app.ui.feed.NativeBrowser;
 import com.testtube.app.ui.feed.PageScreen;
+import com.testtube.app.ui.feed.ShortsScreen;
 import com.testtube.app.ui.feed.WatchPanel;
 import com.testtube.app.ui.queue.QueueAdapter;
 import com.testtube.app.ui.queue.QueueTouch;
+import com.testtube.app.update.UpdateManager;
 import com.testtube.app.util.DeviceUtils;
 import com.testtube.app.util.PermissionUtils;
 import com.testtube.app.util.ToastUtils;
 import com.testtube.app.util.UrlUtils;
 import com.testtube.app.util.ViewUtils;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.ArrayList;
-import java.nio.charset.StandardCharsets;
-import java.io.OutputStream;
-import java.io.InputStream;
-import java.io.IOException;
-import java.io.ByteArrayOutputStream;
-import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.activity.result.ActivityResultLauncher;
-import android.widget.FrameLayout;
 
-/**
- * Primary screen that wires playback, queue, and download entry points.
- */
 @UnstableApi
 public final class MainActivity extends AppCompatActivity implements DownloadPermissionHost {
 	private static final String STATE_LAST_URL = "main.last_url";
@@ -140,7 +143,16 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	@Nullable
 	private BottomNavigationView bottomNav;
 	@Nullable
-	private android.view.ViewGroup historyContainer;
+	private ViewGroup historyContainer;
+	@Nullable
+	private ViewGroup shortsContainer;
+	@Nullable
+	private ShortsScreen shortsScreen;
+	@Nullable
+	private NativeBrowser.Host shortsHost;
+	private boolean shortsVisible;
+	/** Between onStart and onStop; only a started activity plays Shorts. */
+	private boolean started;
 	@Nullable
 	private Runnable pendingPermissionAction;
 	@Nullable
@@ -151,21 +163,17 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		return graph;
 	}
 
-	private void showAbout(@NonNull UpdateManager updates) {
-		String version;
-		try {
-			version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
-		} catch (PackageManager.NameNotFoundException e) {
-			version = "";
-		}
-		new MaterialAlertDialogBuilder(this)
-						.setTitle(getString(R.string.app_name) + " " + version)
-						.setMultiChoiceItems(new CharSequence[]{getString(R.string.update_auto)},
-										new boolean[]{updates.autoCheckEnabled()},
-										(d, which, checked) -> updates.setAutoCheck(checked))
-						.setPositiveButton(R.string.update_check_now, (d, w) -> updates.check(this, true))
-						.setNegativeButton(R.string.update_close, null)
-						.show();
+	/** Shorts were switched on or off: reload the lists so they show (or drop) them. */
+	private void onShortsSettingChanged() {
+		if (nativeBrowser != null) nativeBrowser.reloadAll();
+		updateShortsTab();
+	}
+
+	/** Blocked or AI channels changed: filter the lists that are already loaded again. */
+	private void onContentFiltersChanged() {
+		if (nativeBrowser != null) nativeBrowser.onFiltersChanged();
+		if (watchPanel != null) watchPanel.onFiltersChanged();
+		if (pageScreen != null) pageScreen.onFiltersChanged();
 	}
 
 	@Override
@@ -212,18 +220,24 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		}
 
 		bottomNav = findViewById(R.id.bottom_nav);
-		// The activity already pads for the system bar; the bar must not add its own
-		// navigation-inset padding or it doubles the empty space below the icons.
+		// The activity already pads for the system bars; don't let the nav bar add the inset again.
 		if (bottomNav != null) bottomNav.setOnApplyWindowInsetsListener(null);
 		historyContainer = findViewById(R.id.history_container);
+		shortsContainer = findViewById(R.id.shorts_container);
 		nativeContainer = findViewById(R.id.native_container);
 		View browserView = getLayoutInflater().inflate(R.layout.view_native_browser,
 						(ViewGroup) nativeContainer, true);
 		UpdateManager updates = app.updateManager();
-		View.OnClickListener aboutClick = v -> showAbout(updates);
+		AiChannelList aiChannels = app.aiChannelList();
+		// Hide or show AI channels as soon as the list (or a new id from it) is known
+		aiChannels.setOnChanged(this::onContentFiltersChanged);
+		aiChannels.start();
+		View.OnClickListener aboutClick = v -> SettingsDialog.showSettings(this, updates, aiChannels,
+						this::onShortsSettingChanged);
 		browserView.findViewById(R.id.browser_logo).setOnClickListener(aboutClick);
 		browserView.findViewById(R.id.browser_title).setOnClickListener(aboutClick);
-		updates.checkOnStart(this);
+		// On the very first start the update check waits until the welcome dialog is closed
+		if (AppSettings.welcomeShown()) updates.checkOnStart(this);
 		NativeBrowser.Host feedHost = new NativeBrowser.Host() {
 			@Override
 			public void openVideo(@NonNull FeedItem item) {
@@ -242,11 +256,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 								new MediaItemMenuPayload(item.videoId(), item.url(), item.title(), item.author(),
 												item.thumbnailUrl(), item.authorUrl()),
 								youtubeExtractor, queueRepository, player, contentFilters,
-								() -> {
-									if (nativeBrowser != null) nativeBrowser.onFiltersChanged();
-									if (watchPanel != null) watchPanel.onFiltersChanged();
-									if (pageScreen != null) pageScreen.onFiltersChanged();
-								}).show();
+								MainActivity.this::onContentFiltersChanged).show();
 			}
 
 			@Override
@@ -263,7 +273,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 
 			@Override
 			public boolean accountEnabled() {
-				// The followed channels are the default; the account is only used after asking for it.
+				// Followed channels by default, the account feed is opt-in
 				return MMKV.defaultMMKV().decodeBool(KEY_SUBS_ACCOUNT, false);
 			}
 
@@ -301,6 +311,11 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 			}
 
 			@Override
+			public void followChannel(@NonNull FeedItem item) {
+				MainActivity.this.followChannel(item);
+			}
+
+			@Override
 			public void importSubscriptions() {
 				importPicker.launch(new String[]{"*/*"});
 			}
@@ -317,6 +332,8 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 			@Override
 			public void onFollowChanged() {
 				if (nativeBrowser != null) nativeBrowser.reloadLocalSubscriptions();
+				if (watchPanel != null) watchPanel.onFollowChanged();
+				if (pageScreen != null) pageScreen.onFollowChanged();
 			}
 		};
 		nativeBrowser = new NativeBrowser(browserView, app.feedClient(), contentFilters, feedHost);
@@ -329,7 +346,10 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		player.setDetailsListener(details -> {
 			if (watchPanel != null) watchPanel.onDetails(details);
 		});
-		// Press and hold on the playing video opens the same menu as a video in a list.
+		player.setOnStartedPlaying(() -> {
+			if (shortsScreen != null) shortsScreen.pause();
+		});
+		// Long press on the player opens the same menu as in the lists
 		player.setLongPressAction(() -> {
 			VideoDetails video = player.currentDetails();
 			if (video == null) return;
@@ -367,7 +387,9 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 				goTo(Constant.PAGE_SUBSCRIPTIONS.equals(pageClass) ? R.id.nav_subscriptions : R.id.nav_home);
 			}
 		});
+		shortsHost = feedHost;
 		setupBottomNav();
+		updateShortsTab();
 		updateContainers();
 
 		View playerRoot = findViewById(R.id.playerView);
@@ -402,11 +424,8 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		};
 		getOnBackPressedDispatcher().addCallback(this, appBackCallback);
 
-		// First run: sign in to a Google account before the app loads anything.
-		// The token page (PoTokenHost) is no longer opened at startup: the extractor's client does
-		// not use tokens, so it only starts if a token is ever actually requested.
+		// Sign-in is optional; Subscriptions offers it.
 		loginController = new LoginController(this);
-		// Signing in is optional now: Home works without it, and the Subscriptions tab offers it.
 		mainView.post(this::bootstrap);
 	}
 
@@ -414,9 +433,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	private static final String KEY_FOLLOW_REMINDERS = "follow_swipe_reminders";
 	private static final int FOLLOW_REMINDER_COUNT = 3;
 
-	/**
-	 * The first three swipes ask for confirmation and say how many reminders are left.
-	 */
+	/** Asks for confirmation on the first FOLLOW_REMINDER_COUNT swipes. */
 	private void confirmFollow(@NonNull FeedItem item) {
 		MMKV store = MMKV.defaultMMKV();
 		int shown = store.decodeInt(KEY_FOLLOW_REMINDERS, 0);
@@ -444,7 +461,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		if (id != null) {
 			if (LocalSubscriptions.get().add(new LocalSubscriptions.Channel(id, name))) {
 				ToastUtils.show(this, R.string.subs_followed);
-				if (nativeBrowser != null) nativeBrowser.reloadLocalSubscriptions();
+				onFollowedChannelsChanged();
 			} else {
 				ToastUtils.show(this, R.string.swipe_already_following);
 			}
@@ -461,14 +478,20 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 			}
 			LocalSubscriptions.get().add(channel);
 			ToastUtils.show(this, R.string.subs_followed);
-			if (nativeBrowser != null) nativeBrowser.reloadLocalSubscriptions();
+			onFollowedChannelsChanged();
 		}));
 	}
+
+	/** Followed channels changed outside the watch and channel screens (swipe, import). */
+	private void onFollowedChannelsChanged() {
+		if (nativeBrowser != null) nativeBrowser.reloadLocalSubscriptions();
+		if (watchPanel != null) watchPanel.onFollowChanged();
+		if (pageScreen != null) pageScreen.onFollowChanged();
+	}
+
 	private static final int MAX_IMPORT_BYTES = 5_000_000;
 
-	/**
-	 * Saves the followed channels as a csv the person picks the place for.
-	 */
+	/** Exports the followed channels to a CSV file picked by the user. */
 	private final ActivityResultLauncher<String> exportPicker =
 					registerForActivityResult(new ActivityResultContracts.CreateDocument("text/csv"), uri -> {
 						if (uri == null) return;
@@ -513,7 +536,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 									return;
 								}
 								ToastUtils.show(this, getString(R.string.subs_import_done, count));
-								if (nativeBrowser != null) nativeBrowser.reloadLocalSubscriptions();
+								onFollowedChannelsChanged();
 							});
 						}, "channel-import").start();
 					});
@@ -526,6 +549,13 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		if (bootstrapped) return;
 		bootstrapped = true;
 		goTo(R.id.nav_home);
+		if (!AppSettings.welcomeShown()) {
+			UpdateManager updates = AppGraph.of(this).updateManager();
+			SettingsDialog.showWelcome(this, updates, AppGraph.of(this).aiChannelList(), this::onShortsSettingChanged, () -> {
+				AppSettings.setWelcomeShown();
+				if (!isFinishing() && !isDestroyed()) updates.checkOnStart(this);
+			});
+		}
 		String initialUrl = restoredUrl;
 		if (initialUrl != null && !initialUrl.isBlank()) {
 			tabManager.openTab(initialUrl, UrlUtils.getPageClass(initialUrl));
@@ -541,6 +571,10 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		});
 		bottomNav.setOnItemReselectedListener(item -> {
 			int id = item.getItemId();
+			if (id == R.id.nav_shorts) {
+				if (!shortsVisible || watchVisible || (pageScreen != null && pageScreen.isVisible())) showRoot(id);
+				return;
+			}
 			boolean onScreen = !watchVisible && (pageScreen == null || !pageScreen.isVisible())
 							&& (id == R.id.nav_history) == historyVisible
 							&& (id == R.id.nav_history || nativeBrowser == null
@@ -567,11 +601,14 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 
 	private void showRoot(int navId) {
 		historyVisible = navId == R.id.nav_history;
+		shortsVisible = navId == R.id.nav_shorts;
 		tabManager.showNative();
 		if (pageScreen != null) pageScreen.clear();
 		if (historyVisible) {
 			buildHistory();
 			if (historyController != null) historyController.reload();
+		} else if (shortsVisible) {
+			buildShorts();
 		} else if (nativeBrowser != null) {
 			nativeBrowser.show(navId == R.id.nav_subscriptions
 							? NativeBrowser.Mode.SUBSCRIPTIONS : NativeBrowser.Mode.HOME);
@@ -579,7 +616,29 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		updateContainers();
 	}
 
-	/** History and the queue panel are only built when first opened; Home is what the app starts on. */
+	/** The Shorts tab and its player are made on first use. */
+	private void buildShorts() {
+		if (shortsScreen != null || shortsContainer == null || shortsHost == null) return;
+		View view = getLayoutInflater().inflate(R.layout.view_shorts, shortsContainer, true);
+		AppGraph app = AppGraph.of(this);
+		ShortsEngine engine = new ShortsEngine(this, app.simpleCache());
+		shortsScreen = new ShortsScreen(view, app.feedClient(), youtubeExtractor, engine, contentFilters,
+						app.watchHistory(), app.executor(), shortsHost);
+		// A Short and a regular video never play at the same time
+		shortsScreen.setOnStartedPlaying(() -> {
+			if (player != null && player.isPlaying()) player.pause();
+		});
+	}
+
+	/** The Shorts tab is only in the bottom bar while Shorts are switched on. */
+	private void updateShortsTab() {
+		if (bottomNav == null) return;
+		MenuItem item = bottomNav.getMenu().findItem(R.id.nav_shorts);
+		if (item != null) item.setVisible(AppSettings.showShorts());
+		if (!AppSettings.showShorts() && shortsVisible) goTo(R.id.nav_home);
+	}
+
+	/** History and the queue panel are inflated on first use. */
 	private void buildHistory() {
 		if (historyController != null || historyContainer == null) return;
 		getLayoutInflater().inflate(R.layout.view_local_history, historyContainer, true);
@@ -596,11 +655,14 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		if (watchContainer != null) watchContainer.setVisibility(watchVisible ? View.VISIBLE : View.GONE);
 		if (pageContainer != null) pageContainer.setVisibility(pageVisible ? View.VISIBLE : View.GONE);
 		if (nativeContainer != null) {
-			nativeContainer.setVisibility(!covered && !historyVisible ? View.VISIBLE : View.GONE);
+			nativeContainer.setVisibility(!covered && !historyVisible && !shortsVisible ? View.VISIBLE : View.GONE);
 		}
 		if (historyContainer != null) {
 			historyContainer.setVisibility(!covered && historyVisible ? View.VISIBLE : View.GONE);
 		}
+		boolean shortsOnScreen = !covered && shortsVisible;
+		if (shortsContainer != null) shortsContainer.setVisibility(shortsOnScreen ? View.VISIBLE : View.GONE);
+		if (shortsScreen != null) shortsScreen.setActive(shortsOnScreen && started);
 	}
 
 	private void openVideo(@NonNull String url) {
@@ -618,6 +680,10 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, @NonNull Configuration newConfig) {
 		super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
 		player.onPictureInPictureModeChanged(isInPictureInPictureMode);
+		// Closing the floating window, rather than expanding it, leaves the activity stopped
+		if (!isInPictureInPictureMode && getLifecycle().getCurrentState() == Lifecycle.State.CREATED) {
+			player.pause();
+		}
 	}
 
 	private void handleIntent(@Nullable Intent intent) {
@@ -813,12 +879,12 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 			} else {
 				maxSheetHeight = mainHeight - playerBottom;
 			}
-			final android.view.ViewGroup.LayoutParams bottomSheetLayoutParams = bottomSheet.getLayoutParams();
+			final ViewGroup.LayoutParams bottomSheetLayoutParams = bottomSheet.getLayoutParams();
 			if (bottomSheetLayoutParams != null && maxSheetHeight > 0) {
 				bottomSheetLayoutParams.height = maxSheetHeight;
 				bottomSheet.setLayoutParams(bottomSheetLayoutParams);
 			}
-			final android.view.ViewGroup.LayoutParams sheetLayoutParams = sheetView.getLayoutParams();
+			final ViewGroup.LayoutParams sheetLayoutParams = sheetView.getLayoutParams();
 			if (sheetLayoutParams != null && maxSheetHeight > 0) {
 				sheetLayoutParams.height = maxSheetHeight;
 				sheetView.setLayoutParams(sheetLayoutParams);
@@ -849,9 +915,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 						player.isInMiniPlayer());
 	}
 
-	/**
-	 * Queue list shown above the local history in the Local History tab.
-	 */
+	/** Queue page of the History tab. */
 	private void setupQueuePanel(@NonNull View root) {
 		SwitchMaterial enabledSwitch = root.findViewById(R.id.panel_queue_enabled);
 		ImageButton clearButton = root.findViewById(R.id.panel_queue_clear);
@@ -895,8 +959,8 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	}
 
 	/**
-	 * Queue (left) and History (right) are two full pages; the switch in the header flips between
-	 * them and the clear button follows the page that is showing.
+	 * Queue (left) and History (right) pages. The header switch flips between them and the clear
+	 * button acts on the visible one.
 	 */
 	private void setupPageSwitch(@NonNull View root) {
 		SwitchMaterial pageSwitch = root.findViewById(R.id.panel_page_switch);
@@ -1021,7 +1085,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 			updateContainers();
 			return;
 		}
-		if (historyVisible) {
+		if (historyVisible || shortsVisible) {
 			goTo(R.id.nav_home);
 			return;
 		}
@@ -1064,13 +1128,17 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	@Override
 	protected void onStart() {
 		super.onStart();
+		started = true;
 		if (player != null) player.setVideoEnabled(true);
+		updateContainers();
 	}
 
-	/** In the background only the sound plays; the video is not downloaded until the app is back. */
+	/** Audio only while in the background, to save data. */
 	@Override
 	protected void onStop() {
 		super.onStop();
+		started = false;
+		if (shortsScreen != null) shortsScreen.setActive(false);
 		if (player != null && !isChangingConfigurations() && !DeviceUtils.isInPictureInPictureMode(this)) {
 			player.setVideoEnabled(false);
 		}
@@ -1088,6 +1156,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	protected void onDestroy() {
 		super.onDestroy();
 		if (nativeBrowser != null) nativeBrowser.release();
+		if (shortsScreen != null) shortsScreen.release();
 		if (serviceConnection != null) unbindService(serviceConnection);
 		if (!isChangingConfigurations() && player != null) player.release();
 	}
@@ -1130,9 +1199,6 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 						PermissionUtils.REQUEST_STORAGE_PERMISSION);
 	}
 
-/**
- * Helper that owns the queue bottom sheet widgets and transient state.
- */
 	private static final class QueueSheet {
 		@NonNull
 		private final SwitchMaterial enabledSwitch;

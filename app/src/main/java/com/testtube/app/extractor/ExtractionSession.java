@@ -5,9 +5,7 @@ import androidx.annotation.NonNull;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Session object that tracks extraction cancellation and auth state.
- */
+/** Auth state and cancellation of one extraction. */
 public final class ExtractionSession {
 	private final Object lock = new Object();
 	private final List<Cancellable> cancellables = new ArrayList<>();
@@ -57,9 +55,6 @@ public final class ExtractionSession {
 		}
 	}
 
-/**
- * Contract for app logic.
- */
 	@FunctionalInterface
 	public interface Cancellable {
 		void cancel();

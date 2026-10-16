@@ -15,10 +15,7 @@ import androidx.media3.exoplayer.dash.manifest.UtcTimingElement;
 
 import java.util.List;
 
-/**
- * Mirrors NewPipe's YouTube live DASH parser workaround so playback starts from the newest
- * available period instead of an outdated one.
- */
+/** Port of NewPipe's live DASH workaround: start from the newest period, not an outdated one. */
 @OptIn(markerClass = UnstableApi.class)
 class YoutubeDashLiveManifestParser extends DashManifestParser {
 	@SuppressWarnings("ParameterNumber")

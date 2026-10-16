@@ -3,9 +3,6 @@ package com.testtube.app.downloader.core;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-/**
- * Contract for starting and canceling downloads.
- */
 public interface TestTubeDownloader {
 	void setCallback(@NonNull String videoId, @Nullable ProgressCallback2 callback);
 

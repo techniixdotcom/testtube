@@ -16,9 +16,7 @@ public interface StreamDownloader {
 		return download(url, output, callback, DEFAULT_THREADS);
 	}
 
-	/**
-	 * Downloads one stream using at most {@code threads} parallel connections for this file.
-	 */
+	/** Downloads one stream with up to {@code threads} parallel connections. */
 	CompletableFuture<File> download(@NonNull String url, @NonNull File output, @Nullable ProgressCallback callback, int threads);
 
 	void pause(@NonNull String url);

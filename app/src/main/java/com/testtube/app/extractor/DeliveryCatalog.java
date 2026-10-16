@@ -8,9 +8,6 @@ import org.schabi.newpipe.extractor.stream.StreamType;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Catalog of playback delivery candidates.
- */
 public class DeliveryCatalog {
 	@NonNull
 	private StreamType streamType = StreamType.VIDEO_STREAM;

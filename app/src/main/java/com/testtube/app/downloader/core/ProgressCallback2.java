@@ -2,9 +2,6 @@ package com.testtube.app.downloader.core;
 
 import java.io.File;
 
-/**
- * Callback for download progress, completion, and merge events.
- */
 public interface ProgressCallback2 {
 	void onProgress(int progress, long downloadedBytes, long totalBytes);
 

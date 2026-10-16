@@ -1,46 +1,50 @@
 package com.testtube.app.extractor;
 
+import android.text.Html;
+import android.text.format.DateUtils;
+import android.util.Log;
+import android.util.Xml;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonWriter;
+import com.tencent.mmkv.MMKV;
+import com.testtube.app.AppSettings;
 import com.testtube.app.Constant;
 
 import org.schabi.newpipe.extractor.Image;
-import org.schabi.newpipe.extractor.services.youtube.InnertubeClientRequestInfo;
 import org.schabi.newpipe.extractor.InfoItem;
 import org.schabi.newpipe.extractor.ListExtractor;
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.Page;
-import org.schabi.newpipe.extractor.channel.tabs.ChannelTabs;
-import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo;
-import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.channel.ChannelInfo;
 import org.schabi.newpipe.extractor.channel.ChannelInfoItem;
+import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo;
+import org.schabi.newpipe.extractor.channel.tabs.ChannelTabs;
 import org.schabi.newpipe.extractor.comments.CommentsExtractor;
 import org.schabi.newpipe.extractor.comments.CommentsInfoItem;
-import org.schabi.newpipe.extractor.stream.Description;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.localization.ContentCountry;
 import org.schabi.newpipe.extractor.localization.Localization;
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem;
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItemExtractor;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
+import org.schabi.newpipe.extractor.services.youtube.InnertubeClientRequestInfo;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeMixOrPlaylistLockupInfoItemExtractor;
+import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeReelInfoItemExtractor;
+import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeShortsLockupInfoItemExtractor;
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamInfoItemLockupExtractor;
+import org.schabi.newpipe.extractor.stream.Description;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamInfoItemExtractor;
 import org.schabi.newpipe.extractor.stream.StreamType;
-
-import android.text.format.DateUtils;
-import android.util.Log;
-import android.util.Xml;
-
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -48,23 +52,22 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.time.OffsetDateTime;
 import java.nio.charset.StandardCharsets;
-import com.tencent.mmkv.MMKV;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.Locale;
-import java.util.HashMap;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorCompletionService;
@@ -72,40 +75,37 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
-import java.util.concurrent.TimeoutException;
-import android.text.Html;
 
 /**
- * Loads the Home feed, the subscriptions feed and search results directly from YouTube, signed
- * in with the account cookies, and turns them into {@link FeedItem}s. Shorts, posts and ads are
- * left out.
+ * Home, Subscriptions and search straight from InnerTube (with the account cookies when signed
+ * in), as {@link FeedItem}s. Posts and ads are skipped, Shorts too unless they are switched on.
  */
 public final class FeedClient {
 	private static final int MAX_DEPTH = 48;
 	private static final String LOCKUP_VIDEO = "LOCKUP_CONTENT_TYPE_VIDEO";
 	private static final String LOCKUP_PLAYLIST = "LOCKUP_CONTENT_TYPE_PLAYLIST";
 	private static final String LOCKUP_MIX = "LOCKUP_CONTENT_TYPE_MIX";
-	/**
-	 * Names of ad slots, upsells ("Upgrade to YouTube Premium"), nudges and banners.
-	 */
+	/** Renderer names of ads, upsells, nudges and banners. */
 	private static final Pattern PROMO_KEY = Pattern.compile(
 					"^ad[A-Z]|Ad[A-Z]|(?i:promo|upsell|nudge|masthead|banner|sponsor|searchPyv)");
 
-	/**
-	 * Parts of the response that never hold feed videos, or hold content the app hides.
-	 */
+	/** Response parts that never contain feed videos, or only content we hide. */
 	private static final Set<String> SKIPPED = Set.of(
 					"responseContext", "topbar", "header", "frameworkUpdates", "sidebar",
-					"reelShelfRenderer", "reelItemRenderer", "shortsLockupViewModel",
 					"adSlotRenderer", "promotedSparklesWebRenderer", "promotedVideoRenderer",
 					"backstagePostThreadRenderer", "backstagePostRenderer", "postRenderer",
 					"sharedPostRenderer", "chipCloudRenderer", "feedFilterChipBarRenderer",
 					"statementBannerRenderer", "brandVideoShelfRenderer", "inlineSurveyRenderer",
 					"mastheadRenderer", "bannerPromoRenderer", "primetimePromoRenderer",
 					"emergencyOnebox", "clarificationRenderer", "infoPanelContainerRenderer");
+
+	/** Where Shorts appear in a browse response. */
+	private static final Set<String> SHORTS_KEYS = Set.of(
+					"reelShelfRenderer", "reelItemRenderer", "shortsLockupViewModel");
 
 	public enum Feed {
 		HOME("FEwhat_to_watch"),
@@ -241,23 +241,22 @@ public final class FeedClient {
 	}
 
 	/**
-	 * Home is for discovering: videos from channels the person already follows or subscribes to are
-	 * left out (that is what Subscriptions is for), no channel gets more than a couple of slots,
-	 * and when too little is left it is topped up with videos related to what was watched lately.
+	 * Home without followed or subscribed channels (that's what Subscriptions is for), with at most
+	 * two videos per channel. Topped up with related videos when too little is left.
 	 */
 	@NonNull
 	private FeedPage homePage(@Nullable String continuation, boolean signedIn)
 					throws IOException, ExtractionException {
 		Set<String> known = knownChannels();
 		if (continuation != null && continuation.startsWith(DISCOVER_PREFIX)) {
-			// YouTube's own pages ran out: keep drifting from video to related video.
+			// Past YouTube's own pages: keep following related videos
 			List<String> seeds = List.of(continuation.substring(DISCOVER_PREFIX.length()).split(","));
 			List<FeedItem> more = discover(known, seeds);
 			return new FeedPage(more, more.isEmpty() ? null : discoverToken(more), signedIn);
 		}
 		FeedPage page = browsePage(Feed.HOME, continuation, null);
 		if (page.items().isEmpty() && !signedIn && continuation == null) {
-			// Signed out, YouTube may return an empty Home without a visitor id: retry with one.
+			// Signed out, Home can be empty without visitor data; retry with it
 			String visitor = visitorData();
 			if (visitor != null) page = browsePage(Feed.HOME, null, visitor);
 		}
@@ -276,11 +275,11 @@ public final class FeedClient {
 			}
 			Collections.shuffle(items);
 		}
-		// Never end: once YouTube has no more pages, Home continues with related videos.
+		// After the last page, continue with related videos
 		return new FeedPage(items, next != null ? next : discoverToken(items), page.signedIn());
 	}
 
-	/** The token that continues Home from a few random videos of the page just shown. */
+	/** Continuation seeded with a few random videos of this page. */
 	@NonNull
 	private static String discoverToken(@NonNull List<FeedItem> shown) {
 		List<String> ids = new ArrayList<>();
@@ -291,7 +290,7 @@ public final class FeedClient {
 		return DISCOVER_PREFIX + String.join(",", ids.subList(0, Math.min(ids.size(), DISCOVER_SEEDS)));
 	}
 
-	/** Drops channels the person already follows and limits every other channel to two videos. */
+	/** Removes known channels and allows at most MAX_PER_CHANNEL videos per channel. */
 	@NonNull
 	private static List<FeedItem> curate(@NonNull List<FeedItem> items, @NonNull Set<String> known) {
 		List<FeedItem> out = new ArrayList<>();
@@ -311,7 +310,7 @@ public final class FeedClient {
 		return item.author() != null && known.contains(item.author().trim().toLowerCase(Locale.ROOT));
 	}
 
-	/** Ids and names of the locally followed channels and of the account's subscriptions seen so far. */
+	/** Ids and names of followed channels plus the account subscriptions seen so far. */
 	@NonNull
 	private static Set<String> knownChannels() {
 		Set<String> known = new HashSet<>();
@@ -342,6 +341,13 @@ public final class FeedClient {
 	@NonNull
 	private static FeedPage browsePage(@NonNull Feed feed, @Nullable String continuation,
 	                                   @Nullable String visitorData) throws IOException, ExtractionException {
+		return browsePage(feed, continuation, visitorData, new Parser());
+	}
+
+	@NonNull
+	private static FeedPage browsePage(@NonNull Feed feed, @Nullable String continuation,
+	                                   @Nullable String visitorData, @NonNull Parser parser)
+					throws IOException, ExtractionException {
 		Localization localization = NewPipe.getPreferredLocalization();
 		ContentCountry country = NewPipe.getPreferredContentCountry();
 		JsonObject root = YoutubeParsingHelper.prepareDesktopJsonBuilder(localization, country)
@@ -355,7 +361,6 @@ public final class FeedClient {
 		}
 		byte[] body = JsonWriter.string(root).getBytes(StandardCharsets.UTF_8);
 		JsonObject response = YoutubeParsingHelper.getJsonPostResponse("browse", body, localization);
-		Parser parser = new Parser();
 		parser.walk(response, 0);
 		return new FeedPage(parser.items, parser.continuation, false);
 	}
@@ -378,32 +383,33 @@ public final class FeedClient {
 	private static final int MAX_PER_CHANNEL = 2;
 	private static final int HOME_MIN_PAGE = 6;
 	private static final int MAX_EXTRA_PAGES = 2;
-	/** Marks the endless part of Home, after YouTube's own pages; video ids of the last page follow. */
+	/** Prefix of our own Home continuation token, followed by seed video ids. */
 	private static final String DISCOVER_PREFIX = "testtube:discover:";
 	private static final int DISCOVER_SEEDS = 3;
 	private static final int DISCOVER_TARGET = 40;
 	private static final String TAG = "FeedClient";
-	/** How long the first page waits for the channel feeds; slower channels join the next load. */
+	/** Max wait for channel feeds on the first page; slower ones show up on the next load. */
 	private static final long FEED_WAIT_MS = 9_000L;
 	private static final int RELATED_LOOKUPS = 4;
 	private static final long EARLY_WAIT_MS = 2_500L;
 	private static final int EARLY_MIN_VIDEOS = 20;
-	/** How long the extractor fallback may take for channels whose feed failed. */
+	/** Max wait for the extractor fallback of failed channel feeds. */
 	private static final long FALLBACK_WAIT_MS = 8_000L;
 	private static final int MAX_FALLBACK_CHANNELS = 6;
 	private static final long CHANNEL_CACHE_MS = 3 * 60_000L;
 	private static final long OLDER_BUDGET_MS = 25_000L;
 	private static final int MAX_LOCAL_VIDEOS = 120;
+	private static final int SHORTS_CHANNELS_PER_PAGE = 4;
+	private static final int SHORTS_QUERIES_PER_PAGE = 2;
+	private static final int SHORTS_PER_CHANNEL = 6;
+	private static final long SHORTS_WAIT_MS = 10_000L;
 	private static final ExecutorService FEED_POOL = Executors.newFixedThreadPool(12, task -> {
 		Thread thread = new Thread(task, "channel-feed");
 		thread.setDaemon(true);
 		return thread;
 	});
 
-	/**
-	 * What the person watched lately: a few random videos (to ask YouTube for related ones) and a few
-	 * random titles (to search for). Random, so Home differs every time but stays relevant.
-	 */
+	/** Random picks from recent history: video ids for related lookups and titles to search for. */
 	public record Taste(@NonNull List<String> videoIds, @NonNull List<String> titles) {
 	}
 
@@ -414,7 +420,7 @@ public final class FeedClient {
 		this.taste = taste;
 	}
 
-	/** Popular topics, in the app's language, searched when there is too little to go on. */
+	/** Generic (localized) search topics for when the history is too thin. */
 	@NonNull
 	private volatile Supplier<List<String>> generalQueries = List::of;
 
@@ -423,9 +429,8 @@ public final class FeedClient {
 	}
 
 	/**
-	 * Videos related to the seed videos (or, without seeds, to what was watched lately), from
-	 * channels the person does not follow, shuffled. Used when YouTube's own Home is empty, mostly
-	 * made of followed channels, or has run out.
+	 * Related videos of the seeds (or of recent history) without known channels, shuffled. Fills
+	 * Home when YouTube's own feed is empty, mostly known channels, or exhausted.
 	 */
 	@NonNull
 	private List<FeedItem> discover(@NonNull Set<String> known, @NonNull List<String> seeds) {
@@ -441,7 +446,7 @@ public final class FeedClient {
 			try {
 				pool.addAll(relatedItems(videoId));
 			} catch (IOException | ExtractionException ignored) {
-				// One failing lookup must not empty the whole Home.
+				// Skip failed lookups
 			}
 		}
 		List<String> queries = new ArrayList<>();
@@ -455,7 +460,7 @@ public final class FeedClient {
 			try {
 				pool.addAll(searchVideos(query));
 			} catch (IOException | ExtractionException ignored) {
-				// Same here: the other sources still fill Home.
+				// Ignore, the other queries may still work
 			}
 			if (pool.size() >= DISCOVER_TARGET * 2) break;
 		}
@@ -483,13 +488,10 @@ public final class FeedClient {
 	}
 
 	private record RssVideo(@NonNull String id, @NonNull String title, @NonNull String author,
-	                        @NonNull String channelId, long views, long time) {
+	                        @NonNull String channelId, long views, long time, boolean shortForm) {
 	}
 
-	/**
-	 * Where each followed channel's older uploads continue. A channel that is not in the map has
-	 * nothing older left.
-	 */
+	/** Paging state per followed channel. Channels without older uploads are left out. */
 	private record LocalCursor(@NonNull Map<String, ChannelCursor> channels) {
 	}
 
@@ -497,10 +499,10 @@ public final class FeedClient {
 	}
 
 	/**
-	 * The latest videos of the channels followed without an account, newest first. Scrolling on
-	 * continues with older uploads of the same channels.
+	 * Latest uploads of the locally followed channels, newest first. Next pages continue with
+	 * older uploads.
 	 *
-	 * @param continuation the value returned as {@code next} by the previous page, or null
+	 * @param continuation {@code next} of the previous page, or null
 	 */
 	@NonNull
 	public Call localSubscriptions(@NonNull List<LocalSubscriptions.Channel> channels,
@@ -509,8 +511,8 @@ public final class FeedClient {
 	}
 
 	/**
-	 * Like {@link #localSubscriptions(List, Object)}; for the first page, {@code partial} receives
-	 * videos as soon as each channel has answered (on a worker thread).
+	 * Same as {@link #localSubscriptions(List, Object)}, but on the first page {@code partial} gets
+	 * each channel's videos as they arrive (on a worker thread).
 	 */
 	@NonNull
 	public Call localSubscriptions(@NonNull List<LocalSubscriptions.Channel> channels,
@@ -524,12 +526,10 @@ public final class FeedClient {
 	private record CachedChannel(long loadedAt, @NonNull List<RssVideo> videos) {
 	}
 
-	/** The last videos read per channel, so opening Subscriptions again does not repeat the requests. */
+	/** Recent results per channel, so reopening Subscriptions doesn't refetch everything. */
 	private static final Map<String, CachedChannel> CHANNEL_CACHE = new ConcurrentHashMap<>();
 
-	/**
-	 * Reads one channel's feed and remembers it, even when the page that asked has stopped waiting.
-	 */
+	/** Fetches and caches a channel feed, even if the caller stopped waiting. */
 	@NonNull
 	private static List<RssVideo> channelVideos(@NonNull LocalSubscriptions.Channel channel)
 					throws IOException, XmlPullParserException {
@@ -553,7 +553,7 @@ public final class FeedClient {
 		}
 		all.addAll(cachedNow);
 		if (partial != null && !cachedNow.isEmpty()) partial.accept(toFeedItems(cachedNow, Integer.MAX_VALUE));
-		// Videos are handed to the page as each channel answers, in the order they arrive.
+		// Hand videos to the UI as the channels respond
 		List<LocalSubscriptions.Channel> failed = new ArrayList<>();
 		while (!pending.isEmpty()) {
 			long now = System.currentTimeMillis();
@@ -561,7 +561,7 @@ public final class FeedClient {
 			List<RssVideo> batch = new ArrayList<>();
 			try {
 				Future<List<RssVideo>> first = done.poll(Math.max(0L, limit - now), TimeUnit.MILLISECONDS);
-				// Too slow for now: the rest keeps loading in the background and is there next time.
+				// The rest keeps loading in the background and ends up in the cache
 				if (first == null) break;
 				for (Future<List<RssVideo>> ready = first; ready != null; ready = done.poll()) {
 					LocalSubscriptions.Channel channel = pending.remove(ready);
@@ -581,7 +581,7 @@ public final class FeedClient {
 			all.addAll(batch);
 			if (partial != null && !batch.isEmpty()) partial.accept(toFeedItems(batch, Integer.MAX_VALUE));
 		}
-		// Channels whose feed failed or came back empty are read through the extractor, side by side.
+		// Retry failed or empty feeds through the extractor, in parallel
 		if (!failed.isEmpty()) {
 			List<Future<List<RssVideo>>> fallbacks = new ArrayList<>();
 			for (LocalSubscriptions.Channel channel : failed.subList(0, Math.min(failed.size(), MAX_FALLBACK_CHANNELS))) {
@@ -596,7 +596,7 @@ public final class FeedClient {
 				}
 			}
 		}
-		// Channels are followed but nothing could be read: report it, an empty list would only mislead.
+		// Nothing loaded at all: report an error rather than an empty list
 		if (all.isEmpty() && !channels.isEmpty()) throw new IOException("no followed channel could be loaded");
 		Map<String, ChannelCursor> older = new LinkedHashMap<>();
 		for (LocalSubscriptions.Channel channel : channels) {
@@ -609,14 +609,16 @@ public final class FeedClient {
 	private static List<FeedItem> toFeedItems(@NonNull List<RssVideo> videos, int limit) {
 		videos.sort((a, b) -> Long.compare(b.time(), a.time()));
 		long now = System.currentTimeMillis();
+		boolean shorts = AppSettings.showShorts();
 		List<FeedItem> items = new ArrayList<>();
 		for (RssVideo video : videos) {
 			if (items.size() >= limit) break;
+			if (video.shortForm() && !shorts) continue;
 			items.add(new FeedItem(FeedItem.Kind.VIDEO, watchUrl(video.id()), video.id(), video.title(),
 							video.author(), mobile("https://www.youtube.com/channel/" + video.channelId()),
 							FeedItem.thumbnailFor(video.id()), -1, video.views(),
 							DateUtils.getRelativeTimeSpanString(video.time(), now, DateUtils.MINUTE_IN_MILLIS,
-											DateUtils.FORMAT_ABBREV_RELATIVE).toString(), false));
+											DateUtils.FORMAT_ABBREV_RELATIVE).toString(), false, video.shortForm(), null));
 		}
 		return items;
 	}
@@ -644,7 +646,7 @@ public final class FeedClient {
 				videos.addAll(round.videos());
 				if (round.next() != null) next.put(round.channelId(), round.next());
 			} catch (TimeoutException e) {
-				// Too slow this time: keep the channel where it was and try again on the next page.
+				// Timed out, retry this channel on the next page
 				entry.getValue().cancel(true);
 				next.put(entry.getKey(), cursor.channels().get(entry.getKey()));
 			} catch (InterruptedException | ExecutionException e) {
@@ -664,6 +666,7 @@ public final class FeedClient {
 		if (tab == null) {
 			ChannelInfo info = ChannelInfo.getInfo(ServiceList.YouTube, "https://www.youtube.com/channel/" + channelId);
 			name = info.getName();
+			AvatarCache.get().remember("https://www.youtube.com/channel/" + channelId, avatar(info.getAvatars()));
 			for (ListLinkHandler candidate : info.getTabs()) {
 				if (candidate.getContentFilters().contains(ChannelTabs.VIDEOS)) tab = candidate;
 			}
@@ -688,7 +691,7 @@ public final class FeedClient {
 			long time = stream.getUploadDate() != null
 							? stream.getUploadDate().offsetDateTime().toInstant().toEpochMilli()
 							: now - (index++) * DateUtils.HOUR_IN_MILLIS;
-			videos.add(new RssVideo(id, stream.getName(), name, channelId, stream.getViewCount(), time));
+			videos.add(new RssVideo(id, stream.getName(), name, channelId, stream.getViewCount(), time, false));
 		}
 		ChannelCursor next = nextPage != null && Page.isValid(nextPage) ? new ChannelCursor(tab, nextPage, name) : null;
 		return new OlderRound(channelId, next, videos);
@@ -698,6 +701,7 @@ public final class FeedClient {
 	private static List<RssVideo> videosFromExtractor(@NonNull LocalSubscriptions.Channel channel)
 					throws IOException, ExtractionException {
 		ChannelInfo info = ChannelInfo.getInfo(ServiceList.YouTube, "https://www.youtube.com/channel/" + channel.id());
+		AvatarCache.get().remember("https://www.youtube.com/channel/" + channel.id(), avatar(info.getAvatars()));
 		List<RssVideo> out = new ArrayList<>();
 		for (ListLinkHandler tab : info.getTabs()) {
 			if (!tab.getContentFilters().contains(ChannelTabs.VIDEOS)) continue;
@@ -711,7 +715,8 @@ public final class FeedClient {
 				long time = stream.getUploadDate() != null
 								? stream.getUploadDate().offsetDateTime().toInstant().toEpochMilli()
 								: now - (index++) * DateUtils.HOUR_IN_MILLIS;
-				out.add(new RssVideo(id, stream.getName(), info.getName(), channel.id(), stream.getViewCount(), time));
+				out.add(new RssVideo(id, stream.getName(), info.getName(), channel.id(), stream.getViewCount(), time,
+								false));
 				if (out.size() >= 10) break;
 			}
 			break;
@@ -745,6 +750,7 @@ public final class FeedClient {
 		String feedAuthor = channel.name();
 		boolean inEntry = false;
 		boolean inAuthor = false;
+		boolean shortForm = false;
 		String id = null, title = null, author = null, published = null;
 		long views = -1;
 		for (int event = parser.getEventType(); event != XmlPullParser.END_DOCUMENT; event = parser.next()) {
@@ -754,6 +760,7 @@ public final class FeedClient {
 					inEntry = true;
 					id = title = author = published = null;
 					views = -1;
+					shortForm = false;
 				} else if ("author".equals(name)) {
 					inAuthor = true;
 				} else if ("name".equals(name) && inAuthor) {
@@ -765,6 +772,11 @@ public final class FeedClient {
 						case "yt:videoId" -> id = parser.nextText();
 						case "title" -> title = parser.nextText();
 						case "published" -> published = parser.nextText();
+						// Shorts link to /shorts/ instead of /watch
+						case "link" -> {
+							String href = parser.getAttributeValue(null, "href");
+							if (href != null && href.contains("/shorts/")) shortForm = true;
+						}
 						case "media:statistics" -> {
 							String count = parser.getAttributeValue(null, "views");
 							if (count != null) {
@@ -789,9 +801,9 @@ public final class FeedClient {
 						try {
 							long time = OffsetDateTime.parse(published).toInstant().toEpochMilli();
 							out.add(new RssVideo(id, title, author != null ? author : feedAuthor, channel.id(),
-											views, time));
+											views, time, shortForm));
 						} catch (RuntimeException ignored) {
-							// An entry with an unreadable date is skipped.
+							// Skip entries with an unparseable date
 						}
 					}
 				}
@@ -836,6 +848,7 @@ public final class FeedClient {
 		else if (!url.contains("/") && !url.contains(".")) url = "https://www.youtube.com/@" + url;
 		else if (!url.startsWith("http")) url = "https://" + url;
 		ChannelInfo info = ChannelInfo.getInfo(ServiceList.YouTube, url);
+		AvatarCache.get().remember("https://www.youtube.com/channel/" + info.getId(), avatar(info.getAvatars()));
 		return new LocalSubscriptions.Channel(info.getId(), info.getName() == null ? "" : info.getName());
 	}
 
@@ -848,8 +861,8 @@ public final class FeedClient {
 	}
 
 	/**
-	 * More suggestions for the list under a playing video: videos related to a few random videos
-	 * already in that list, without the ones it has, so the list never runs out.
+	 * More suggestions for the watch screen: related videos of a few random entries, minus the ones
+	 * already shown.
 	 */
 	@NonNull
 	public Call moreRelated(@NonNull List<String> seedIds, @NonNull Set<String> exclude) {
@@ -888,9 +901,159 @@ public final class FeedClient {
 		parser.walk(response, 0);
 		List<FeedItem> out = new ArrayList<>();
 		for (FeedItem item : parser.items) {
-			if (item.kind() == FeedItem.Kind.VIDEO && !videoId.equals(item.videoId())) out.add(item);
+			// Suggestions under the player stay without Shorts
+			if (item.kind() == FeedItem.Kind.VIDEO && !item.shortForm() && !videoId.equals(item.videoId())) {
+				out.add(item);
+			}
 		}
 		return out;
+	}
+
+	/**
+	 * Where the next page of the Shorts tab comes from.
+	 *
+	 * @param homeToken continuation of YouTube's Home feed; null with {@code homeDone} false means
+	 *                  its first page
+	 * @param channels  followed channels whose Shorts were not read yet
+	 * @param queries   searches not made yet
+	 */
+	private record ShortsCursor(@Nullable String homeToken, boolean homeDone,
+	                            @NonNull List<String> channels, @NonNull List<String> queries) {
+		boolean exhausted() {
+			return homeDone && channels.isEmpty() && queries.isEmpty();
+		}
+	}
+
+	/**
+	 * A page for the Shorts tab, mixed from YouTube's Home feed, the Shorts tabs of followed
+	 * channels and searches for topics of the watch history.
+	 *
+	 * @param continuation {@code next} of the previous page, or null for the first page
+	 */
+	@NonNull
+	public Call shorts(@Nullable Object continuation) {
+		return run(signedIn -> shortsPage(
+						continuation instanceof ShortsCursor cursor ? cursor : firstShortsCursor(), signedIn));
+	}
+
+	@NonNull
+	private ShortsCursor firstShortsCursor() {
+		List<String> channels = new ArrayList<>();
+		for (LocalSubscriptions.Channel channel : LocalSubscriptions.get().all()) channels.add(channel.id());
+		Collections.shuffle(channels);
+		Taste current;
+		try {
+			current = taste.get();
+		} catch (RuntimeException e) {
+			current = new Taste(List.of(), List.of());
+		}
+		List<String> queries = new ArrayList<>();
+		for (String title : current.titles()) queries.add(firstWords(title, 4));
+		List<String> general = new ArrayList<>(generalQueries.get());
+		Collections.shuffle(general);
+		queries.addAll(general);
+		return new ShortsCursor(null, false, channels, queries);
+	}
+
+	@NonNull
+	private static FeedPage shortsPage(@NonNull ShortsCursor cursor, boolean signedIn) {
+		List<String> channels = cursor.channels().subList(0, Math.min(cursor.channels().size(), SHORTS_CHANNELS_PER_PAGE));
+		List<String> queries = cursor.queries().subList(0, Math.min(cursor.queries().size(), SHORTS_QUERIES_PER_PAGE));
+		Future<FeedPage> home = cursor.homeDone() ? null : FEED_POOL.submit(() -> homeShorts(cursor.homeToken()));
+		List<Future<List<FeedItem>>> sources = new ArrayList<>();
+		for (String channelId : channels) sources.add(FEED_POOL.submit(() -> channelShorts(channelId)));
+		for (String query : queries) sources.add(FEED_POOL.submit(() -> searchShorts(query)));
+
+		long deadline = System.currentTimeMillis() + SHORTS_WAIT_MS;
+		List<List<FeedItem>> lists = new ArrayList<>();
+		String homeToken = null;
+		if (home != null) {
+			try {
+				FeedPage page = home.get(Math.max(1L, deadline - System.currentTimeMillis()), TimeUnit.MILLISECONDS);
+				lists.add(onlyShorts(page.items()));
+				if (page.next() instanceof String token) homeToken = token;
+			} catch (InterruptedException | ExecutionException | TimeoutException e) {
+				Log.w(TAG, "home shorts failed", e);
+			}
+		}
+		for (Future<List<FeedItem>> source : sources) {
+			try {
+				lists.add(source.get(Math.max(1L, deadline - System.currentTimeMillis()), TimeUnit.MILLISECONDS));
+			} catch (InterruptedException | ExecutionException | TimeoutException e) {
+				Log.w(TAG, "shorts source failed", e);
+			}
+		}
+		ShortsCursor next = new ShortsCursor(homeToken, homeToken == null,
+						new ArrayList<>(cursor.channels().subList(channels.size(), cursor.channels().size())),
+						new ArrayList<>(cursor.queries().subList(queries.size(), cursor.queries().size())));
+		return new FeedPage(interleave(lists), next.exhausted() ? null : next, signedIn);
+	}
+
+	@NonNull
+	private static FeedPage homeShorts(@Nullable String token) throws IOException, ExtractionException {
+		FeedPage page = browsePage(Feed.HOME, token, null, new Parser(true));
+		if (token == null && page.items().isEmpty()) {
+			// Signed out, Home can be empty without visitor data; retry with it
+			String visitor = visitorData();
+			if (visitor != null) page = browsePage(Feed.HOME, null, visitor, new Parser(true));
+		}
+		return page;
+	}
+
+	/** Takes one item from each list in turn, so no single source fills the screen. */
+	@NonNull
+	private static List<FeedItem> interleave(@NonNull List<List<FeedItem>> lists) {
+		List<FeedItem> out = new ArrayList<>();
+		Set<String> seen = new HashSet<>();
+		for (int index = 0; ; index++) {
+			boolean any = false;
+			for (List<FeedItem> list : lists) {
+				if (index >= list.size()) continue;
+				any = true;
+				FeedItem item = list.get(index);
+				if (item.videoId() != null && seen.add(item.videoId())) out.add(item);
+			}
+			if (!any) return out;
+		}
+	}
+
+	@NonNull
+	private static List<FeedItem> onlyShorts(@NonNull List<FeedItem> items) {
+		List<FeedItem> out = new ArrayList<>();
+		for (FeedItem item : items) {
+			if (item.shortForm() && item.videoId() != null) out.add(item);
+		}
+		return out;
+	}
+
+	@NonNull
+	private static List<FeedItem> channelShorts(@NonNull String channelId) throws IOException, ExtractionException {
+		ChannelInfo info = ChannelInfo.getInfo(ServiceList.YouTube, "https://www.youtube.com/channel/" + channelId);
+		AvatarCache.get().remember("https://www.youtube.com/channel/" + channelId, avatar(info.getAvatars()));
+		for (ListLinkHandler tab : info.getTabs()) {
+			if (!tab.getContentFilters().contains(ChannelTabs.SHORTS)) continue;
+			List<FeedItem> out = new ArrayList<>();
+			for (InfoItem item : ChannelTabInfo.getInfo(ServiceList.YouTube, tab).getRelatedItems()) {
+				FeedItem converted = convert(item, true);
+				if (converted != null && converted.shortForm()) out.add(converted);
+				if (out.size() >= SHORTS_PER_CHANNEL) break;
+			}
+			return out;
+		}
+		return List.of();
+	}
+
+	/** Search results come with shelves of Shorts; "#shorts" makes sure there are some. */
+	@NonNull
+	private static List<FeedItem> searchShorts(@NonNull String query) throws IOException, ExtractionException {
+		Localization localization = NewPipe.getPreferredLocalization();
+		ContentCountry country = NewPipe.getPreferredContentCountry();
+		byte[] body = JsonWriter.string(YoutubeParsingHelper.prepareDesktopJsonBuilder(localization, country)
+						.value("query", query + " #shorts").done()).getBytes(StandardCharsets.UTF_8);
+		JsonObject response = YoutubeParsingHelper.getJsonPostResponse("search", body, localization);
+		Parser parser = new Parser(true);
+		parser.walk(response, 0);
+		return onlyShorts(parser.items);
 	}
 
 	/**
@@ -944,16 +1107,21 @@ public final class FeedClient {
 	}
 
 	@Nullable
-	private static FeedItem convert(@NonNull InfoItem item) {
+	static FeedItem convert(@NonNull InfoItem item) {
+		return convert(item, AppSettings.showShorts());
+	}
+
+	@Nullable
+	private static FeedItem convert(@NonNull InfoItem item, boolean shorts) {
 		if (item instanceof StreamInfoItem stream) {
-			if (stream.isShortFormContent()) return null;
+			if (stream.isShortFormContent() && !shorts) return null;
 			String videoId = YoutubeExtractor.getVideoId(stream.getUrl());
 			if (videoId == null) return null;
 			StreamType type = stream.getStreamType();
 			return new FeedItem(FeedItem.Kind.VIDEO, watchUrl(videoId), videoId, stream.getName(),
 							stream.getUploaderName(), mobile(stream.getUploaderUrl()), FeedItem.thumbnailFor(videoId),
 							stream.getDuration(), stream.getViewCount(), stream.getTextualUploadDate(),
-							isLive(type));
+							isLive(type), stream.isShortFormContent(), avatar(stream.getUploaderAvatars()));
 		}
 		if (item instanceof ChannelInfoItem channel) {
 			return new FeedItem(FeedItem.Kind.CHANNEL, mobile(channel.getUrl()), null, channel.getName(),
@@ -1003,15 +1171,55 @@ public final class FeedClient {
 	}
 
 	/**
-	 * Walks a browse response and collects the videos, whatever layout YouTube wraps them in.
+	 * A channel's profile image for list rows, or null when there is none.
 	 */
+	@Nullable
+	static String avatar(@Nullable List<Image> images) {
+		if (images == null || images.isEmpty()) return null;
+		Image largest = null;
+		for (Image image : images) {
+			if (image == null || image.getUrl() == null || image.getUrl().isBlank()) continue;
+			if (largest == null || image.getWidth() > largest.getWidth()) largest = image;
+		}
+		return largest != null ? AvatarCache.rowSize(largest.getUrl()) : null;
+	}
+
+	/**
+	 * Loads the profile image of a channel (blocking). Used for rows whose source has none, such
+	 * as followed channels read from their public feeds.
+	 */
+	@Nullable
+	public String channelAvatar(@NonNull String channelUrl) throws IOException, ExtractionException {
+		String url = channelUrl.trim().replaceFirst("^https?://(m\\.|www\\.)?youtube\\.com", "https://www.youtube.com");
+		if (!url.startsWith("https://www.youtube.com/")) return null;
+		ExtractionSession session = new ExtractionSession(auth.current(true));
+		return downloader.withExtractionSession(() -> {
+			ChannelInfo info = ChannelInfo.getInfo(ServiceList.YouTube, url);
+			String avatar = avatar(info.getAvatars());
+			// Rows may link to the channel by id instead of handle
+			AvatarCache.get().remember("https://www.youtube.com/channel/" + info.getId(), avatar);
+			return avatar;
+		}, session);
+	}
+
+	/** Collects the videos of a browse response, whatever layout they are wrapped in. */
 	private static final class Parser {
 		@NonNull
 		final List<FeedItem> items = new ArrayList<>();
 		@NonNull
 		private final Set<String> seen = new HashSet<>();
+		private final boolean shorts;
 		@Nullable
 		String continuation;
+
+		Parser() {
+			this(AppSettings.showShorts());
+		}
+
+		/** @param shorts whether Shorts are collected */
+		Parser(boolean shorts) {
+			this.shorts = shorts;
+		}
 
 		void walk(@Nullable Object node, int depth) {
 			if (depth > MAX_DEPTH || node == null) return;
@@ -1023,13 +1231,16 @@ public final class FeedClient {
 			for (Map.Entry<String, Object> entry : object.entrySet()) {
 				String key = entry.getKey();
 				Object value = entry.getValue();
-				if (SKIPPED.contains(key) || isPromoKey(key)
+				if (SKIPPED.contains(key) || isPromoKey(key) || (!shorts && SHORTS_KEYS.contains(key))
 								|| !(value instanceof JsonObject || value instanceof JsonArray)) {
 					continue;
 				}
 				switch (key) {
 					case "videoRenderer", "gridVideoRenderer", "compactVideoRenderer" ->
 									addVideo(new YoutubeStreamInfoItemExtractor((JsonObject) value, null));
+					case "reelItemRenderer" -> addVideo(new YoutubeReelInfoItemExtractor((JsonObject) value));
+					case "shortsLockupViewModel" ->
+									addVideo(new YoutubeShortsLockupInfoItemExtractor((JsonObject) value));
 					case "lockupViewModel" -> addLockup((JsonObject) value);
 					case "continuationItemRenderer" -> readContinuation((JsonObject) value);
 					default -> walk(value, depth + 1);
@@ -1038,8 +1249,8 @@ public final class FeedClient {
 		}
 
 		/**
-		 * Ad slots, upsells ("Upgrade to YouTube Premium"), nudges and banners are named in many
-		 * ways; anything that looks like one is left out together with everything inside it.
+		 * Ads, upsells, nudges and banners come under many names. Skip anything that looks like one,
+		 * including its children.
 		 */
 		private static boolean isPromoKey(@NonNull String key) {
 			return PROMO_KEY.matcher(key).find();
@@ -1056,24 +1267,26 @@ public final class FeedClient {
 
 		private void addVideo(@NonNull StreamInfoItemExtractor extractor) {
 			try {
-				if (extractor.isAd() || extractor.isShortFormContent()) return;
+				if (extractor.isAd()) return;
+				boolean shortForm = extractor.isShortFormContent();
+				if (shortForm && !shorts) return;
 				String videoId = YoutubeExtractor.getVideoId(extractor.getUrl());
 				if (videoId == null || !seen.add(videoId)) return;
 				StreamType type = safeType(extractor);
 				long duration = safeDuration(extractor);
 				String published = safePublished(extractor);
-				// A real video has a length, or is live or announced; a bare title with none of
-				// that is a promotion dressed up as a video.
-				if (duration <= 0 && !isLive(type) && safeViews(extractor) < 0
+				// No duration, not live, no views and no date: a promo, not a video. Shorts never
+				// have a duration or date in lists, so they are exempt.
+				if (!shortForm && duration <= 0 && !isLive(type) && safeViews(extractor) < 0
 								&& (published == null || published.isBlank())) {
 					return;
 				}
 				items.add(new FeedItem(FeedItem.Kind.VIDEO, watchUrl(videoId), videoId,
 								extractor.getName(), safeUploader(extractor), mobile(safeUploaderUrl(extractor)),
 								FeedItem.thumbnailFor(videoId), duration, safeViews(extractor),
-								published, isLive(type)));
+								published, isLive(type), shortForm, safeAvatar(extractor)));
 			} catch (Exception ignored) {
-				// One malformed entry must not drop the whole page.
+				// Skip malformed entries
 			}
 		}
 
@@ -1096,7 +1309,7 @@ public final class FeedClient {
 				items.add(new FeedItem(FeedItem.Kind.PLAYLIST, url, null, extractor.getName(), author,
 								null, image(extractor.getThumbnails()), -1L, count, null, false));
 			} catch (Exception ignored) {
-				// Skip entries YouTube changed the shape of.
+				// Skip entries with an unexpected shape
 			}
 		}
 
@@ -1137,6 +1350,15 @@ public final class FeedClient {
 		private static String safeUploaderUrl(@NonNull StreamInfoItemExtractor extractor) {
 			try {
 				return extractor.getUploaderUrl();
+			} catch (Exception e) {
+				return null;
+			}
+		}
+
+		@Nullable
+		private static String safeAvatar(@NonNull StreamInfoItemExtractor extractor) {
+			try {
+				return avatar(extractor.getUploaderAvatars());
 			} catch (Exception e) {
 				return null;
 			}

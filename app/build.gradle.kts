@@ -5,16 +5,15 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
-val appVersionName = "v1.9.7"
-val appVersionCode = 10097
+val appVersionName = "v2.0.0"
+val appVersionCode = 20000
 val apkBaseName = "testtube" + appVersionName.removePrefix("v")
 
 base {
     archivesName.set(apkBaseName)
 }
 
-// Release signing is supplied by BUILD.sh through environment variables, so no secret is ever
-// stored inside the repository.
+// Release signing comes from BUILD.sh through environment variables; no secrets in the repo.
 val releaseKeystoreFile: String? = System.getenv("TESTTUBE_KEYSTORE_FILE")?.takeIf { it.isNotBlank() }
 
 android {
@@ -36,8 +35,7 @@ android {
         versionName = appVersionName
 
         ndk {
-            // ARM covers practically every phone and tablet. x86/x86_64 are left out to keep the
-            // APK small; add "x86_64" here to support Intel Chromebooks and emulators.
+            // ARM only, to keep the APK small. Add "x86_64" for emulators and Intel Chromebooks.
             abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a"))
         }
     }
@@ -74,7 +72,7 @@ android {
     }
 
     androidResources {
-        // Only the languages the app itself is translated into; libraries ship dozens more.
+        // Only the app's own languages; the libraries ship dozens more.
         localeFilters += listOf("en", "es", "fr", "ja", "ko", "ru", "tr", "zh", "zh-rTW")
     }
 
@@ -148,8 +146,7 @@ abstract class ExportApkTask : DefaultTask() {
         target.parentFile.mkdirs()
         val source = File(apk.outputFile)
         source.copyTo(target, overwrite = true)
-        // Only the correctly named copy in dist/ is kept, so there is never a second APK with a
-        // "-release" suffix lying around.
+        // Keep only the renamed copy in dist/.
         source.delete()
         logger.lifecycle("APK: ${target.absolutePath}")
     }

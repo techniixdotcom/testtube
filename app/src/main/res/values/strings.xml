@@ -150,6 +150,10 @@
     <string name="login_subtitle">Sign in with your Google account</string>
     <string name="nav_home">Home</string>
     <string name="nav_subscriptions">Subscriptions</string>
+    <string name="nav_shorts">Shorts</string>
+    <string name="shorts_error">Couldn\'t play this Short</string>
+    <string name="shorts_load_failed">Couldn\'t load Shorts. Tap to try again.</string>
+    <string name="shorts_empty">No Shorts found. Tap to try again.</string>
     <string name="play_next">Play next</string>
     <string name="queue_item_play_next">Plays next</string>
     <string name="queue_item_already_playing">This video is already playing</string>
@@ -177,6 +181,33 @@
     <string name="watch_up_next">Up next</string>
     <string name="watch_likes">%1$s likes</string>
     <string name="page_play_all">Play all</string>
+    <string name="page_tab_videos">Videos</string>
+    <string name="page_tab_live">Live</string>
+    <string name="page_tab_playlists">Playlists</string>
+    <string name="page_tab_podcasts">Podcasts</string>
+    <string name="page_tab_courses">Courses</string>
+    <string name="page_tab_releases">Releases</string>
+    <string name="welcome_title">Welcome to TestTube</string>
+    <string name="welcome_message">Choose what you want to see. You can change this later by tapping the TestTube logo.</string>
+    <string name="setting_shorts">Show Shorts</string>
+    <string name="setting_shorts_summary">On Home, in Subscriptions and search, and as a tab on channels</string>
+    <string name="setting_ai_filter">Hide AI videos (AiSList)</string>
+    <string name="setting_ai_filter_summary">Hides channels on AiSList, a community list of channels that post AI-generated videos. The list (CC BY-NC 4.0) is downloaded from GitHub once a day.</string>
+    <string name="setting_channel_pages">Full channel pages</string>
+    <string name="setting_channel_pages_summary">Banner, @handle, Follow button and tabs. Off: just the channel\'s videos</string>
+    <string name="setting_floating_player">Floating player</string>
+    <string name="setting_floating_player_summary">Back or swipe down puts the video in a small window that stays on top of other apps. Off: it goes to the bottom bar</string>
+    <string name="setting_swipe_minimize">Swipe down to minimize</string>
+    <string name="setting_swipe_minimize_summary">Off: swipe up or down on the left side for brightness, on the right side for volume</string>
+    <string name="update_auto">Check for updates automatically</string>
+    <string name="update_auto_summary">Looks for a new version 5 seconds after the app starts</string>
+    <string name="player_brightness">Brightness %1$d%%</string>
+    <string name="player_volume">Volume %1$d%%</string>
+    <string name="welcome_start">Start</string>
+    <string name="feed_shorts">SHORTS</string>
+    <string name="page_tab_shorts">Shorts</string>
+    <string name="page_verified">Verified</string>
+    <string name="page_tab_error">Couldn\'t load. Tap to try again.</string>
     <string name="subs_use_account">Use my YouTube account</string>
     <string name="watch_tab_description">Description</string>
     <string name="watch_tab_chat">Chat</string>
@@ -236,9 +267,8 @@
     <string name="update_failed">The update could not be downloaded</string>
     <string name="update_allow_install">Allow TestTube to install apps, then tap Update again</string>
     <string name="update_check_now">Check for updates</string>
-    <string name="update_auto">Check automatically</string>
     <string name="update_close">Close</string>
-    <!-- Searched for Home when there is too little history to go on; in the app's language. -->
+    <!-- Home falls back to these searches when there is little watch history. -->
     <string-array name="discover_queries">
         <item>trending</item>
         <item>popular today</item>

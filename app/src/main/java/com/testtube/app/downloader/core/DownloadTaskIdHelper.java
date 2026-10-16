@@ -3,9 +3,6 @@ package com.testtube.app.downloader.core;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-/**
- * Helper that derives stable ids for download records.
- */
 public final class DownloadTaskIdHelper {
 	public static final String ASSET_VIDEO = "v";
 	public static final String ASSET_AUDIO = "a";

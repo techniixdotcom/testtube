@@ -178,8 +178,7 @@ fi
 [[ -f "$LOG_FILE" ]] && mv -f "$LOG_FILE" "$ROOT/build.previous.log"
 rm -f "$ROOT/build-errors.log"
 : > "$LOG_FILE"
-# Everything printed from here on goes to the terminal and, line by line as it happens, to
-# build.log (timestamped, colour codes removed).
+# From here on, output goes to the terminal and to build.log (timestamped, without colours).
 if command -v perl >/dev/null 2>&1; then
 	exec > >(tee >(perl -MPOSIX -pe 'BEGIN { $| = 1 } s/\e\[[0-9;?]*[A-Za-z]//g; s/\r\n/\n/; s/\r/\n/g; $_ = strftime("[%H:%M:%S] ", localtime) . $_' >> "$LOG_FILE")) 2>&1
 else
@@ -527,7 +526,7 @@ run_gradle() {
 			rm -f "$gradle_out"
 			return 0
 		fi
-		# Only network trouble is worth another try; a code error will fail the same way again.
+		# Only retry network failures; a compile error fails the same way every time.
 		if ! grep -qiE 'Could not (resolve|GET|HEAD|download)|timed out|Connection (reset|refused)|UnknownHost|SSLHandshake|Premature end' "$gradle_out"; then
 			extract_errors "$gradle_out"
 			rm -f "$gradle_out"
@@ -705,8 +704,8 @@ install_apk() {
 	die "Installation failed"
 }
 
-# Files and folders that earlier versions had and this one removed. Unzipping a new version over an
-# old project folder leaves them behind, and Gradle would then try to compile them.
+# Files removed in newer versions. Unzipping over an old copy leaves them behind, and Gradle
+# would try to compile them.
 remove_retired_files() {
 	local main="app/src/main"
 	local retired=(

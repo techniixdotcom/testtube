@@ -1,8 +1,5 @@
 package com.testtube.app.extractor.potoken;
 
-/**
- * Session wrapper for PoToken collection.
- */
 final class PoTokenSession {
 	private final long hostGeneration;
 	private final long expiresAtMs;

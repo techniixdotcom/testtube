@@ -38,8 +38,8 @@ import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.testtube.app.Constant;
 import com.testtube.app.R;
-import com.testtube.app.nav.TabManager;
 import com.testtube.app.extractor.StreamCatalog;
+import com.testtube.app.nav.TabManager;
 import com.testtube.app.player.TestTubePlayerView;
 import com.testtube.app.player.common.PlayerLoopMode;
 import com.testtube.app.player.common.PlayerPreferences;
@@ -60,9 +60,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * Enumeration of app logic.
- */
 enum PlaybackPrimaryAction {
 	PLAY(R.drawable.ic_play, R.string.action_play, false, false),
 	PAUSE(R.drawable.ic_pause, R.string.action_pause, true, false),
@@ -116,9 +113,6 @@ enum PlaybackPrimaryAction {
 	}
 }
 
-/**
- * Playback controller that translates engine state into UI actions.
- */
 @UnstableApi
 public class Controller {
 	private static final long SEEK_STEP_MS = 10_000L;
@@ -248,7 +242,6 @@ public class Controller {
 
 	@SuppressLint("ClickableViewAccessibility")
 	private void setupListeners() {
-		// Wire gestures and player callbacks.
 		GestureDetector detector = new GestureDetector(activity, gestureListener);
 		playerView.setOnTouchListener((v, ev) -> {
 			if (state.isInMiniPlayer()) {
@@ -313,7 +306,6 @@ public class Controller {
 	}
 
 	private void setupButtonListeners() {
-		// Wire the controller buttons after the view is ready.
 		setupPlaybackButtons();
 		setupQualityAndSpeedButtons();
 		setupSubtitleAndSegmentButtons();
@@ -424,7 +416,6 @@ public class Controller {
 	}
 
 	private void setupQualityAndSpeedButtons() {
-		// Keep the picker aligned with the active playback options.
 		TextView qualityView = playerView.findViewById(R.id.btn_quality);
 
 		if (qualityView != null) {
@@ -460,7 +451,6 @@ public class Controller {
 	}
 
 	private void setupSubtitleAndSegmentButtons() {
-		// Build compact pickers for subtitle, segment, and audio choices.
 		ImageButton subBtn = playerView.findViewById(R.id.btn_subtitles);
 		updateSubtitleButtonState();
 		if (subBtn != null) {
@@ -662,7 +652,6 @@ public class Controller {
 
 	@NonNull
 	private String getVideoDetailsText(@NonNull StreamCatalog details) {
-		// Assemble the debug info shown in the info dialog.
 		StringBuilder sb = new StringBuilder();
 		Format vF = engine.getVideoFormat();
 		Format aF = engine.getAudioFormat();
@@ -714,9 +703,8 @@ public class Controller {
 	}
 
 	/**
-	 * Fullscreen is only entered from the fullscreen button or an upward swipe, and it locks
-	 * the screen to the video's orientation. Once in fullscreen, rotating the phone does
-	 * nothing — the only way out is the minimise button (or the system back action).
+	 * Fullscreen is entered with the button or an upward swipe and locks the orientation to the
+	 * video's. Rotating doesn't leave it; only the minimize button or back does.
 	 */
 	public void enterFullscreen() {
 		if (state.isFullscreen()) return;
@@ -750,14 +738,17 @@ public class Controller {
 		applyControllerState(previousState, !isInPiP);
 	}
 
-	/**
-	 * Sends the playing video to the bar at the bottom of the screen.
-	 */
-	public boolean minimizeToBar() {
-		return tabManager.minimizeWatch();
+	/** Swipe down: the floating player or the bottom bar, as chosen in the settings. */
+	public boolean minimize() {
+		return tabManager.minimizeByUser();
+	}
+
+	public void resetBrightness() {
+		gestureListener.resetBrightness();
 	}
 
 	public void enterMiniPlayer() {
+		gestureListener.resetBrightness();
 		final ControllerState.Mode previousState = state.mode();
 		state = state.enterMiniPlayer();
 		applyControllerState(previousState, true);
@@ -862,7 +853,6 @@ public class Controller {
 	}
 
 	private void showSelectionPopup(@NonNull View anchor, @NonNull String[] options, int checkedIndex, @NonNull SelectionCallback callback) {
-		// Show a compact popup and keep long-press actions in the same flow.
 		setControlsVisible(true);
 		ListPopupWindow popup = new ListPopupWindow(activity);
 		popup.setAnchorView(anchor);
@@ -940,9 +930,6 @@ public class Controller {
 		button.setAlpha(nextButtonAlpha(availability));
 	}
 
-/**
- * Contract for app logic.
- */
 	private interface SelectionCallback {
 		void onSelected(int index, String label);
 

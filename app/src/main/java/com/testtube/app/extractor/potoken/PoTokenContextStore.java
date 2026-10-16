@@ -5,9 +5,6 @@ import androidx.annotation.Nullable;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * Store for the latest PoToken context.
- */
 public final class PoTokenContextStore {
 	@NonNull
 	private final AtomicReference<PoTokenWebViewContext> snapshot = new AtomicReference<>();

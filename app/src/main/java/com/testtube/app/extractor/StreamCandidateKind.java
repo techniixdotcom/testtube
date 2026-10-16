@@ -1,8 +1,5 @@
 package com.testtube.app.extractor;
 
-/**
- * Enumeration of stream candidate kinds.
- */
 public enum StreamCandidateKind {
 	DASH_MANIFEST,
 	HLS_MANIFEST,

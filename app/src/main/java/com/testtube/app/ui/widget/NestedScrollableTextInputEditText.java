@@ -11,9 +11,6 @@ import androidx.annotation.Nullable;
 
 import com.google.android.material.textfield.TextInputEditText;
 
-/**
- * Text input that cooperates with nested scrolling containers.
- */
 public class NestedScrollableTextInputEditText extends TextInputEditText {
 	private int touchSlop;
 	private float downX;

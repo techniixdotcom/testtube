@@ -13,10 +13,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Preference accessors for player behavior.
- * Position, quality and autoplay are always remembered; speed is fixed at 1x.
- */
+/** Position, quality and autoplay are always remembered; speed is fixed at 1x. */
 public final class PlayerPreferences {
 	private static final String KEY_VIDEO_QUALITY = "video_quality";
 	private static final String KEY_LOOP_MODE = "loop_mode";
@@ -47,8 +44,8 @@ public final class PlayerPreferences {
 	public static final String DEFAULT_QUALITY = "480p";
 
 	/**
-	 * Quality to start videos in: the last quality picked in the player, 480p before that. When a
-	 * video has no stream that small, the closest lower or the lowest available one is used.
+	 * Last quality picked in the player, or 480p. Videos without that quality start in the next
+	 * lower one.
 	 */
 	@NonNull
 	public String getPreferredQuality() {
@@ -127,18 +124,13 @@ public final class PlayerPreferences {
 		mmkv.encode(key, json);
 	}
 
-	/**
-	 * Forgets the saved position of a video, used once a video has been watched to the end so
-	 * that it starts from the beginning the next time it is opened.
-	 */
+	/** Forgets the saved position, e.g. after a video was watched to the end. */
 	public void clearProgress(@Nullable String videoId) {
 		if (videoId == null || videoId.isBlank()) return;
 		mmkv.removeValueForKey(PREFIX_PROGRESS + videoId);
 	}
 
-	/**
-	 * Remembers that a video has been played, so that autoplay never loops back into it.
-	 */
+	/** Remembers a played video so autoplay doesn't loop back to it. */
 	public synchronized void recordPlayed(@Nullable String videoId) {
 		if (videoId == null || videoId.isBlank()) return;
 		long now = System.currentTimeMillis();
@@ -183,9 +175,6 @@ public final class PlayerPreferences {
 		return Set.of("sponsor", "selfpromo", "poi_highlight");
 	}
 
-/**
- * Component that handles app logic.
- */
 	static class Progress {
 		private long position;
 		private long duration;
@@ -217,9 +206,6 @@ public final class PlayerPreferences {
 		}
 	}
 
-/**
- * Entry of the recently played history.
- */
 	static class Played {
 		private String id;
 		private long at;

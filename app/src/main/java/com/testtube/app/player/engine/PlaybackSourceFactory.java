@@ -35,9 +35,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Component that handles app logic.
- */
 @OptIn(markerClass = UnstableApi.class)
 class PlaybackSourceFactory {
 	private static final String TAG = "TestTubePlayback";

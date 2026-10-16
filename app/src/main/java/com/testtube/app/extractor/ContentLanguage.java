@@ -19,8 +19,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Asks YouTube for the phone's language and country, so titles, descriptions and dates come in
- * that language whenever YouTube has them (the original title otherwise).
+ * Picks the YouTube content language and country from the system locale.
  */
 public final class ContentLanguage {
 	private static volatile Locale applied;
@@ -28,40 +27,40 @@ public final class ContentLanguage {
 	private ContentLanguage() {
 	}
 
-	/** Call on the main thread; does nothing when the phone's language has not changed. */
+	/** Main thread only. Does nothing if the locale hasn't changed. */
 	public static void apply(@NonNull Context context) {
 		Locale locale = context.getResources().getConfiguration().getLocales().get(0);
 		if (locale == null) locale = Locale.getDefault();
 		if (locale.equals(applied)) return;
 		synchronized (ContentLanguage.class) {
 			applied = locale;
-			// Read with the English words until this language's are ready.
+			// English number words until the ones for this locale are ready
 			Utils.setNumberWords(Map.of());
 		}
-		// Resolved first and set once each, so a request built meanwhile never sees a half-set value.
+		// Resolve both first so other threads never see a half-applied locale
 		Localization language = closest(new Localization(locale.getLanguage(), region(locale)));
 		ContentCountry country = new ContentCountry(country(context, locale));
 		NewPipe.setPreferredLocalization(language);
 		NewPipe.setPreferredContentCountry(ServiceList.YouTube.getSupportedCountries().contains(country)
 						? country : ContentCountry.DEFAULT);
-		// Off the main thread; the first counts are only read once the first page has arrived.
+
 		Locale started = locale;
 		Thread words = new Thread(() -> {
 			try {
 				Map<String, Long> found = numberWords(language);
 				synchronized (ContentLanguage.class) {
-					// The language may have changed again meanwhile; its own words then win.
+					// The locale may have changed again in the meantime
 					if (started.equals(applied)) Utils.setNumberWords(found);
 				}
 			} catch (RuntimeException ignored) {
-				// No CLDR data for this language on the phone: counts are read with the English words.
+				// No ICU data for this locale, keep the English words
 			}
 		}, "testtube-number-words");
 		words.setDaemon(true);
 		words.start();
 	}
 
-	/** The closest language YouTube offers: "es" for Spanish (Spain), "en" for English (Canada)... */
+	/** Closest language YouTube supports, e.g. "es" for es-ES or "en" for en-CA. */
 	@NonNull
 	private static Localization closest(@NonNull Localization wanted) {
 		List<Localization> supported = ServiceList.YouTube.getSupportedLocalizations();
@@ -72,7 +71,7 @@ public final class ContentLanguage {
 		return Localization.DEFAULT;
 	}
 
-	/** YouTube has its own Latin American Spanish and three kinds of Chinese. */
+	/** YouTube has separate variants for Latin American Spanish and for Chinese. */
 	@NonNull
 	private static String region(@NonNull Locale locale) {
 		String country = locale.getCountry();
@@ -87,26 +86,28 @@ public final class ContentLanguage {
 		}
 	}
 
-	/** The phone's region, or where the phone is when the language has none ("Español (Latinoamérica)"). */
+	/** The locale's region, or the network/SIM country if it has none (e.g. es-419). */
 	@NonNull
 	private static String country(@NonNull Context context, @NonNull Locale locale) {
 		String country = locale.getCountry();
 		if (country.length() != 2) {
+			country = null;
 			try {
 				TelephonyManager phone = context.getSystemService(TelephonyManager.class);
-				String network = phone == null ? null : phone.getNetworkCountryIso();
-				country = network != null && !network.isEmpty() ? network : phone == null ? null : phone.getSimCountryIso();
-			} catch (RuntimeException e) {
-				// No mobile network on this device (newer Android throws then): YouTube's default country.
-				country = null;
+				if (phone != null) {
+					country = phone.getNetworkCountryIso();
+					if (country == null || country.isEmpty()) country = phone.getSimCountryIso();
+				}
+			} catch (RuntimeException ignored) {
+				// Newer Android versions throw on devices without telephony
 			}
 		}
 		return country == null ? "" : country.toUpperCase(Locale.ROOT);
 	}
 
 	/**
-	 * The words this language uses in short counts ("mil", "M", "万"...), from the same CLDR data
-	 * YouTube's formats come from: every power of ten written short, e.g. 1000 as "1 mil".
+	 * Compact number suffixes of the language ("mil", "M", "万", ...), found by formatting every
+	 * power of ten with ICU (1000 is "1 mil" in Spanish).
 	 */
 	@NonNull
 	private static Map<String, Long> numberWords(@NonNull Localization language) {

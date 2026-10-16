@@ -1,8 +1,5 @@
 package com.testtube.app.downloader.ui;
 
-import androidx.core.app.ActivityCompat;
-import androidx.annotation.AttrRes;
-import android.util.TypedValue;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -18,6 +15,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -27,10 +25,12 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
+import androidx.annotation.AttrRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.PopupMenu;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -70,9 +70,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * Screen that shows download history and batch actions.
- */
 @UnstableApi
 public class DownloadActivity extends AppCompatActivity implements DownloadPermissionHost {
 	public static final String EXTRA_PARENT_ID = "extra_parent_id";
@@ -551,9 +548,6 @@ public class DownloadActivity extends AppCompatActivity implements DownloadPermi
 		ActivityCompat.requestPermissions(this, PermissionUtils.downloadStoragePermissions(), PermissionUtils.REQUEST_STORAGE_PERMISSION);
 	}
 
-/**
- * Value object for app logic.
- */
 	private record RecordMutation(@NonNull String taskId, @Nullable DownloadRecord record,
 	                              boolean remove) {
 		@NonNull
@@ -567,9 +561,6 @@ public class DownloadActivity extends AppCompatActivity implements DownloadPermi
 		}
 	}
 
-/**
- * Component that handles app logic.
- */
 	private final class DownloadRecordsAdapter extends RecyclerView.Adapter<DownloadRecordsAdapter.VH> {
 		private static final Object PAYLOAD_RECORD_PROGRESS = new Object();
 		@NonNull
@@ -674,9 +665,6 @@ public class DownloadActivity extends AppCompatActivity implements DownloadPermi
 			return items.size();
 		}
 
-/**
- * Contract for app logic.
- */
 		interface Actions {
 			void onOpen(DownloadRecord record);
 
@@ -693,9 +681,6 @@ public class DownloadActivity extends AppCompatActivity implements DownloadPermi
 			void onDelete(DownloadRecord record);
 		}
 
-/**
- * Component that handles app logic.
- */
 		final class VH extends RecyclerView.ViewHolder {
 			private final ShapeableImageView thumbnail;
 			private final TextView title;

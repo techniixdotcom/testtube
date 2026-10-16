@@ -6,13 +6,10 @@ import androidx.annotation.Nullable;
 import com.testtube.app.Constant;
 
 import java.net.URI;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.Arrays;
 
-/**
- * URL helpers for page classification and host checks.
- */
 public final class UrlUtils {
 	private static final Locale NORMAL_LOCALE = Locale.ROOT;
 
@@ -83,9 +80,7 @@ public final class UrlUtils {
 		}
 	}
 
-	/**
-	 * Channel pages the app shows natively: the channel and all of its tabs.
-	 */
+	/** Channel URLs, including all of the channel's tabs. */
 	public static boolean isNativeChannelUrl(@Nullable String url) {
 		List<String> segments = youtubePath(url);
 		if (segments == null || segments.isEmpty()) return false;
@@ -98,13 +93,10 @@ public final class UrlUtils {
 		} else {
 			return false;
 		}
-		// Every tab of a channel (videos, shorts, playlists, about, ...) opens the native channel page.
 		return segments.size() >= base;
 	}
 
-	/**
-	 * Playlist pages the app shows natively.
-	 */
+	/** Playlist URLs. */
 	public static boolean isNativePlaylistUrl(@Nullable String url) {
 		List<String> segments = youtubePath(url);
 		if (segments == null || segments.size() != 1 || !"playlist".equalsIgnoreCase(segments.get(0))) return false;

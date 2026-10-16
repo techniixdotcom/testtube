@@ -53,6 +53,17 @@
         <item name="cornerSize">8dp</item>
     </style>
 
+    <style name="ShapeAppearance.TestTube.Banner" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
+
+    <style name="TextAppearance.TestTube.PageTab" parent="TextAppearance.Material3.TitleSmall">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="textAllCaps">false</item>
+    </style>
+
     <style name="ShapeAppearance.TestTube.BottomSheet" parent="ShapeAppearance.Material3.LargeComponent">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSizeTopLeft">16dp</item>
@@ -68,6 +79,8 @@
         <item name="itemTextAppearanceActive">@style/TextAppearance.TestTube.NavLabel</item>
         <item name="itemTextAppearanceInactive">@style/TextAppearance.TestTube.NavLabel</item>
         <item name="itemActiveIndicatorStyle">@style/Widget.TestTube.BottomNav.Indicator</item>
+        <!-- Labels on every tab, also with four of them -->
+        <item name="labelVisibilityMode">labeled</item>
     </style>
 
     <style name="Widget.TestTube.BottomNav.Indicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">

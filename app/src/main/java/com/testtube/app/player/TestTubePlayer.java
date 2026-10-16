@@ -5,15 +5,16 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.media3.common.C;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.ui.DefaultTimeBar;
 
+import com.tencent.mmkv.MMKV;
 import com.testtube.app.PlaybackService;
 import com.testtube.app.R;
-import com.testtube.app.util.ToastUtils;
 import com.testtube.app.extractor.ExtractionSession;
 import com.testtube.app.extractor.PlaybackDetails;
 import com.testtube.app.extractor.PlaybackPlan;
@@ -32,9 +33,18 @@ import com.testtube.app.player.queue.QueueRepository;
 import com.testtube.app.player.sponsor.SponsorBlockManager;
 import com.testtube.app.player.sponsor.SponsorOverlayView;
 import com.testtube.app.ui.ErrorDialog;
-import com.tencent.mmkv.MMKV;
+import com.testtube.app.util.ToastUtils;
 
+import org.schabi.newpipe.extractor.exceptions.AgeRestrictedContentException;
+import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
+import org.schabi.newpipe.extractor.exceptions.ContentNotSupportedException;
+import org.schabi.newpipe.extractor.exceptions.GeographicRestrictionException;
+import org.schabi.newpipe.extractor.exceptions.PaidContentException;
+import org.schabi.newpipe.extractor.exceptions.PrivateContentException;
+import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 import org.schabi.newpipe.extractor.exceptions.SignInConfirmNotBotException;
+import org.schabi.newpipe.extractor.exceptions.UnsupportedContentInCountryException;
+import org.schabi.newpipe.extractor.exceptions.YoutubeMusicPremiumContentException;
 
 import java.io.IOException;
 import java.net.ConnectException;
@@ -52,11 +62,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import androidx.media3.common.C;
 
-/**
- * Playback facade that tracks the current media session and UI state.
- */
 @UnstableApi
 public class TestTubePlayer {
 	private static final String KEY_LAST_AUDIO_LANG = "last_audio_lang";
@@ -85,7 +91,9 @@ public class TestTubePlayer {
 	@Nullable
 	private PlaybackService playbackSvc;
 	@NonNull
-	private final QueueInvalidationListener queueListener = this::refreshQueueNav;
+	private final QueueInvalidationListener queueListener = this::onQueueChanged;
+	@Nullable
+	private Runnable onStartedPlaying;
 	@Nullable
 	private CompletableFuture<Void> task;
 	@Nullable
@@ -136,6 +144,7 @@ public class TestTubePlayer {
 		this.executor = executor;
 		playerView.setup();
 		queueRepo.addListener(queueListener);
+		engine.setPlanSelector(this::withPreferredPlan);
 		setupEngineListeners();
 	}
 
@@ -165,6 +174,8 @@ public class TestTubePlayer {
 			public void onIsPlayingChanged(boolean isPlaying) {
 				updateServiceProgress(isPlaying);
 				if (inMiniPlayer) miniBar().setPlaying(isPlaying);
+				Runnable listener = onStartedPlaying;
+				if (isPlaying && listener != null) listener.run();
 			}
 
 			@Override
@@ -223,6 +234,11 @@ public class TestTubePlayer {
 		}
 	}
 
+	private void onQueueChanged() {
+		refreshQueueNav();
+		engine.onQueueChanged();
+	}
+
 	public void refreshQueueNav() {
 		QueueNav availability = engine.getQueueNavigationAvailability();
 		activity.runOnUiThread(() -> {
@@ -265,9 +281,8 @@ public class TestTubePlayer {
 		ExtractionSession session = new ExtractionSession();
 		extractSession = session;
 
-		// SponsorBlock runs next to the extraction, never in front of it, so the video
-		// starts as soon as the streams are known; segments are picked up the moment
-		// they arrive and the seek bar markers are redrawn then.
+		// SponsorBlock loads in parallel so it never delays the start. Segments and seek bar
+		// markers are applied when they arrive.
 		CompletableFuture.runAsync(() -> sponsor.load(videoId), executor)
 						.thenRunAsync(() -> {
 							if (!Objects.equals(this.queuedId, videoId) || activeDurationSeconds <= 0L) return;
@@ -275,7 +290,7 @@ public class TestTubePlayer {
 						}, activity::runOnUiThread);
 
 		task = extractor.getInfo(url, session)
-						.thenApply(details -> withPreferredPlan(details, videoId)).thenAccept(er -> activity.runOnUiThread(() -> {
+						.thenApply(this::withPreferredPlan).thenAccept(er -> activity.runOnUiThread(() -> {
 							if (this.extractSession == session) this.extractSession = null;
 							if (!Objects.equals(this.queuedId, videoId)) return;
 							playerView.setTitle(er.video().getTitle());
@@ -329,9 +344,9 @@ public class TestTubePlayer {
 						});
 	}
 
+	/** Picks the streams by the preferred quality and the last audio language. */
 	@NonNull
-	private PlaybackDetails withPreferredPlan(@NonNull PlaybackDetails details,
-	                                          @NonNull String videoId) {
+	private PlaybackDetails withPreferredPlan(@NonNull PlaybackDetails details) {
 		String lang = kv.decodeString(KEY_LAST_AUDIO_LANG, "und");
 		String preferredQuality = prefs.getPreferredQuality();
 		PlaybackPlan plan = PlaybackPlanner.plan(details.deliveries(), preferredQuality, lang);
@@ -345,10 +360,10 @@ public class TestTubePlayer {
 	}
 
 	/**
-	 * Re-extracts the current video with fresh stream URLs and resumes at the current position.
-	 * Used when every stream of the current extraction was rejected (expired or blocked URLs).
+	 * Re-extracts the current video and resumes at the same position. Used when all streams were
+	 * rejected (expired or blocked URLs).
 	 *
-	 * @return true when a refresh was started
+	 * @return true if a refresh was started
 	 */
 	private boolean refreshStreams(@NonNull PlaybackException cause) {
 		String videoId = activeId;
@@ -360,7 +375,7 @@ public class TestTubePlayer {
 		ExtractionSession session = new ExtractionSession();
 		extractSession = session;
 		extractor.getInfo("https://www.youtube.com/watch?v=" + videoId, session, true)
-						.thenApply(details -> withPreferredPlan(details, videoId))
+						.thenApply(this::withPreferredPlan)
 						.whenComplete((details, error) -> activity.runOnUiThread(() -> {
 							if (this.extractSession == session) this.extractSession = null;
 							if (!Objects.equals(this.activeId, videoId) || !Objects.equals(this.queuedId, videoId)) {
@@ -384,7 +399,7 @@ public class TestTubePlayer {
 	 */
 	private static boolean isUnavailable(@Nullable Throwable error) {
 		for (Throwable t = error; t != null; t = t.getCause()) {
-			if (t instanceof org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException) return true;
+			if (t instanceof ContentNotAvailableException) return true;
 			if (t.getCause() == t) break;
 		}
 		return false;
@@ -400,22 +415,22 @@ public class TestTubePlayer {
 		if (containsException(exception, SignInConfirmNotBotException.class)) {
 			return new LoginRequiredExtractionException(exception);
 		}
-		if (containsException(exception, org.schabi.newpipe.extractor.exceptions.ReCaptchaException.class)) {
+		if (containsException(exception, ReCaptchaException.class)) {
 			return new LoginRequiredExtractionException(exception);
 		}
-		if (containsException(exception, org.schabi.newpipe.extractor.exceptions.AgeRestrictedContentException.class)) {
+		if (containsException(exception, AgeRestrictedContentException.class)) {
 			return new ExtractionException("This video is age restricted and could not be extracted.", exception);
 		}
-		if (containsException(exception, org.schabi.newpipe.extractor.exceptions.GeographicRestrictionException.class)
-						|| containsException(exception, org.schabi.newpipe.extractor.exceptions.UnsupportedContentInCountryException.class)) {
+		if (containsException(exception, GeographicRestrictionException.class)
+						|| containsException(exception, UnsupportedContentInCountryException.class)) {
 			return new ExtractionException("This video is not available in your region.", exception);
 		}
-		if (containsException(exception, org.schabi.newpipe.extractor.exceptions.PrivateContentException.class)) {
+		if (containsException(exception, PrivateContentException.class)) {
 			return new ExtractionException("This video is private or requires permission.", exception);
 		}
-		if (containsException(exception, org.schabi.newpipe.extractor.exceptions.PaidContentException.class)
-						|| containsException(exception, org.schabi.newpipe.extractor.exceptions.YoutubeMusicPremiumContentException.class)
-						|| containsException(exception, org.schabi.newpipe.extractor.exceptions.ContentNotSupportedException.class)) {
+		if (containsException(exception, PaidContentException.class)
+						|| containsException(exception, YoutubeMusicPremiumContentException.class)
+						|| containsException(exception, ContentNotSupportedException.class)) {
 			return new ExtractionException("This video type is not supported.", exception);
 		}
 		if (containsException(exception, SocketTimeoutException.class)
@@ -427,8 +442,8 @@ public class TestTubePlayer {
 		if (containsException(exception, IOException.class)) {
 			return new ExtractionException("I/O error while extracting video info.", exception);
 		}
-		org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException unavailable =
-						firstException(exception, org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException.class);
+		ContentNotAvailableException unavailable =
+						firstException(exception, ContentNotAvailableException.class);
 		if (unavailable != null) {
 			return new ExtractionException(messageOrDefault(unavailable, "This video is not available."), exception);
 		}
@@ -476,8 +491,9 @@ public class TestTubePlayer {
 		if (task != null) task.cancel(true);
 		activity.runOnUiThread(() -> {
 			playerView.disableAutoPiP();
-			// Leave the mini player without showing the full player: nothing is playing anymore.
+			// Nothing is playing, so close the mini player without restoring the full player
 			if (inMiniPlayer) leaveMiniPlayer();
+			controller.resetBrightness();
 			setMiniPlayerCallbacks(null, null);
 			playerView.hide();
 			engine.clear();
@@ -524,8 +540,18 @@ public class TestTubePlayer {
 	}
 
 	/**
-	 * Moves the video into the bar at the bottom of the screen; playback continues.
+	 * Moves the video into a picture-in-picture window; playback continues.
+	 *
+	 * @return false when picture-in-picture isn't available
 	 */
+	public boolean enterFloatingPlayer() {
+		if (controller.isFullscreen()) controller.exitFullscreenImmediately();
+		// A brightness set by swiping would otherwise stay on while other apps are in front
+		controller.resetBrightness();
+		return playerView.enterPiP();
+	}
+
+	/** Moves the video into the bottom bar; playback continues. */
 	public void enterInAppMiniPlayer() {
 		inMiniPlayer = true;
 		stateStore.setInMiniPlayer(true);
@@ -539,8 +565,8 @@ public class TestTubePlayer {
 	}
 
 	/**
-	 * Restores the full player from the mini player. Does nothing when the mini player is not
-	 * shown, so a late call after {@link #hide()} can never bring back an empty black player.
+	 * Restores the full player from the mini player. Does nothing if the mini player isn't shown,
+	 * so a late call after {@link #hide()} can't bring back an empty player.
 	 */
 	public void exitInAppMiniPlayer() {
 		if (!inMiniPlayer) return;
@@ -613,6 +639,11 @@ public class TestTubePlayer {
 
 	public void setLongPressAction(@Nullable Runnable action) {
 		controller.setLongPressAction(action);
+	}
+
+	/** Runs every time playback starts or resumes. */
+	public void setOnStartedPlaying(@Nullable Runnable listener) {
+		onStartedPlaying = listener;
 	}
 
 	public void setDetailsListener(@Nullable Consumer<VideoDetails> listener) {

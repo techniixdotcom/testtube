@@ -502,4 +502,110 @@ public class YoutubeChannelExtractor extends ChannelExtractor {
                 .map(String.class::cast)
                 .collect(Collectors.toUnmodifiableList());
     }
+
+    /**
+     * The channel handle as shown in the header, such as {@code @name}.
+     *
+     * @return the handle, or {@code null} when YouTube did not send one
+     */
+    @Nullable
+    public String getChannelHandle() {
+        assertPageFetched();
+        try {
+            for (final String part : getHeaderMetadataParts()) {
+                if (part.startsWith("@") && part.length() > 1 && !part.contains(" ")) {
+                    return part;
+                }
+            }
+            if (channelHeader != null && channelHeader.headerType == HeaderType.C4_TABBED) {
+                final String handle = getTextFromObject(
+                        channelHeader.json.getObject("channelHandleText"));
+                if (handle != null && handle.startsWith("@")) {
+                    return handle.trim();
+                }
+            }
+            final String vanityUrl = jsonResponse.getObject(METADATA)
+                    .getObject("channelMetadataRenderer")
+                    .getString("vanityChannelUrl");
+            if (vanityUrl != null) {
+                final int index = vanityUrl.lastIndexOf("/@");
+                if (index >= 0 && index + 2 < vanityUrl.length()) {
+                    return vanityUrl.substring(index + 1);
+                }
+            }
+        } catch (final RuntimeException ignored) {
+            // The handle is optional
+        }
+        return null;
+    }
+
+    /**
+     * The count texts of the header, in the requested language and in YouTube's order, such as
+     * {@code "465K subscribers"} and {@code "108 videos"}.
+     *
+     * @return the texts, empty when the header has none
+     */
+    @Nonnull
+    public List<String> getHeaderCountTexts() {
+        assertPageFetched();
+        final List<String> out = new ArrayList<>();
+        try {
+            if (channelHeader != null && channelHeader.headerType == HeaderType.C4_TABBED) {
+                addCountText(out, getTextFromObject(
+                        channelHeader.json.getObject("subscriberCountText")));
+                addCountText(out, getTextFromObject(
+                        channelHeader.json.getObject("videosCountText")));
+                return Collections.unmodifiableList(out);
+            }
+            for (final String part : getHeaderMetadataParts()) {
+                if (!part.startsWith("@")) {
+                    addCountText(out, part);
+                }
+            }
+        } catch (final RuntimeException ignored) {
+            // The counts are optional
+        }
+        return Collections.unmodifiableList(out);
+    }
+
+    private static void addCountText(@Nonnull final List<String> out,
+                                     @Nullable final String text) {
+        if (text == null) {
+            return;
+        }
+        final String trimmed = text.trim();
+        if (!trimmed.isEmpty() && trimmed.chars().anyMatch(Character::isDigit)
+                && !out.contains(trimmed)) {
+            out.add(trimmed);
+        }
+    }
+
+    @Nonnull
+    private List<String> getHeaderMetadataParts() {
+        final List<String> parts = new ArrayList<>();
+        if (channelAgeGateRenderer != null || channelHeader == null
+                || channelHeader.headerType != HeaderType.PAGE) {
+            return parts;
+        }
+        final JsonArray rows = channelHeader.json.getObject(CONTENT)
+                .getObject(PAGE_HEADER_VIEW_MODEL)
+                .getObject(METADATA)
+                .getObject("contentMetadataViewModel")
+                .getArray("metadataRows");
+        for (final Object row : rows) {
+            if (!(row instanceof JsonObject)) {
+                continue;
+            }
+            for (final Object part : ((JsonObject) row).getArray("metadataParts")) {
+                if (!(part instanceof JsonObject)) {
+                    continue;
+                }
+                final String text = ((JsonObject) part).getObject("text").getString(CONTENT);
+                if (text != null && !text.isBlank()) {
+                    parts.add(text.trim());
+                }
+            }
+        }
+        return parts;
+    }
 }

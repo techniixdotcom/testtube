@@ -1,8 +1,5 @@
 package com.testtube.app.player.queue;
 
-/**
- * Helper that finds the next queue item to play.
- */
 public record QueueNav(boolean queue,
                        boolean next,
                        boolean shuffle,

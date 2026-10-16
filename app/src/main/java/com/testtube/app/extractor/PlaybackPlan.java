@@ -5,9 +5,6 @@ import androidx.annotation.Nullable;
 
 import org.schabi.newpipe.extractor.stream.StreamType;
 
-/**
- * Chosen playback plan for one video.
- */
 public class PlaybackPlan {
 	@NonNull
 	private PlaybackMode mode = PlaybackMode.NONE;

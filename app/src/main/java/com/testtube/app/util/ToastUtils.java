@@ -9,9 +9,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 
-/**
- * Toast helpers for short-lived user feedback.
- */
 public final class ToastUtils {
 	private static final Handler MAIN_HANDLER = new Handler(Looper.getMainLooper());
 	private static final Object TOAST_LOCK = new Object();

@@ -3,9 +3,6 @@ package com.testtube.app.downloader.ui;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-/**
- * Component that handles app logic.
- */
 public final class PlaylistDownloadItem {
 	private final int playlistIndex;
 	@NonNull
@@ -71,9 +68,6 @@ public final class PlaylistDownloadItem {
 		return isReady() && batchResultStatus != BatchResultStatus.CANCELED;
 	}
 
-/**
- * Enumeration of app logic.
- */
 	public enum AvailabilityStatus {
 		LOADING,
 		READY,
@@ -81,9 +75,6 @@ public final class PlaylistDownloadItem {
 		LOAD_FAILED
 	}
 
-/**
- * Enumeration of app logic.
- */
 	public enum BatchResultStatus {
 		NOT_STARTED,
 		PREPARING,

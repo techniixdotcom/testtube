@@ -14,8 +14,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The channels the person follows without a YouTube account. Their latest videos come from the
- * public channel feeds, so nothing here needs a login.
+ * Channels followed without a YouTube account. Their videos come from the public channel feeds,
+ * so no login is needed.
  */
 public final class LocalSubscriptions {
 	private static final String KEY = "local_subscriptions";
@@ -50,7 +50,7 @@ public final class LocalSubscriptions {
 				}
 			}
 		} catch (RuntimeException ignored) {
-			// A damaged list is dropped rather than crashing the app.
+			// Corrupt data, start with an empty list.
 		}
 	}
 
@@ -130,10 +130,7 @@ public final class LocalSubscriptions {
 		store.encode(KEY, gson.toJson(channels));
 	}
 
-	/**
-	 * The followed channels in the layout of a Google Takeout subscriptions.csv, which
-	 * {@link #parseImport} reads back.
-	 */
+	/** Google Takeout subscriptions.csv format (readable by {@link #parseImport}). */
 	@NonNull
 	public synchronized String exportCsv() {
 		StringBuilder out = new StringBuilder("Channel Id,Channel Url,Channel Title\n");
@@ -151,10 +148,7 @@ public final class LocalSubscriptions {
 		return matcher.find() ? matcher.group() : null;
 	}
 
-	/**
-	 * Reads the channels out of an exported list: a Google Takeout subscriptions.csv, a NewPipe
-	 * export, an OPML file or just a text with channel links.
-	 */
+	/** Parses a Takeout subscriptions.csv, a NewPipe export, OPML or plain text with channel links. */
 	@NonNull
 	public static List<Channel> parseImport(@NonNull String text) {
 		Map<String, String> found = new LinkedHashMap<>();

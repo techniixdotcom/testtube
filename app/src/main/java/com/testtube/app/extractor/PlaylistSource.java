@@ -10,9 +10,11 @@ import com.testtube.app.Constant;
 import org.schabi.newpipe.extractor.ListExtractor;
 import org.schabi.newpipe.extractor.Page;
 import org.schabi.newpipe.extractor.ServiceList;
+import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.playlist.PlaylistInfo;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -22,12 +24,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
-import java.io.IOException;
 
-/**
- * Loads the videos of a playlist or mix natively, for the watch screen and playlist navigation.
- * Results are kept in memory for the session.
- */
+/** Videos of a playlist or mix for the watch screen and playlist navigation. Cached in memory. */
 public final class PlaylistSource {
 	private static final int MAX_ITEMS = 500;
 	private static final int MAX_PAGES = 12;
@@ -101,7 +99,7 @@ public final class PlaylistSource {
 
 	@NonNull
 	private static Playlist fetch(@NonNull String listId, @Nullable String videoId)
-					throws IOException, org.schabi.newpipe.extractor.exceptions.ExtractionException {
+					throws IOException, ExtractionException {
 		String url = isMix(listId) && videoId != null
 						? "https://www.youtube.com/watch?v=" + videoId + "&list=" + listId
 						: "https://www.youtube.com/playlist?list=" + listId;
@@ -115,7 +113,7 @@ public final class PlaylistSource {
 			ListExtractor.InfoItemsPage<StreamInfoItem> page = PlaylistInfo.getMoreItems(ServiceList.YouTube, url, next);
 			int before = items.size();
 			add(items, seen, page.getItems());
-			// Mixes never end: stop once a page adds nothing new.
+			// Mixes are endless, stop once a page adds nothing new.
 			if (items.size() == before) break;
 			next = page.hasNextPage() ? page.getNextPage() : null;
 		}
@@ -132,7 +130,8 @@ public final class PlaylistSource {
 			items.add(new FeedItem(FeedItem.Kind.VIDEO, Constant.HOME_URL + "/watch?v=" + videoId, videoId,
 							stream.getName(), stream.getUploaderName(), FeedClient.mobile(stream.getUploaderUrl()),
 							FeedItem.thumbnailFor(videoId), stream.getDuration(),
-							stream.getViewCount(), stream.getTextualUploadDate(), false));
+							stream.getViewCount(), stream.getTextualUploadDate(), false, stream.isShortFormContent(),
+							FeedClient.avatar(stream.getUploaderAvatars())));
 		}
 	}
 

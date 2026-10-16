@@ -7,6 +7,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.util.UnstableApi;
 
+import com.testtube.app.AppSettings;
 import com.testtube.app.Constant;
 import com.testtube.app.extractor.PageSource;
 import com.testtube.app.extractor.PlaylistSource;
@@ -22,10 +23,8 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
- * Navigation between the native screens and the watch screen.
- * <p>
- * The watch screen is native: the player on top and the details below. Leaving it moves the
- * video into the mini player; the mini player brings it back.
+ * Navigation between the list screens and the watch screen. Leaving the watch screen moves the
+ * video to the mini player.
  */
 @UnstableApi
 public class TabManager {
@@ -42,14 +41,10 @@ public class TabManager {
 		 */
 		void onWatchChanged(@Nullable String url, boolean visible);
 
-		/**
-		 * A link asked for a screen the app shows natively (Home, Subscriptions, search or History).
-		 */
+		/** A link pointed to Home, Subscriptions, search or History. */
 		void onNativeRequested(@NonNull String pageClass);
 
-		/**
-		 * Shows a channel or playlist on the native page screen.
-		 */
+		/** Shows a channel or playlist page. */
 		void onNativePage(@NonNull PageSource.Kind kind, @NonNull String url);
 	}
 
@@ -107,8 +102,7 @@ public class TabManager {
 	}
 
 	/**
-	 * Opens a page. Videos open on the watch screen, Home, Subscriptions, search and History on
-	 * their native screens, channels and playlists on the native page screen. Anything else is
+	 * Opens a YouTube URL on the watch screen, a list screen or the page screen. Other URLs are
 	 * ignored.
 	 */
 	public void openTab(@NonNull String url, @Nullable String tag) {
@@ -134,9 +128,7 @@ public class TabManager {
 		return null;
 	}
 
-	/**
-	 * Shows a channel or playlist natively. A playing video moves to the mini player.
-	 */
+	/** Shows a channel or playlist; a playing video moves to the mini player. */
 	public void openNativePage(@NonNull PageSource.Kind kind, @NonNull String url) {
 		leaveWatch();
 		Host current = host;
@@ -175,10 +167,7 @@ public class TabManager {
 		notifyWatch();
 	}
 
-	/**
-	 * Leaves the watch screen and reveals the native screen. A playing video moves to the mini
-	 * player.
-	 */
+	/** Leaves the watch screen; a playing video moves to the mini player. */
 	public void showNative() {
 		leaveWatch();
 	}
@@ -228,9 +217,7 @@ public class TabManager {
 		}));
 	}
 
-	/**
-	 * Works out the next (+1), previous (-1) or a random (0) video of the current playlist.
-	 */
+	/** Next (+1), previous (-1) or random (0) video of the current playlist. */
 	public void playlistStep(int offset, @NonNull PlaylistStep callback) {
 		String currentId = YoutubeExtractor.getVideoId(watchUrl);
 		loadPlaylist(playlist -> {
@@ -263,19 +250,31 @@ public class TabManager {
 		});
 	}
 
-	/**
-	 * @return false when the watch screen is not open, so the native screens handle back themselves
-	 */
+	/** @return false when the watch screen isn't open */
 	public boolean goBack() {
 		if (!watchVisible) return false;
-		if (!minimizeWatch()) closeWatch();
+		if (!minimizeByUser()) closeWatch();
 		return true;
 	}
 
 	/**
-	 * Moves the playing video into the mini player and shows what is underneath.
+	 * Back or swipe down on the video: opens the floating player when that was chosen and the
+	 * device allows it, otherwise the bottom bar.
 	 *
-	 * @return false when the watch screen is not in front or nothing can play in the mini player
+	 * @return false if the watch screen isn't in front or nothing can play
+	 */
+	public boolean minimizeByUser() {
+		if (watchVisible && AppSettings.floatingPlayer()) {
+			TestTubePlayer testtubePlayer = testtubePlayer();
+			if (testtubePlayer.canSuspendWatch() && testtubePlayer.enterFloatingPlayer()) return true;
+		}
+		return minimizeWatch();
+	}
+
+	/**
+	 * Moves the playing video to the mini player.
+	 *
+	 * @return false if the watch screen isn't in front or nothing can play
 	 */
 	public boolean minimizeWatch() {
 		if (!watchVisible) return false;

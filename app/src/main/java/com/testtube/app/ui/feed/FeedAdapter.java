@@ -1,6 +1,8 @@
 package com.testtube.app.ui.feed;
 
 import android.content.Context;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.icu.text.CompactDecimalFormat;
 import android.text.format.DateUtils;
 import android.view.LayoutInflater;
@@ -16,6 +18,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.squareup.picasso.Picasso;
 import com.testtube.app.R;
+import com.testtube.app.extractor.AvatarCache;
 import com.testtube.app.extractor.FeedItem;
 import com.testtube.app.filter.ContentFilters;
 
@@ -24,31 +27,33 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import android.graphics.ColorMatrixColorFilter;
-import android.graphics.ColorMatrix;
+import java.util.Objects;
 
-/**
- * Rows of the native Home, Subscriptions and Search screens.
- */
+/** Rows for Home, Subscriptions, search, channel and playlist pages and the watch screen. */
 final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	private static final int TYPE_VIDEO = 0;
 	private static final int TYPE_ENTITY = 1;
 	private static final float WATCHED_ALPHA = 0.3f;
 	private static final ColorMatrixColorFilter GREY = greyFilter();
+	private static final String SEPARATOR = " • ";
+	/** Rebinds only the uploader image of a row. */
+	private static final Object AVATAR_PAYLOAD = new Object();
 
-	// Watched videos lose their colour and most of their brightness, so they stand out at a glance.
+	// Watched videos: greyscale and dimmed
 	@NonNull
 	private static ColorMatrixColorFilter greyFilter() {
 		ColorMatrix matrix = new ColorMatrix();
 		matrix.setSaturation(0f);
 		return new ColorMatrixColorFilter(matrix);
 	}
-	private static final String SEPARATOR = " • ";
 
 	interface Listener {
 		void onOpen(@NonNull FeedItem item);
 
 		void onOpenAuthor(@NonNull FeedItem item);
+
+		/** Long press on the channel picture. */
+		void onFollowAuthor(@NonNull FeedItem item);
 
 		void onMenu(@NonNull FeedItem item);
 	}
@@ -60,11 +65,18 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	@NonNull
 	private final Map<String, Long> ids = new HashMap<>();
 	@NonNull
+	private final AvatarCache avatars = AvatarCache.get();
+	/** Rows whose channel image was looked up in the background get it as soon as it is known. */
+	@NonNull
+	private final AvatarCache.Listener avatarListener = this::onAvatarKnown;
+	@NonNull
 	private List<FeedItem> items = new ArrayList<>();
 	@Nullable
 	private CompactDecimalFormat compact;
 	@Nullable
 	private Locale compactLocale;
+	private boolean showAvatars;
+	private int attached;
 
 	FeedAdapter(@NonNull ContentFilters filters, @NonNull Listener listener) {
 		this.filters = filters;
@@ -76,6 +88,7 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	 * Shows a new list. Appending to the current list only inserts the new rows.
 	 */
 	void submit(@NonNull List<FeedItem> next) {
+		avatars.rememberAll(next);
 		List<FeedItem> previous = items;
 		items = next;
 		boolean appended = next.size() >= previous.size();
@@ -90,6 +103,16 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	}
 
 	/**
+	 * Uploader images next to the titles. Off by default; Home and the suggestions under the
+	 * player turn them on.
+	 */
+	void setShowAvatars(boolean show) {
+		if (showAvatars == show) return;
+		showAvatars = show;
+		notifyItemRangeChanged(0, items.size());
+	}
+
+	/**
 	 * The video shown in this row, or null for other rows (channels, playlists, the header).
 	 */
 	@Nullable
@@ -101,6 +124,32 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
 	void refreshStates() {
 		notifyItemRangeChanged(0, items.size());
+	}
+
+	@Override
+	public void onAttachedToRecyclerView(@NonNull RecyclerView recyclerView) {
+		super.onAttachedToRecyclerView(recyclerView);
+		if (attached++ == 0) avatars.addListener(avatarListener);
+	}
+
+	@Override
+	public void onDetachedFromRecyclerView(@NonNull RecyclerView recyclerView) {
+		super.onDetachedFromRecyclerView(recyclerView);
+		if (--attached <= 0) {
+			attached = 0;
+			avatars.removeListener(avatarListener);
+		}
+	}
+
+	private void onAvatarKnown(@NonNull String key) {
+		if (!showAvatars) return;
+		for (int i = 0; i < items.size(); i++) {
+			FeedItem item = items.get(i);
+			if (item.kind() == FeedItem.Kind.VIDEO && item.authorAvatarUrl() == null
+							&& key.equals(AvatarCache.key(item.authorUrl()))) {
+				notifyItemChanged(i, AVATAR_PAYLOAD);
+			}
+		}
 	}
 
 	@Override
@@ -145,8 +194,31 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	}
 
 	@Override
+	public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position,
+	                             @NonNull List<Object> payloads) {
+		if (!payloads.isEmpty() && holder instanceof VideoHolder video) {
+			boolean onlyAvatar = true;
+			for (Object payload : payloads) {
+				if (payload != AVATAR_PAYLOAD) {
+					onlyAvatar = false;
+					break;
+				}
+			}
+			if (onlyAvatar) {
+				bindAvatar(video, items.get(position));
+				return;
+			}
+		}
+		onBindViewHolder(holder, position);
+	}
+
+	@Override
 	public void onViewRecycled(@NonNull RecyclerView.ViewHolder holder) {
-		if (holder instanceof VideoHolder video) Picasso.get().cancelRequest(video.thumbnail);
+		if (holder instanceof VideoHolder video) {
+			Picasso.get().cancelRequest(video.thumbnail);
+			Picasso.get().cancelRequest(video.avatar);
+			video.avatarUrl = null;
+		}
 		if (holder instanceof EntityHolder entity) Picasso.get().cancelRequest(entity.thumbnail);
 	}
 
@@ -168,13 +240,19 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 			holder.duration.setVisibility(View.VISIBLE);
 			holder.duration.setText(DateUtils.formatElapsedTime(item.durationSeconds()));
 			holder.duration.setBackgroundResource(R.drawable.bg_duration_badge);
+		} else if (item.shortForm()) {
+			holder.duration.setVisibility(View.VISIBLE);
+			holder.duration.setText(R.string.feed_shorts);
+			holder.duration.setBackgroundResource(R.drawable.bg_duration_badge);
 		} else {
 			holder.duration.setVisibility(View.GONE);
 		}
 		boolean watched = filters.isWatched(item.videoId());
 		holder.itemView.setAlpha(watched ? WATCHED_ALPHA : 1f);
 		holder.thumbnail.setColorFilter(watched ? GREY : null);
+		holder.avatar.setColorFilter(watched ? GREY : null);
 		loadImage(holder.thumbnail, item.thumbnailUrl(), R.drawable.thumb_clear);
+		bindAvatar(holder, item);
 		holder.itemView.setOnClickListener(v -> listener.onOpen(item));
 		holder.itemView.setOnLongClickListener(v -> {
 			listener.onMenu(item);
@@ -182,11 +260,50 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 		});
 		holder.more.setOnClickListener(v -> listener.onMenu(item));
 		if (item.authorUrl() != null) {
-			holder.meta.setOnClickListener(v -> listener.onOpenAuthor(item));
+			View.OnClickListener openAuthor = v -> listener.onOpenAuthor(item);
+			holder.meta.setOnClickListener(openAuthor);
+			holder.avatar.setOnClickListener(openAuthor);
+			holder.avatar.setOnLongClickListener(v -> {
+				listener.onFollowAuthor(item);
+				return true;
+			});
 		} else {
 			holder.meta.setOnClickListener(null);
 			holder.meta.setClickable(false);
+			holder.avatar.setOnClickListener(null);
+			holder.avatar.setOnLongClickListener(null);
+			holder.avatar.setClickable(false);
+			holder.avatar.setLongClickable(false);
 		}
+	}
+
+	private void bindAvatar(@NonNull VideoHolder holder, @NonNull FeedItem item) {
+		if (!showAvatars) {
+			holder.avatar.setVisibility(View.GONE);
+			Picasso.get().cancelRequest(holder.avatar);
+			holder.avatarUrl = null;
+			return;
+		}
+		holder.avatar.setVisibility(View.VISIBLE);
+		String url = AvatarCache.rowSize(item.authorAvatarUrl());
+		if (url == null) url = avatars.find(item.authorUrl());
+		if (url == null) {
+			avatars.request(item.authorUrl());
+			Picasso.get().cancelRequest(holder.avatar);
+			holder.avatar.setImageResource(R.drawable.bg_avatar_placeholder);
+			holder.avatarUrl = null;
+			return;
+		}
+		// Already showing (or loading) this image, don't flicker
+		if (Objects.equals(url, holder.avatarUrl)) return;
+		holder.avatarUrl = url;
+		Picasso.get()
+						.load(url)
+						.fit()
+						.centerCrop()
+						.placeholder(R.drawable.bg_avatar_placeholder)
+						.error(R.drawable.bg_avatar_placeholder)
+						.into(holder.avatar);
 	}
 
 	private void bindEntity(@NonNull EntityHolder holder, @NonNull FeedItem item) {
@@ -234,6 +351,8 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 		@NonNull
 		final ImageView thumbnail;
 		@NonNull
+		final ImageView avatar;
+		@NonNull
 		final TextView duration;
 		@NonNull
 		final TextView title;
@@ -241,10 +360,14 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 		final TextView meta;
 		@NonNull
 		final ImageButton more;
+		/** Image shown in {@link #avatar}, null for the placeholder. */
+		@Nullable
+		String avatarUrl;
 
 		VideoHolder(@NonNull View itemView) {
 			super(itemView);
 			thumbnail = itemView.findViewById(R.id.feed_thumbnail);
+			avatar = itemView.findViewById(R.id.feed_avatar);
 			duration = itemView.findViewById(R.id.feed_duration);
 			title = itemView.findViewById(R.id.feed_title);
 			meta = itemView.findViewById(R.id.feed_meta);

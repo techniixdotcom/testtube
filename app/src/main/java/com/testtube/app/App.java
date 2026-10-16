@@ -39,17 +39,13 @@ public class App extends Application {
 		initUserAgent();
 	}
 
-	/** The phone's language changed: YouTube is asked in the new one from now on. */
 	@Override
 	public void onConfigurationChanged(@NonNull Configuration newConfig) {
 		super.onConfigurationChanged(newConfig);
 		ContentLanguage.apply(this);
 	}
 
-	/**
-	 * Thumbnails are kept in memory up to an eighth of the app's heap; Picasso's own disk cache
-	 * stays on, so a list that was seen before opens without a network request.
-	 */
+	/** Memory cache of up to 1/8 of the heap; Picasso's disk cache stays enabled. */
 	private void initImageLoader() {
 		long heap = Runtime.getRuntime().maxMemory();
 		Picasso.setSingletonInstance(new Picasso.Builder(this)
@@ -58,9 +54,8 @@ public class App extends Application {
 	}
 
 	/**
-	 * The user agent follows the Chrome version of the phone's WebView. Reading it starts the
-	 * whole WebView engine, so the result is cached per WebView version and only read again, in
-	 * the background, after the WebView was updated.
+	 * The user agent uses the WebView's Chrome version. Reading it starts the WebView, so the
+	 * result is cached per WebView version and only refreshed (in the background) after an update.
 	 */
 	private void initUserAgent() {
 		MMKV store = MMKV.defaultMMKV();

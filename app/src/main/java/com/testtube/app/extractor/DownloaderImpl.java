@@ -1,11 +1,21 @@
 package com.testtube.app.extractor;
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.testtube.app.Constant;
 
+import okhttp3.Call;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
+
 import org.schabi.newpipe.extractor.downloader.Downloader;
+import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 
 import java.io.IOException;
@@ -18,24 +28,18 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import okhttp3.Call;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
-
-/**
- * Bridge that adapts NewPipe extraction into the app extractor flow.
- */
 public final class DownloaderImpl extends Downloader {
 	private static final String YOUTUBE_RESTRICTED_MODE_COOKIE = "PREF=f2=8000000";
 
 	private final OkHttpClient client;
 	private final ExtractionSessionScope scope;
+	/** Sees every response body, e.g. to learn channel ids for the AI channel list. */
+	@Nullable
+	private volatile Consumer<String> responseListener;
 
 	public DownloaderImpl(OkHttpClient client,
 	                      ExtractionSessionScope scope) {
@@ -48,9 +52,13 @@ public final class DownloaderImpl extends Downloader {
 		this.scope = scope;
 	}
 
+	public void setResponseListener(@Nullable Consumer<String> listener) {
+		this.responseListener = listener;
+	}
+
 	@NonNull
 	<T> T withExtractionSession(@NonNull StreamInfoSupplier<T> supplier,
-	                            @Nullable ExtractionSession session) throws org.schabi.newpipe.extractor.exceptions.ExtractionException, IOException {
+	                            @Nullable ExtractionSession session) throws ExtractionException, IOException {
 		ExtractionSession previous = scope.get();
 		scope.set(session);
 		try {
@@ -72,8 +80,8 @@ public final class DownloaderImpl extends Downloader {
 
 		final Request.Builder builder = new Request.Builder().url(url).method(httpMethod, requestBody).header("User-Agent", Constant.USER_AGENT);
 		ExtractionSession session = scope.get();
-		// Native app clients (VISIONOS) are anonymous clients: sending account cookies or
-		// authorization to them makes YouTube reject or bind the stream URLs.
+		// VISIONOS is an anonymous client. With account cookies or authorization YouTube
+		// rejects or binds the stream URLs.
 		AuthContext auth = session != null && !isAppClientRequest(headers) ? session.getAuth() : null;
 		String mergedCookies = mergeCookiesForUrl(
 						url,
@@ -121,6 +129,15 @@ public final class DownloaderImpl extends Downloader {
 			final Map<String, List<String>> responseHeaders = response.headers().toMultimap();
 			ResponseBody responseBody = response.body();
 			String responseBodyString = responseBody.string();
+			Consumer<String> listener = responseListener;
+			if (listener != null) {
+				try {
+					listener.accept(responseBodyString);
+				} catch (RuntimeException e) {
+					// A listener must never break extraction
+					Log.w("DownloaderImpl", "response listener failed", e);
+				}
+			}
 
 			return new org.schabi.newpipe.extractor.downloader.Response(responseCode, responseMessage, responseHeaders, responseBodyString, url);
 		} catch (IOException e) {
@@ -215,11 +232,8 @@ public final class DownloaderImpl extends Downloader {
 		return false;
 	}
 
-/**
- * Contract for app logic.
- */
 	@FunctionalInterface
 	interface StreamInfoSupplier<T> {
-		T get() throws org.schabi.newpipe.extractor.exceptions.ExtractionException, IOException;
+		T get() throws ExtractionException, IOException;
 	}
 }

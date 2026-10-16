@@ -11,19 +11,15 @@ import com.tencent.mmkv.MMKV;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * Repository that persists the playback queue in MMKV.
- */
 public final class QueueRepository {
 	static final String KEY_QUEUE_ITEMS = "local_queue_items";
 	static final String KEY_QUEUE_ENABLED = "local_queue_enabled";
+	/** Pins of "Play next" items saved by older versions; removed on start. */
 	static final String KEY_PLAY_NEXT = "local_queue_play_next";
 	private static final Type LIST_TYPE = new TypeToken<List<QueueItem>>() {
 	}.getType();
@@ -40,6 +36,7 @@ public final class QueueRepository {
 	public QueueRepository(@NonNull MMKV mmkv, @NonNull Gson gson) {
 		this.mmkv = mmkv;
 		this.gson = gson;
+		mmkv.removeValueForKey(KEY_PLAY_NEXT);
 		this.state = new MutableLiveData<>(snapshotState());
 	}
 
@@ -90,10 +87,9 @@ public final class QueueRepository {
 	}
 
 	/**
-	 * Puts an item right after the video that is playing now, or at the front of the queue when
-	 * the playing video is not part of it, so it plays next.
+	 * Inserts the item after the playing video, or at the front if that isn't queued.
 	 *
-	 * @return false when the item is the video that is playing now
+	 * @return false if the item is the playing video
 	 */
 	public boolean addNext(@NonNull QueueItem item, @Nullable String playingVideoId) {
 		String videoId = item.getVideoId();
@@ -110,34 +106,9 @@ public final class QueueRepository {
 			}
 			items.add(playing >= 0 ? playing + 1 : 0, item.copy());
 			writeItems(items);
-			Set<String> pinned = readPlayNext();
-			pinned.add(videoId);
-			mmkv.encode(KEY_PLAY_NEXT, pinned);
 		}
 		notifyListeners();
 		return true;
-	}
-
-	/**
-	 * True for items added with "Play next" that have not been played yet. They are played
-	 * even if they were watched recently.
-	 */
-	public synchronized boolean isPlayNext(@Nullable String videoId) {
-		return videoId != null && readPlayNext().contains(videoId);
-	}
-
-	public synchronized void clearPlayNext(@Nullable String videoId) {
-		if (videoId == null) return;
-		Set<String> pinned = readPlayNext();
-		if (pinned.remove(videoId)) {
-			mmkv.encode(KEY_PLAY_NEXT, pinned);
-		}
-	}
-
-	@NonNull
-	private Set<String> readPlayNext() {
-		Set<String> stored = mmkv.decodeStringSet(KEY_PLAY_NEXT, null);
-		return stored == null ? new HashSet<>() : new HashSet<>(stored);
 	}
 
 	public boolean remove(@NonNull String videoId) {
@@ -194,7 +165,6 @@ public final class QueueRepository {
 	public void clear() {
 		synchronized (this) {
 			mmkv.removeValueForKey(KEY_QUEUE_ITEMS);
-			mmkv.removeValueForKey(KEY_PLAY_NEXT);
 		}
 		notifyListeners();
 	}
@@ -208,8 +178,7 @@ public final class QueueRepository {
 			return offset > 0 ? items.get(0).copy() : items.get(items.size() - 1).copy();
 		}
 		int target = index + offset;
-		// The queue never wraps around: past either end there is no relative item, so callers
-		// can fall back to suggestions instead of replaying videos that were already watched.
+		// No wrap-around, so callers can fall back to suggestions at either end.
 		if (target < 0 || target >= items.size()) return null;
 		return items.get(target).copy();
 	}

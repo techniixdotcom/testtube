@@ -12,6 +12,12 @@ import com.testtube.app.extractor.AuthContext;
 import com.testtube.app.extractor.ExtractionSession;
 import com.testtube.app.extractor.ExtractionSessionScope;
 
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+
 import org.schabi.newpipe.extractor.localization.ContentCountry;
 import org.schabi.newpipe.extractor.localization.Localization;
 import org.schabi.newpipe.extractor.services.youtube.InnertubeClientRequestInfo;
@@ -23,12 +29,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
 
 /**
  * Loads and mints YouTube client PoTokens.
@@ -73,7 +73,6 @@ public final class PoTokenCoordinator {
 			return null;
 		}
 		synchronized (lock) {
-			// Reuse the active session when it is still valid for this host generation.
 			poTokenHost.prewarm();
 			if (!poTokenHost.awaitReady(4_000L)) {
 				session = null;
@@ -132,7 +131,6 @@ public final class PoTokenCoordinator {
 
 	@Nullable
 	private PoTokenSession initializeSession(long hostGeneration) {
-		// Build and verify the session in order.
 		if (!ensureScriptLoaded(hostGeneration)) {
 			return null;
 		}
@@ -324,9 +322,6 @@ public final class PoTokenCoordinator {
 		return prefix + "-" + requestCounter;
 	}
 
-/**
- * Value object for app logic.
- */
 	private record GenerateItResult(@NonNull String integrityTokenBase64, long expirationSeconds) {
 	}
 }

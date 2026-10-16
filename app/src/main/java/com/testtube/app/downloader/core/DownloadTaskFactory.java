@@ -20,9 +20,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Factory that builds download tasks from selected streams.
- */
 public final class DownloadTaskFactory {
 	@NonNull
 	public String sanitizeFileName(@Nullable String rawName) {
@@ -291,10 +288,7 @@ public final class DownloadTaskFactory {
 		}
 	}
 
-	/**
-	 * Makes a title usable as a file name: no path separators (including backslashes), no control
-	 * characters and never "." or "..".
-	 */
+	/** Makes a title safe as a file name: no separators, control characters, "." or "..". */
 	@NonNull
 	private static String cleanName(@NonNull String name) {
 		String cleaned = name.replaceAll("[<>:\"/\\\\|?*\\p{Cntrl}]", "_").trim();

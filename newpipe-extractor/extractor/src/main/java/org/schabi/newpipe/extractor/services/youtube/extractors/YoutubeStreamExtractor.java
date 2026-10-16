@@ -122,6 +122,11 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private static final String THUMBNAILS = "thumbnails";
     private static final String VIDEO_DETAILS = "videoDetails";
     private static final String TITLE = "title";
+    /**
+     * TestTube: waits before asking VISIONOS again after a "confirm you're not a bot" answer. The
+     * check often clears for a new visitorData, which every player request gets.
+     */
+    private static final long[] BOT_CHECK_RETRY_DELAYS_MS = {700L, 2_000L};
 
     private JsonObject playerResponse;
     private JsonObject nextResponse;
@@ -157,8 +162,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         assertPageFetched();
         String title;
 
-        // TestTube: the title as YouTube shows it in the content language (translated when the
-        // video has a translation), like in the lists; the original title otherwise
+        // TestTube: prefer the localized title, like in the lists; fall back to the original
         title = getTextFromObject(getVideoPrimaryInfoRenderer().getObject(TITLE));
 
         if (isNullOrEmpty(title)) {
@@ -812,14 +816,13 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         final Localization localization = getExtractorLocalization();
         final ContentCountry contentCountry = getExtractorContentCountry();
-        // TestTube: the player requests stay in English: why a video cannot play (age limit, bot
-        // check, country...) is only recognised in English (checkPlayabilityStatus). The "next"
-        // request, with the title, description and suggestions, uses the content language.
+        // TestTube: the player requests stay in en-GB because checkPlayabilityStatus only
+        // understands English messages. The "next" request uses the content language.
         final Localization playerLocalization = Localization.DEFAULT;
         final ContentCountry playerCountry = ContentCountry.DEFAULT;
 
-        // TestTube: the WEB metadata and "next" requests do not depend on the VISIONOS player
-        // response, so they run while it is in flight instead of one after another.
+        // TestTube: the WEB metadata and "next" requests don't depend on the VISIONOS response,
+        // so run them in parallel.
         final CompletableFuture<JsonObject> webMetadata = requestAsync(() ->
                 YoutubeStreamHelper.getWebMetadataPlayerResponse(
                         playerLocalization, playerCountry, videoId));
@@ -838,8 +841,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         setStreamType();
 
         applyWebClientMetadataAndSetThumbnails(webMetadata, videoId);
-        // TestTube: the "next" response only carries likes, the description extras and the
-        // suggestions. If it fails, the video still plays; those fields are simply empty.
+        // TestTube: "next" only has likes, description extras and suggestions; play without it
         try {
             nextResponse = await(next);
         } catch (final IOException | ExtractionException | RuntimeException e) {
@@ -853,8 +855,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     }
 
     /**
-     * Runs a request on its own thread. A new thread is used on purpose: it inherits the
-     * caller's inheritable thread-local state, which the app's downloader relies on.
+     * Runs a request on a new thread. It inherits the caller's InheritableThreadLocal state,
+     * which the app's downloader relies on.
      */
     @Nonnull
     private static CompletableFuture<JsonObject> requestAsync(@Nonnull final JsonRequest request) {
@@ -957,6 +959,31 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private void fetchVisionOsClient(@Nonnull final Localization localization,
                                      @Nonnull final ContentCountry contentCountry,
                                      @Nonnull final String videoId) throws IOException,
+            ExtractionException {
+        for (int attempt = 0; ; attempt++) {
+            try {
+                fetchVisionOsClientOnce(localization, contentCountry, videoId);
+                return;
+            } catch (final SignInConfirmNotBotException e) {
+                if (attempt >= BOT_CHECK_RETRY_DELAYS_MS.length) {
+                    throw e;
+                }
+                try {
+                    Thread.sleep(BOT_CHECK_RETRY_DELAYS_MS[attempt]);
+                } catch (final InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    final IOException canceled =
+                            new IOException("Interrupted while waiting to retry", interrupted);
+                    canceled.addSuppressed(e);
+                    throw canceled;
+                }
+            }
+        }
+    }
+
+    private void fetchVisionOsClientOnce(@Nonnull final Localization localization,
+                                         @Nonnull final ContentCountry contentCountry,
+                                         @Nonnull final String videoId) throws IOException,
             ExtractionException {
         visionOsCpn = generateContentPlaybackNonce();
 

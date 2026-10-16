@@ -6,9 +6,6 @@ import com.testtube.app.R;
 
 import java.util.Objects;
 
-/**
- * State snapshot for the playback controller.
- */
 public final class ControllerState {
 	private final Mode mode;
 	private final Mode prevModePip;
@@ -141,9 +138,6 @@ public final class ControllerState {
 						locked ? R.drawable.ic_lock : R.drawable.ic_unlock);
 	}
 
-/**
- * Enumeration of app logic.
- */
 	public enum Mode {
 		NORMAL,
 		FULLSCREEN_UNLOCK,
@@ -156,9 +150,6 @@ public final class ControllerState {
 		}
 	}
 
-/**
- * Value object for app logic.
- */
 	public record UiState(
 					boolean fullscreen,
 					boolean fullscreenLayout,
@@ -174,9 +165,6 @@ public final class ControllerState {
 	) {
 	}
 
-/**
- * Value object for app logic.
- */
 	public record RenderState(
 					boolean controlsVisible,
 					boolean centerVisible,

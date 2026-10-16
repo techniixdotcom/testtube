@@ -10,10 +10,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Keeps the last feed that was shown, so a list can appear straight away on the next start while
- * the new one loads.
- */
+/** Last loaded list per feed, shown when a fresh load fails (e.g. offline). */
 public final class FeedCache {
 	private static final int MAX_ITEMS = 60;
 	private static final String PREFIX = "feed_cache_";

@@ -70,18 +70,18 @@ public final class Utils {
 
     private static final Map<String, Long> ENGLISH_NUMBER_WORDS = Map.of(
             "k", 1_000L, "m", 1_000_000L, "b", 1_000_000_000L, "t", 1_000_000_000_000L);
-    /** Decimal and grouping marks that can stand between the digits of a count. */
+    /** Decimal and grouping separators that can appear inside a count. */
     private static final String NUMBER_MARKS = ".,'’    ٫٬";
 
     /**
-     * Lower-case words that stand for a power of ten in a short count, like "K" in "1.2K", "mil"
-     * in "345 mil" or "万" in "1.2万". English unless {@link #setNumberWords(Map)} was called.
+     * Lowercase compact number suffixes ("k", "mil", "万", ...) and their values. English unless
+     * {@link #setNumberWords(Map)} was called.
      */
     private static volatile Map<String, Long> numberWords = ENGLISH_NUMBER_WORDS;
 
     /**
-     * Sets the words the content language uses in short counts, e.g. "mil" = 1000 in Spanish or
-     * "B" = 1000 in Turkish. They take precedence over the English ones, which stay known.
+     * Sets the compact number suffixes of the content language, e.g. "mil" = 1000 in Spanish or
+     * "B" = 1000 in Turkish. They override the English ones.
      */
     public static void setNumberWords(@Nonnull final Map<String, Long> words) {
         final Map<String, Long> merged = new HashMap<>(ENGLISH_NUMBER_WORDS);
@@ -95,8 +95,7 @@ public final class Utils {
     }
 
     /**
-     * Convert a short or full count, written the way YouTube writes it in the content language,
-     * to a long.
+     * Convert a short or full count, as YouTube writes it in the content language, to a long.
      *
      * <p>
      * Examples:
@@ -122,7 +121,7 @@ public final class Utils {
         if (start == length) {
             throw new ParsingException("Could not find a number in \"" + numberWord + "\"");
         }
-        // The digits (in any script), with each mark between them written as '.'
+        // Digits in any script, separators replaced by '.'
         final StringBuilder number = new StringBuilder();
         int end = start;
         for (; end < length; end++) {
@@ -140,7 +139,7 @@ public final class Utils {
                 numberWord.substring(0, start));
         final String digits = number.toString();
         final int mark = digits.lastIndexOf('.');
-        // Short counts have one or two decimals; marks before three digits group thousands
+        // Short counts have at most 2 decimals; a separator before 3 digits groups thousands
         if (multiplier == 1 || mark < 0 || digits.length() - mark - 1 == 3) {
             return Long.parseLong(digits.replace(".", "")) * multiplier;
         }
@@ -150,8 +149,8 @@ public final class Utils {
     }
 
     /**
-     * The value of the number word right after the count ("M de visualizaciones") or, in
-     * languages that write it first, right before it ("elfu 1.2"); 1 when there is none.
+     * Value of the suffix after the count ("M de visualizaciones"), or of the word before it in
+     * languages that put it first ("elfu 1.2"); 1 if there is none.
      */
     private static long numberWordValue(@Nonnull final String after,
                                         @Nonnull final String before) {

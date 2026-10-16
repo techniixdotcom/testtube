@@ -573,8 +573,7 @@ public final class YoutubeParsingHelper {
             try {
                 extractClientVersionFromHtmlSearchResultsPage();
             } catch (final Exception ignored) {
-                // TestTube: YouTube sometimes serves a page without ytInitialData (for example a
-                // consent page); the hardcoded version below is used then.
+                // TestTube: e.g. a consent page without ytInitialData; use the hardcoded version
             }
         }
 
@@ -582,9 +581,8 @@ public final class YoutubeParsingHelper {
             return clientVersion;
         }
 
-        // TestTube: the WEB client version is only needed for metadata and suggestions, never for
-        // the streams, so playback must not fail because it could not be read. The hardcoded
-        // version is used without the extra validation request.
+        // TestTube: only metadata and suggestions need the WEB client version, so don't fail
+        // playback over it and skip the extra validation request
         clientVersion = WEB_HARDCODED_CLIENT_VERSION;
         return clientVersion;
     }

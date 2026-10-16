@@ -12,9 +12,7 @@ import androidx.annotation.Nullable;
 import com.squareup.picasso.Picasso;
 import com.testtube.app.R;
 
-/**
- * Bar at the bottom of the screen that holds the playing video after it was swiped down.
- */
+/** Bottom bar for the playing video once it has been swiped down. */
 final class MiniBar {
 	private static final float DISABLED_ALPHA = 0.38f;
 

@@ -18,10 +18,9 @@ import com.testtube.app.Constant;
 import com.testtube.app.R;
 
 /**
- * First-run Google sign-in overlay. A plain WebView (no content blockers, those would break
- * Google sign-in) loads the YouTube account login page; once the user lands on YouTube, or a
- * Google session cookie exists, the overlay closes and the main app starts. Cookies are shared
- * with the app's other WebViews through the default CookieManager.
+ * Google sign-in overlay. A plain WebView loads the account login page; the overlay closes once
+ * it lands on YouTube or a Google session cookie exists. Cookies are shared through the default
+ * CookieManager.
  */
 public final class LoginController {
 	private static final String STORE_ID = "testtube_login";
@@ -59,9 +58,7 @@ public final class LoginController {
 		return false;
 	}
 
-	/**
-	 * Forgets the Google session: removes the account cookies shared by all WebViews.
-	 */
+	/** Signs out by removing the shared account cookies. */
 	public void signOut() {
 		store.encode(KEY_DONE, false);
 		CookieManager cookies = CookieManager.getInstance();
@@ -139,9 +136,9 @@ public final class LoginController {
 	}
 
 	/**
-	 * Back pressed while the login overlay is up: navigate the login WebView first.
+	 * Back while the overlay is shown: goes back in the WebView first.
 	 *
-	 * @return true when the back press was consumed
+	 * @return true if consumed
 	 */
 	public boolean handleBack() {
 		WebView view = webView;

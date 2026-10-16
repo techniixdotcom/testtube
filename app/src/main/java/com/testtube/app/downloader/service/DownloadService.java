@@ -19,9 +19,9 @@ import androidx.media3.common.util.UnstableApi;
 import com.testtube.app.AppGraph;
 import com.testtube.app.R;
 import com.testtube.app.downloader.core.DownloadTaskIdHelper;
-import com.testtube.app.downloader.core.TestTubeDownloader;
 import com.testtube.app.downloader.core.ProgressCallback2;
 import com.testtube.app.downloader.core.Task;
+import com.testtube.app.downloader.core.TestTubeDownloader;
 import com.testtube.app.downloader.core.history.DownloadHistoryRepository;
 import com.testtube.app.downloader.core.history.DownloadRecord;
 import com.testtube.app.downloader.core.history.DownloadStatus;
@@ -36,9 +36,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Foreground service for download jobs and records.
- */
 @UnstableApi
 public class DownloadService extends Service {
 	public static final String ACTION_DOWNLOAD_RECORD_UPDATED = "com.testtube.app.action.DOWNLOAD_RECORD_UPDATED";
@@ -417,9 +414,6 @@ public class DownloadService extends Service {
 		sendBroadcast(intent);
 	}
 
-/**
- * Binder that exposes the foreground download service.
- */
 	public class DownloadBinder extends Binder {
 		public DownloadService getService() {
 			return DownloadService.this;

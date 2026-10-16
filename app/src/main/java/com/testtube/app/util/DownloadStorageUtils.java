@@ -23,9 +23,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Locale;
 
-/**
- * Utility that publishes completed downloads into shared storage.
- */
 public final class DownloadStorageUtils {
 	private static final String WORK_DIR_NAME = "download_work";
 

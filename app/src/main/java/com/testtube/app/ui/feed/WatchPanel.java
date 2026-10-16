@@ -1,7 +1,9 @@
 package com.testtube.app.ui.feed;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.icu.text.CompactDecimalFormat;
+import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.format.DateUtils;
@@ -9,14 +11,13 @@ import android.text.method.LinkMovementMethod;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.annotation.SuppressLint;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
-import org.schabi.newpipe.extractor.Page;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -28,18 +29,22 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.tabs.TabLayout;
 import com.squareup.picasso.Picasso;
+import com.testtube.app.AppSettings;
 import com.testtube.app.Constant;
 import com.testtube.app.R;
-import com.testtube.app.nav.TabManager;
+import com.testtube.app.extractor.AvatarCache;
 import com.testtube.app.extractor.FeedClient;
-import com.testtube.app.extractor.LocalSubscriptions;
 import com.testtube.app.extractor.FeedItem;
+import com.testtube.app.extractor.LocalSubscriptions;
 import com.testtube.app.extractor.RelatedVideo;
 import com.testtube.app.extractor.VideoDetails;
 import com.testtube.app.extractor.YoutubeExtractor;
 import com.testtube.app.filter.ContentFilters;
+import com.testtube.app.nav.TabManager;
 import com.testtube.app.util.ToastUtils;
 import com.testtube.app.util.UrlUtils;
+
+import org.schabi.newpipe.extractor.Page;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -47,12 +52,10 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
-import android.webkit.WebResourceRequest;
-import android.net.Uri;
 
 /**
- * Native watch screen below the player: title, channel, description and what plays next (the
- * playlist when the video is part of one, the suggestions otherwise).
+ * Everything below the player: title, channel, description, and the playlist or the
+ * suggestions.
  */
 @UnstableApi
 public final class WatchPanel {
@@ -115,7 +118,7 @@ public final class WatchPanel {
 	private String section;
 	private boolean expanded;
 	private long token;
-	/** Everything shown in the suggestions list, and whether it keeps growing as you scroll. */
+	/** Current suggestions; {@code endless} loads more near the end of the list. */
 	@NonNull
 	private final List<FeedItem> shown = new ArrayList<>();
 	@NonNull
@@ -182,10 +185,17 @@ public final class WatchPanel {
 			}
 
 			@Override
+			public void onFollowAuthor(@NonNull FeedItem item) {
+				host.followChannel(item);
+			}
+
+			@Override
 			public void onMenu(@NonNull FeedItem item) {
 				if (item.kind() == FeedItem.Kind.VIDEO) host.showMenu(item);
 			}
 		});
+		// Uploader pictures next to the suggestions, like on Home
+		items.setShowAvatars(true);
 		LinearLayoutManager listLayout = new LinearLayoutManager(root.getContext());
 		list.setLayoutManager(listLayout);
 		list.setAdapter(new ConcatAdapter(header, items));
@@ -259,6 +269,7 @@ public final class WatchPanel {
 	public void onDetails(@NonNull VideoDetails details) {
 		if (!Objects.equals(details.getId(), videoId)) return;
 		this.details = details;
+		AvatarCache.get().remember(details.getUploaderUrl(), details.getUploaderAvatarUrl());
 		header.notifyItemChanged(0);
 		if (live != details.isLive()) {
 			live = details.isLive();
@@ -273,6 +284,11 @@ public final class WatchPanel {
 	 */
 	public void onFiltersChanged() {
 		items.refreshStates();
+	}
+
+	/** A channel was followed or unfollowed somewhere else. */
+	public void onFollowChanged() {
+		header.notifyItemChanged(0);
 	}
 
 	private void loadNext(long current, @NonNull String id, boolean playlist) {
@@ -304,7 +320,7 @@ public final class WatchPanel {
 		items.submit(new ArrayList<>(shown));
 	}
 
-	/** Keeps the list under the video endless: more related videos are added when the end gets close. */
+	/** Appends more related videos when the end of the list comes into view. */
 	private void loadMoreSuggestions() {
 		if (moreLoading || shown.isEmpty()) return;
 		moreLoading = true;
@@ -338,7 +354,7 @@ public final class WatchPanel {
 					out.add(new FeedItem(FeedItem.Kind.VIDEO, Constant.HOME_URL + "/watch?v=" + video.id(), video.id(),
 									video.title(), video.uploaderName(), FeedClient.mobile(video.uploaderUrl()),
 									FeedItem.thumbnailFor(video.id()), video.durationSeconds(),
-									video.viewCount(), video.published(), false));
+									video.viewCount(), video.published(), false, false, video.uploaderAvatarUrl()));
 				}
 			}
 			if (!out.isEmpty()) {
@@ -349,9 +365,7 @@ public final class WatchPanel {
 		}));
 	}
 
-	/**
-	 * The extractor had no suggestions: ask YouTube's "next" endpoint directly.
-	 */
+	/** Fallback when the extractor has no suggestions: YouTube's "next" endpoint. */
 	private void loadRelatedFallback(long current, @NonNull String id) {
 		FeedClient.Call call = feedClient.related(id);
 		call.result.whenComplete((page, error) -> handler.post(() -> {
@@ -428,7 +442,7 @@ public final class WatchPanel {
 			settings.setAllowContentAccess(false);
 			settings.setGeolocationEnabled(false);
 			settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-			// The chat only ever shows YouTube pages: any other link or scheme is ignored.
+			// Stay on YouTube pages, ignore other links and schemes
 			web.setWebViewClient(new WebViewClient() {
 				@Override
 				public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
@@ -455,7 +469,9 @@ public final class WatchPanel {
 	@NonNull
 	private List<FeedItem> visible(@NonNull List<FeedItem> source) {
 		List<FeedItem> out = new ArrayList<>(source.size());
+		boolean shorts = AppSettings.showShorts();
 		for (FeedItem item : source) {
+			if (item.shortForm() && !shorts) continue;
 			if (item.author() != null && filters.isChannelBlocked(item.author(), item.authorUrl())) continue;
 			out.add(item);
 		}
@@ -611,9 +627,7 @@ public final class WatchPanel {
 							: section != null && !section.isBlank() ? section : context.getString(R.string.watch_up_next));
 		}
 
-		/**
-		 * Follow the channel without an account: its videos then show up under Subscriptions.
-		 */
+		/** Follows the channel locally (its videos show up in Subscriptions). */
 		private void bindFollow(@Nullable VideoDetails d) {
 			String channelId = d != null ? LocalSubscriptions.channelIdOf(d.getUploaderUrl()) : null;
 			if (channelId == null) {
@@ -638,7 +652,7 @@ public final class WatchPanel {
 
 		private void applyExpanded() {
 			description.setMaxLines(expanded ? Integer.MAX_VALUE : COLLAPSED_LINES);
-			// Links only react once the text is expanded, so a tap on the collapsed text expands it.
+			// While collapsed, a tap expands the text instead of opening a link
 			description.setMovementMethod(expanded ? LinkMovementMethod.getInstance() : null);
 			description.setClickable(true);
 		}

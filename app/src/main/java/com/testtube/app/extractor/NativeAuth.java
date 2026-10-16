@@ -8,19 +8,18 @@ import androidx.annotation.Nullable;
 
 import com.testtube.app.Constant;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import okhttp3.CacheControl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 /**
- * Builds the signed-in request context from the cookies of the one-time Google sign-in, so the
- * app can call YouTube directly without a YouTube page open. The page configuration (account
- * id, visitor data) is read once from YouTube and cached.
+ * Signed-in request context built from the Google sign-in cookies, so InnerTube can be called
+ * without a YouTube page. The page config (account id, visitor data) is fetched once and cached.
  */
 public final class NativeAuth {
 	private static final String TAG = "NativeAuth";
@@ -41,9 +40,7 @@ public final class NativeAuth {
 		this.http = http;
 	}
 
-	/**
-	 * @param allowNetwork false on the main thread: only the cached configuration is used then
-	 */
+	/** @param allowNetwork false on the main thread (cached config only) */
 	@NonNull
 	public AuthContext current(boolean allowNetwork) {
 		String cookies = cookies();

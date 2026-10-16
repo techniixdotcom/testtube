@@ -5,9 +5,6 @@ import androidx.annotation.Nullable;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 
-/**
- * JSON helpers for PoToken context payloads.
- */
 public final class PoTokenJsonUtils {
 	private PoTokenJsonUtils() {
 	}

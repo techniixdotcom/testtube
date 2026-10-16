@@ -5,6 +5,7 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
@@ -27,11 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import android.webkit.WebResourceError;
 
-/**
- * Host that manages PoToken warm-up and handoff.
- */
 public final class PoTokenHost {
 	private static final String HOST_HTML_PREFIX =
 					"<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><script>";

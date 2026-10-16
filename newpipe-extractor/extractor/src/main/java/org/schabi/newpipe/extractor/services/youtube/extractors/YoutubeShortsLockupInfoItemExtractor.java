@@ -33,12 +33,12 @@ import static org.schabi.newpipe.extractor.utils.Utils.isNullOrEmpty;
  * for an extractor for this UI data type.
  * </p>
  */
-class YoutubeShortsLockupInfoItemExtractor implements StreamInfoItemExtractor {
+public class YoutubeShortsLockupInfoItemExtractor implements StreamInfoItemExtractor {
 
     @Nonnull
     private final JsonObject shortsLockupViewModel;
 
-    YoutubeShortsLockupInfoItemExtractor(@Nonnull final JsonObject shortsLockupViewModel) {
+    public YoutubeShortsLockupInfoItemExtractor(@Nonnull final JsonObject shortsLockupViewModel) {
         this.shortsLockupViewModel = shortsLockupViewModel;
     }
 

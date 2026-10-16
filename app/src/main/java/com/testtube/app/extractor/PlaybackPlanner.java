@@ -18,9 +18,6 @@ import java.util.Locale;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-/**
- * Planner that selects the best playback delivery path.
- */
 @OptIn(markerClass = UnstableApi.class)
 public final class PlaybackPlanner {
 	private PlaybackPlanner() {

@@ -13,10 +13,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.view.WindowManager;
-import android.widget.ScrollView;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ProgressBar;
+import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.TextView;
 
@@ -25,15 +25,16 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.R.attr;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.graphics.Insets;
-import androidx.core.widget.NestedScrollView;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.core.widget.NestedScrollView;
 import androidx.media3.common.util.UnstableApi;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.checkbox.MaterialCheckBox;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.tencent.mmkv.MMKV;
 import com.testtube.app.R;
 import com.testtube.app.downloader.core.DownloadPrefs;
 import com.testtube.app.downloader.core.DownloadSelectionConfig;
@@ -49,7 +50,6 @@ import com.testtube.app.extractor.YoutubeExtractor;
 import com.testtube.app.util.DownloadStorageUtils;
 import com.testtube.app.util.ToastUtils;
 import com.testtube.app.util.ViewUtils;
-import com.tencent.mmkv.MMKV;
 
 import java.io.InterruptedIOException;
 import java.util.ArrayList;
@@ -58,13 +58,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ExecutionException;
 
-/**
- * Dialog that batches playlist items into download tasks.
- */
 @UnstableApi
 public final class PlaylistDownloadDialog {
 	private final Context context;
@@ -776,9 +773,6 @@ public final class PlaylistDownloadDialog {
 		dialog = null;
 	}
 
-/**
- * Value object for app logic.
- */
 	private record BatchRequest(@NonNull List<Integer> selectedIndexes,
 	                            @NonNull Map<Integer, String> plannedNames,
 	                            @NonNull DownloadSelectionConfig config,

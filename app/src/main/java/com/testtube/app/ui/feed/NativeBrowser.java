@@ -22,9 +22,10 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.testtube.app.AppSettings;
 import com.testtube.app.R;
-import com.testtube.app.extractor.FeedClient;
 import com.testtube.app.extractor.FeedCache;
+import com.testtube.app.extractor.FeedClient;
 import com.testtube.app.extractor.FeedItem;
 import com.testtube.app.extractor.LocalSubscriptions;
 import com.testtube.app.filter.ContentFilters;
@@ -38,13 +39,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
-import java.util.function.Consumer;
 import java.util.concurrent.CompletionException;
+import java.util.function.Consumer;
 
-/**
- * Native Home, Subscriptions and Search screens. Each screen keeps its own list and scroll
- * position, so switching between them is instant.
- */
+/** Home, Subscriptions and search. Each keeps its own list and scroll position. */
 public final class NativeBrowser {
 	private static final int LOAD_MORE_THRESHOLD = 6;
 	private static final int MAX_EMPTY_PAGES = 3;
@@ -85,9 +83,7 @@ public final class NativeBrowser {
 		 */
 		void enqueue(@NonNull FeedItem item);
 
-		/**
-		 * Lets the person pick a file with channels to follow.
-		 */
+		/** Picks a file of channels to follow. */
 		void importSubscriptions();
 
 		/**
@@ -99,6 +95,11 @@ public final class NativeBrowser {
 		 * Follows the channel behind a video (swipe to the left), after a reminder popup.
 		 */
 		void follow(@NonNull FeedItem item);
+
+		/**
+		 * Follows the channel behind a video right away (long press on its picture).
+		 */
+		void followChannel(@NonNull FeedItem item);
 
 		/**
 		 * A channel was followed or unfollowed from the watch screen.
@@ -169,7 +170,7 @@ public final class NativeBrowser {
 			SubscriptionsDialog.show(root.getContext(), client, this::reloadLocalSubscriptions,
 							host::importSubscriptions, host::exportSubscriptions);
 		});
-		// One button: the channels followed here, or the YouTube account's own subscriptions.
+		// Toggles between the followed channels and the account's subscriptions
 		subsAccount.setOnClickListener(v -> {
 			boolean useAccount = !host.accountEnabled();
 			host.setAccountEnabled(useAccount);
@@ -198,6 +199,11 @@ public final class NativeBrowser {
 			@Override
 			public void onOpenAuthor(@NonNull FeedItem item) {
 				if (item.authorUrl() != null) host.openPage(item.authorUrl());
+			}
+
+			@Override
+			public void onFollowAuthor(@NonNull FeedItem item) {
+				host.followChannel(item);
 			}
 
 			@Override
@@ -309,9 +315,7 @@ public final class NativeBrowser {
 		state.error = false;
 	}
 
-	/**
-	 * The followed channels changed (followed, unfollowed or imported): load the feed again.
-	 */
+	/** Reloads Subscriptions after the followed channels changed. */
 	public void reloadLocalSubscriptions() {
 		State subs = state(Mode.SUBSCRIPTIONS);
 		reset(subs);
@@ -321,9 +325,7 @@ public final class NativeBrowser {
 		}
 	}
 
-	/**
-	 * The account switch or the sign-in state changed: refresh the Subscriptions screen.
-	 */
+	/** Refreshes Subscriptions after the account switch or sign-in state changed. */
 	public void refreshAccountUi() {
 		if (mode == Mode.SUBSCRIPTIONS) {
 			State state = state(Mode.SUBSCRIPTIONS);
@@ -396,9 +398,7 @@ public final class NativeBrowser {
 		return state;
 	}
 
-	/**
-	 * Runs a search that came from a link (a YouTube results page) on the native search screen.
-	 */
+	/** Runs the search of a YouTube results link. */
 	public void searchFor(@NonNull String query) {
 		show(Mode.SEARCH);
 		searchField.setText(query);
@@ -454,7 +454,7 @@ public final class NativeBrowser {
 			}
 			call = client.search(state.query, next instanceof Page page ? page : null);
 		} else if (target == Mode.SUBSCRIPTIONS && !host.accountEnabled()) {
-			// Followed channels have no shared order, so videos show up in the order the channels answer.
+			// Local subscriptions stream in per channel, in arrival order
 			Consumer<List<FeedItem>> partial = !firstPage ? null : items -> handler.post(() -> {
 				if (state.loadToken != loadId) return;
 				if (!streamed[0]) {
@@ -490,7 +490,7 @@ public final class NativeBrowser {
 				if (!isCancellation(error)) {
 					state.error = true;
 					state.errorAt = System.currentTimeMillis();
-					// Nothing new could be loaded (offline, say): the last saved list is better than an error.
+					// Load failed (e.g. offline): show the last saved list instead of an error
 					if (firstPage && target != Mode.SEARCH && state.items.isEmpty()) {
 						for (FeedItem cached : FeedCache.load(cacheKey(target))) {
 							if (state.seen.add(cached.url())) state.items.add(cached);
@@ -511,7 +511,7 @@ public final class NativeBrowser {
 						added++;
 					}
 				}
-				// A page with nothing new causes no scroll event, so ask for the next one right away.
+				// An empty page won't trigger a scroll, so request the next one now
 				state.emptyPages = added == 0 ? state.emptyPages + 1 : 0;
 				if (added == 0 && !firstPage && page.next() != null && state.emptyPages <= MAX_EMPTY_PAGES) {
 					handler.post(() -> {
@@ -540,10 +540,14 @@ public final class NativeBrowser {
 	private void render(@NonNull State state) {
 		updateSubsBar();
 		List<FeedItem> visible = new ArrayList<>(state.items.size());
+		boolean shorts = AppSettings.showShorts();
 		for (FeedItem item : state.items) {
+			if (item.shortForm() && !shorts) continue;
 			if (item.author() != null && filters.isChannelBlocked(item.author(), item.authorUrl())) continue;
 			visible.add(item);
 		}
+		// Uploader pictures on Home only, not in Subscriptions or search
+		adapter.setShowAvatars(mode == Mode.HOME);
 		adapter.submit(visible);
 		refresh.setRefreshing(state.call != null && state.refreshing);
 		if (!visible.isEmpty()) {
@@ -555,7 +559,7 @@ public final class NativeBrowser {
 			message.setVisibility(View.GONE);
 			return;
 		} else if (mode == Mode.SUBSCRIPTIONS && !host.accountEnabled()) {
-			// Followed channels never ask for a login.
+			// Local subscriptions don't need a login
 			text = LocalSubscriptions.get().all().isEmpty() ? R.string.subs_local_empty
 							: state.error ? R.string.feed_error : R.string.feed_empty;
 		} else if (state.error) {

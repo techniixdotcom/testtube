@@ -24,9 +24,6 @@ import org.schabi.newpipe.extractor.services.youtube.dashmanifestcreators.Youtub
 import org.schabi.newpipe.extractor.services.youtube.dashmanifestcreators.YoutubePostLiveStreamDvrDashManifestCreator;
 import org.schabi.newpipe.extractor.services.youtube.dashmanifestcreators.YoutubeProgressiveDashManifestCreator;
 
-/**
- * Component that handles app logic.
- */
 @UnstableApi
 final class PlayerDataSource {
 	private static final int MANIFEST_CACHE_SIZE = 500;
@@ -90,6 +87,12 @@ final class PlayerDataSource {
 		return PROGRESSIVE_LOAD_INTERVAL_BYTES;
 	}
 
+	/** Writes into the player cache under the keys playback reads, or null without a cache. */
+	@Nullable
+	CacheDataSource.Factory preloadSource() {
+		return cache == null ? null : cacheFactory(cache, ytDashHttp);
+	}
+
 	@NonNull
 	private YoutubeHttpDataSource.Factory youtubeFactory(boolean rangeEnabled,
 	                                                     boolean rnEnabled) {
@@ -102,9 +105,12 @@ final class PlayerDataSource {
 
 	@NonNull
 	private DataSource.Factory maybeCache(@NonNull DataSource.Factory upstream) {
-		if (cache == null) {
-			return upstream;
-		}
+		return cache == null ? upstream : cacheFactory(cache, upstream);
+	}
+
+	@NonNull
+	private static CacheDataSource.Factory cacheFactory(@NonNull SimpleCache cache,
+	                                                   @NonNull DataSource.Factory upstream) {
 		return new CacheDataSource.Factory()
 						.setCache(cache)
 						.setUpstreamDataSourceFactory(upstream)
@@ -118,8 +124,8 @@ final class PlayerDataSource {
 	}
 
 	/**
-	 * Stream URLs change with every extraction, so they are cached under the parts that stay the
-	 * same (video, format and size). Otherwise every replay would be stored again.
+	 * Stream URLs change with every extraction, so the cache key uses the stable parts (video,
+	 * format, size).
 	 */
 	@NonNull
 	static String cacheKey(@NonNull DataSpec spec) {

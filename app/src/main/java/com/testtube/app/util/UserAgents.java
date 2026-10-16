@@ -7,9 +7,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * One browser identity for everything: the page, requests made on its behalf, the player and
- * the extractor all present the same Chrome version (the one built into the phone's WebView)
- * in Chrome's privacy-reduced form, which does not reveal the device model.
+ * One user agent for everything (pages, player, extractor): the WebView's Chrome version in
+ * Chrome's reduced form, without the device model.
  */
 public final class UserAgents {
 	private static final Pattern CHROME = Pattern.compile("Chrome/(\\d+)");

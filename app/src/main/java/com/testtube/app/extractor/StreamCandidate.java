@@ -7,9 +7,6 @@ import org.schabi.newpipe.extractor.stream.AudioStream;
 import org.schabi.newpipe.extractor.stream.SubtitlesStream;
 import org.schabi.newpipe.extractor.stream.VideoStream;
 
-/**
- * Candidate stream wrapper with selection metadata.
- */
 public class StreamCandidate {
 	@NonNull
 	private StreamCandidateKind kind = StreamCandidateKind.MUXED;

@@ -27,6 +27,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.media3.common.util.UnstableApi;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.tencent.mmkv.MMKV;
 import com.testtube.app.R;
 import com.testtube.app.downloader.core.DownloadPrefs;
 import com.testtube.app.downloader.core.DownloadSelectionConfig;
@@ -42,7 +43,6 @@ import com.testtube.app.util.ImageUtils;
 import com.testtube.app.util.PermissionUtils;
 import com.testtube.app.util.StringUtils;
 import com.testtube.app.util.ToastUtils;
-import com.tencent.mmkv.MMKV;
 
 import org.schabi.newpipe.extractor.MediaFormat;
 import org.schabi.newpipe.extractor.stream.AudioStream;
@@ -62,9 +62,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * Dialog that lets the user choose media streams to download.
- */
 @UnstableApi
 public class DownloadDialog {
 	private final Context context;
@@ -656,7 +653,7 @@ public class DownloadDialog {
 			String key = audioTrackKey(stream);
 			AudioStream existing = choices.get(key);
 			if (existing == null || compareAudioTrackVariant(stream, existing) > 0) {
-				// The picker chooses the audio track, so collapse duplicate M4A variants for the same track.
+				// Collapse duplicate M4A variants of the same audio track.
 				choices.put(key, stream);
 			}
 		}

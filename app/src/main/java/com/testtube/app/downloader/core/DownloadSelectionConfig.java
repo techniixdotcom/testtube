@@ -2,9 +2,6 @@ package com.testtube.app.downloader.core;
 
 import androidx.annotation.NonNull;
 
-/**
- * Configuration for download selection and batching.
- */
 public record DownloadSelectionConfig(
 				@NonNull PrimaryMediaMode primaryMediaMode,
 				boolean subtitleEnabled,
@@ -18,9 +15,6 @@ public record DownloadSelectionConfig(
 		return primaryMediaMode != PrimaryMediaMode.NONE || subtitleEnabled || thumbnailEnabled;
 	}
 
-/**
- * Enumeration of app logic.
- */
 	public enum PrimaryMediaMode {
 		NONE,
 		VIDEO,

@@ -15,8 +15,8 @@ import java.util.Locale;
 import java.util.regex.Pattern;
 
 /**
- * Stores how much of every video has been watched and which channels are blocked, so watched
- * videos can be greyed out and blocked channels hidden.
+ * Watch progress per video (to grey out watched ones), the blocked channels and, when switched on,
+ * the channels on the AI channel list.
  */
 public final class ContentFilters {
 	private static final String WATCH_STORE_ID = "testtube_watch_history";
@@ -34,10 +34,13 @@ public final class ContentFilters {
 	private final MMKV mmkv;
 	@NonNull
 	private final Gson gson;
+	@NonNull
+	private final AiChannelList aiChannels;
 
-	public ContentFilters(@NonNull MMKV mmkv, @NonNull Gson gson) {
+	public ContentFilters(@NonNull MMKV mmkv, @NonNull Gson gson, @NonNull AiChannelList aiChannels) {
 		this.mmkv = mmkv;
 		this.gson = gson;
+		this.aiChannels = aiChannels;
 		this.watchStore = MMKV.mmkvWithID(WATCH_STORE_ID);
 	}
 
@@ -201,6 +204,7 @@ public final class ContentFilters {
 
 	public boolean isChannelBlocked(@Nullable String name, @Nullable String url) {
 		String path = channelPath(url);
+		if (aiChannels.matches(path)) return true;
 		for (BlockedChannel item : blockedChannels()) {
 			if (matches(item, name, path)) return true;
 		}

@@ -7,15 +7,12 @@ import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.media3.common.util.UnstableApi;
+import androidx.media3.ui.R;
 
 import com.testtube.app.player.TestTubePlayerView;
 
 import java.util.function.Consumer;
-import androidx.media3.ui.R;
 
-/**
- * Component that handles app logic.
- */
 @UnstableApi
 public class ZoomTouchListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
 	private final ScaleGestureDetector detector;

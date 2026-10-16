@@ -1,12 +1,10 @@
 package com.testtube.app.downloader.core.history;
 
-import java.util.Objects;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-/**
- * Persisted download history record.
- */
+import java.util.Objects;
+
 public class DownloadRecord {
 	@NonNull
 	private String taskId;

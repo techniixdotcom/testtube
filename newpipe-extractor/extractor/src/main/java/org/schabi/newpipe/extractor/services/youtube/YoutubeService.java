@@ -263,9 +263,8 @@ public class YoutubeService extends StreamingService {
     //////////////////////////////////////////////////////////////////////////*/
 
     // https://www.youtube.com/picker_ajax?action_language_json=1
-    // TestTube: all of YouTube's languages, so titles come in the language of the phone. The
-    // stream requests stay in en-GB (see YoutubeStreamExtractor#onFetchPage), and counts are read
-    // in any language (Utils#mixedNumberWordToLong).
+    // TestTube: all languages enabled; the stream requests still use en-GB (see
+    // YoutubeStreamExtractor#onFetchPage)
     private static final List<Localization> SUPPORTED_LANGUAGES = Localization.listFrom(
             "af", "am", "ar", "az", "be", "bg", "bn", "bs", "ca", "cs", "da", "de",
             "el", "en", "en-GB", "es", "es-419", "es-US", "et", "eu", "fa", "fi", "fil", "fr",

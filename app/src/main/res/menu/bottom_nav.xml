@@ -5,6 +5,11 @@
         android:icon="@drawable/ic_home"
         android:title="@string/nav_home" />
     <item
+        android:id="@+id/nav_shorts"
+        android:icon="@drawable/ic_shorts"
+        android:title="@string/nav_shorts"
+        android:visible="false" />
+    <item
         android:id="@+id/nav_subscriptions"
         android:icon="@drawable/ic_subscriptions"
         android:title="@string/nav_subscriptions" />

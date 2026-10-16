@@ -6,10 +6,9 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
 /**
- * Publishes the current video and mini-player state to the UI.
- * The source of truth is kept here rather than read back from the LiveData, because
- * {@link MutableLiveData#postValue} is asynchronous and quick successive updates would
- * otherwise overwrite each other with stale values.
+ * Current video and mini player state for the UI. The state lives here instead of being read
+ * back from the LiveData: {@link MutableLiveData#postValue} is asynchronous, so quick updates
+ * would overwrite each other with stale values.
  */
 public final class PlayerStateStore {
 	@NonNull

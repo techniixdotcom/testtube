@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.imageview.ShapeableImageView;
 import com.squareup.picasso.Picasso;
 import com.testtube.app.R;
 
@@ -22,10 +23,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Embedded local-history view: a day-grouped list of played videos shown inside MainActivity
- * instead of a separate screen.
- */
+/** Watch history grouped by day, shown inside MainActivity. */
 public final class LocalHistoryController {
 	private static final int TYPE_HEADER = 0;
 	private static final int TYPE_VIDEO = 1;
@@ -66,9 +64,7 @@ public final class LocalHistoryController {
 				.show());
 	}
 
-	/**
-	 * Reloads the entries from the store. Call every time the view becomes visible.
-	 */
+	/** Reloads from the store; call whenever the view becomes visible. */
 	public void reload() {
 		List<WatchHistory.Entry> entries = history.entries();
 		List<Object> rows = new ArrayList<>();
@@ -141,7 +137,7 @@ public final class LocalHistoryController {
 
 	private final class VideoHolder extends RecyclerView.ViewHolder {
 		@NonNull
-		private final com.google.android.material.imageview.ShapeableImageView thumbnail;
+		private final ShapeableImageView thumbnail;
 		@NonNull
 		private final TextView title;
 		@NonNull

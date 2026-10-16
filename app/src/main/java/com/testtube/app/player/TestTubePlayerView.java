@@ -5,8 +5,10 @@ import android.app.PictureInPictureParams;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
 import android.graphics.Outline;
 import android.graphics.Rect;
+import android.os.Build;
 import android.util.AttributeSet;
 import android.util.Rational;
 import android.view.View;
@@ -38,11 +40,7 @@ import com.testtube.app.util.ViewUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import android.os.Build;
 
-/**
- * Custom player view with fullscreen and PiP support.
- */
 @UnstableApi
 public class TestTubePlayerView extends PlayerView {
 	private static final float SUBTITLE_LINE_FRACTION = 0.92f;
@@ -154,11 +152,21 @@ public class TestTubePlayerView extends PlayerView {
 		}
 	}
 
-	public void enterPiP() {
-		if (activity.isInPictureInPictureMode()) return;
+	/**
+	 * @return false when the device has no picture-in-picture, or it is turned off for the app
+	 */
+	public boolean enterPiP() {
+		if (activity.isInPictureInPictureMode()) return true;
+		if (!activity.getPackageManager().hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return false;
+		int previousHeight = normalHeight;
 		if (!isFs) normalHeight = playerHeight;
-		PictureInPictureParams params = buildPiPParams(true);
-		activity.enterPictureInPictureMode(params);
+		try {
+			if (activity.enterPictureInPictureMode(buildPiPParams(true))) return true;
+		} catch (IllegalStateException e) {
+			// Thrown on devices where picture-in-picture is unavailable after all
+		}
+		normalHeight = previousHeight;
+		return false;
 	}
 
 	public void disableAutoPiP() {

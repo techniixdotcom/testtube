@@ -1,8 +1,5 @@
 package com.testtube.app;
 
-/**
- * Shared constants used across the app.
- */
 public final class Constant {
 	public static final String HOME_URL = "https://m.youtube.com";
 	public static final String YOUTUBE_DOMAIN = "youtube.com";

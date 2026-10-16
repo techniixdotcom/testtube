@@ -7,9 +7,6 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
-/**
- * Touch helper that reorders queue items by drag and drop.
- */
 public final class QueueTouch extends ItemTouchHelper.SimpleCallback {
 	private static final float DRAGGED_SCALE = 1.02f;
 	private static final float IDLE_SCALE = 1.0f;
@@ -108,9 +105,6 @@ public final class QueueTouch extends ItemTouchHelper.SimpleCallback {
 						.start();
 	}
 
-/**
- * Contract for app logic.
- */
 	public interface MoveCallback {
 		boolean onMove(int from, int to);
 	}

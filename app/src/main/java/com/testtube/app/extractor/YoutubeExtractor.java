@@ -12,6 +12,7 @@ import org.schabi.newpipe.extractor.InfoItem;
 import org.schabi.newpipe.extractor.MediaFormat;
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.ServiceList;
+import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor;
 import org.schabi.newpipe.extractor.stream.AudioStream;
 import org.schabi.newpipe.extractor.stream.Description;
@@ -45,19 +46,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Contract for fetching extracted data by video id.
- */
 @FunctionalInterface
 interface Fetch {
 	StreamInfo fetch(@NonNull String videoId,
 	                 @Nullable ExtractionSession session)
-					throws org.schabi.newpipe.extractor.exceptions.ExtractionException, IOException;
+					throws ExtractionException, IOException;
 }
 
-/**
- * Coordinates YouTube extraction, caching, and playback-plan assembly.
- */
 public final class YoutubeExtractor {
 	private static final String WATCH_URL = "https://www.youtube.com/watch?v=";
 	private static final Pattern VIDEO_ID_PATTERN = Pattern.compile(
@@ -95,7 +90,7 @@ public final class YoutubeExtractor {
 						gson,
 						auth,
 						filters);
-		// Keeps the content language and country ContentLanguage set up.
+		// Don't reset the language and country set by ContentLanguage.
 		NewPipe.init(downloader, NewPipe.getPreferredLocalization(), NewPipe.getPreferredContentCountry());
 		YoutubeStreamExtractor.setPoTokenProvider(testtubePoTokenProvider);
 	}
@@ -154,7 +149,7 @@ public final class YoutubeExtractor {
 
 	@NonNull
 	private static StreamInfo extract(@NonNull String url)
-					throws org.schabi.newpipe.extractor.exceptions.ExtractionException, IOException {
+					throws ExtractionException, IOException {
 		return StreamInfo.getInfo(ServiceList.YouTube.getStreamExtractor(url));
 	}
 
@@ -179,8 +174,8 @@ public final class YoutubeExtractor {
 	}
 
 	/**
-	 * Loads playback details. When {@code refresh} is true the cached stream URLs are discarded and
-	 * a brand new extraction is performed, which is used to recover from expired or rejected URLs.
+	 * Loads playback details. {@code refresh} skips the cache, e.g. after the stream URLs expired or
+	 * were rejected.
 	 */
 	@NonNull
 	public CompletableFuture<PlaybackDetails> getInfo(@NonNull String videoUrl,
@@ -188,7 +183,7 @@ public final class YoutubeExtractor {
 	                                                  boolean refresh) {
 		String videoId = getVideoId(videoUrl);
 		if (videoId == null) {
-			return fail(new org.schabi.newpipe.extractor.exceptions.ExtractionException(
+			return fail(new ExtractionException(
 							"Invalid URL: " + videoUrl));
 		}
 		if (session != null && session.isCancelled()) {
@@ -217,7 +212,7 @@ public final class YoutubeExtractor {
 		if (cached != null && !stale) {
 			return CompletableFuture.completedFuture(allowed(cached));
 		}
-		// Entries cached by older versions have no titles: extract once more to fill them in.
+		// Old cache entries have no titles, extract again.
 		return getInfo(WATCH_URL + videoId, null, stale).thenApply(ignored -> {
 			List<RelatedVideo> related = cache.getRelatedVideos(videoId);
 			return related != null ? allowed(related) : new ArrayList<>();
@@ -239,7 +234,7 @@ public final class YoutubeExtractor {
 	private PlaybackDetails load(@NonNull String videoId,
 	                             @NonNull ExtractionSession session,
 	                             boolean refresh)
-					throws org.schabi.newpipe.extractor.exceptions.ExtractionException,
+					throws ExtractionException,
 					IOException,
 					InterruptedException {
 		ensureNotCancelled(session);
@@ -304,7 +299,8 @@ public final class YoutubeExtractor {
 			String id = getVideoId(stream.getUrl());
 			if (id == null || id.equals(currentId) || !ids.add(id)) continue;
 			out.add(new RelatedVideo(id, stream.getUploaderName(), stream.getUploaderUrl(), stream.getName(),
-							stream.getDuration(), stream.getViewCount(), stream.getTextualUploadDate()));
+							stream.getDuration(), stream.getViewCount(), stream.getTextualUploadDate(),
+							FeedClient.avatar(stream.getUploaderAvatars())));
 			if (out.size() >= MAX_RELATED_IDS) break;
 		}
 		return out;
@@ -525,7 +521,7 @@ public final class YoutubeExtractor {
 	private void ensurePlayableSources(@NonNull String videoId,
 	                                   @NonNull DeliveryCatalog deliveries,
 	                                   @NonNull PlaybackPlan plan)
-					throws org.schabi.newpipe.extractor.exceptions.ExtractionException {
+					throws ExtractionException {
 		if (isPlayableUrl(plan.getManifestUrl())
 						|| plan.getDelivery() != null
 						|| plan.getVideoCandidate() != null
@@ -534,7 +530,7 @@ public final class YoutubeExtractor {
 						|| !deliveries.getItems().isEmpty()) {
 			return;
 		}
-		throw new org.schabi.newpipe.extractor.exceptions.ExtractionException(
+		throw new ExtractionException(
 						"No supported playable streams found for videoId=" + videoId);
 	}
 
@@ -629,9 +625,7 @@ public final class YoutubeExtractor {
 		return copy != null ? copy : value;
 	}
 
-	/**
-	 * A single in-flight extraction shared by every caller asking for the same video.
-	 */
+	/** In-flight extraction shared by all callers asking for the same video. */
 	private final class Task {
 		@NonNull
 		private final ExtractionSession root;
@@ -649,7 +643,7 @@ public final class YoutubeExtractor {
 					Thread.currentThread().interrupt();
 					throw new CompletionException(e);
 				} catch (final IOException
-				               | org.schabi.newpipe.extractor.exceptions.ExtractionException e) {
+				               | ExtractionException e) {
 					throw new CompletionException(e);
 				}
 			}, executor);

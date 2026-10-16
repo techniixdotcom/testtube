@@ -16,6 +16,7 @@ import com.testtube.app.downloader.core.history.DownloadHistoryRepository;
 import com.testtube.app.downloader.core.impl.StreamDownloaderImpl;
 import com.testtube.app.downloader.core.impl.TestTubeDownloaderImpl;
 import com.testtube.app.extractor.AuthContextFactory;
+import com.testtube.app.extractor.AvatarCache;
 import com.testtube.app.extractor.DownloaderImpl;
 import com.testtube.app.extractor.ExtractionSessionScope;
 import com.testtube.app.extractor.FeedClient;
@@ -29,6 +30,7 @@ import com.testtube.app.extractor.potoken.PoTokenContextStore;
 import com.testtube.app.extractor.potoken.PoTokenCoordinator;
 import com.testtube.app.extractor.potoken.PoTokenHost;
 import com.testtube.app.extractor.potoken.TestTubePoTokenProvider;
+import com.testtube.app.filter.AiChannelList;
 import com.testtube.app.filter.ContentFilters;
 import com.testtube.app.history.WatchHistory;
 import com.testtube.app.player.PlayerStateStore;
@@ -37,7 +39,14 @@ import com.testtube.app.player.queue.QueueRepository;
 import com.testtube.app.player.sponsor.SponsorBlockManager;
 import com.testtube.app.update.UpdateManager;
 
+import okhttp3.Cache;
+import okhttp3.ConnectionPool;
+import okhttp3.Dispatcher;
+import okhttp3.OkHttpClient;
+
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -45,13 +54,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import okhttp3.Cache;
-import okhttp3.ConnectionPool;
-import okhttp3.Dispatcher;
-import okhttp3.OkHttpClient;
-import java.util.ArrayList;
-import java.util.Arrays;
 
 @UnstableApi
 public final class AppGraph {
@@ -89,6 +91,7 @@ public final class AppGraph {
 	private PlayerPreferences playerPreferences;
 	private SponsorBlockManager sponsorBlockManager;
 	private ContentFilters contentFilters;
+	private AiChannelList aiChannelList;
 
 	AppGraph(@NonNull Context context) {
 		this.context = context.getApplicationContext();
@@ -162,10 +165,7 @@ public final class AppGraph {
 		return simpleCache;
 	}
 
-	/**
-	 * What Home is built around: a few random videos and titles from the recent history, so the
-	 * suggestions are relevant but different every time.
-	 */
+	/** A few random videos and titles from recent history, used to seed Home. */
 	@NonNull
 	private FeedClient.Taste historyTaste() {
 		List<WatchHistory.Entry> entries = new ArrayList<>(watchHistory().entries());
@@ -245,8 +245,22 @@ public final class AppGraph {
 
 	@NonNull
 	public synchronized DownloaderImpl extractorDownloader() {
-		if (extractorDownloader == null) extractorDownloader = new DownloaderImpl(okHttpClient(), extractionSessionScope());
+		if (extractorDownloader == null) {
+			extractorDownloader = new DownloaderImpl(okHttpClient(), extractionSessionScope());
+			AiChannelList aiChannels = aiChannelList();
+			extractorDownloader.setResponseListener(response -> {
+				if (aiChannels.isEnabled()) aiChannels.learn(response);
+			});
+		}
 		return extractorDownloader;
+	}
+
+	@NonNull
+	public synchronized AiChannelList aiChannelList() {
+		if (aiChannelList == null) {
+			aiChannelList = new AiChannelList(mmkv(), okHttpClient(), executor(), context.getFilesDir());
+		}
+		return aiChannelList;
 	}
 
 	@NonNull
@@ -272,11 +286,11 @@ public final class AppGraph {
 	@NonNull
 	public synchronized FeedClient feedClient() {
 		if (feedClient == null) {
-			// The extractor sets up NewPipe, which the feed requests go through.
-			youtubeExtractor();
+			youtubeExtractor(); // initializes NewPipe
 			feedClient = new FeedClient(extractorDownloader(), nativeAuth(), executor());
 			feedClient.setTaste(this::historyTaste);
 			feedClient.setGeneralQueries(() -> Arrays.asList(context.getResources().getStringArray(R.array.discover_queries)));
+			AvatarCache.get().setLoader(feedClient::channelAvatar);
 		}
 		return feedClient;
 	}
@@ -284,8 +298,7 @@ public final class AppGraph {
 	@NonNull
 	public synchronized PageSource pageSource() {
 		if (pageSource == null) {
-			// The extractor sets up NewPipe, which the page requests go through.
-			youtubeExtractor();
+			youtubeExtractor(); // initializes NewPipe
 			pageSource = new PageSource(extractorDownloader(), nativeAuth(), executor());
 		}
 		return pageSource;
@@ -294,8 +307,7 @@ public final class AppGraph {
 	@NonNull
 	public synchronized PlaylistSource playlistSource() {
 		if (playlistSource == null) {
-			// The extractor sets up NewPipe, which the playlist requests go through.
-			youtubeExtractor();
+			youtubeExtractor(); // initializes NewPipe
 			playlistSource = new PlaylistSource(extractorDownloader(), nativeAuth(), executor());
 		}
 		return playlistSource;
@@ -344,7 +356,7 @@ public final class AppGraph {
 
 	@NonNull
 	public synchronized ContentFilters contentFilters() {
-		if (contentFilters == null) contentFilters = new ContentFilters(mmkv(), gson());
+		if (contentFilters == null) contentFilters = new ContentFilters(mmkv(), gson(), aiChannelList());
 		return contentFilters;
 	}
 }

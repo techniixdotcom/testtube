@@ -7,10 +7,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatImageView;
 
-/**
- * Image view that is always 16:9, so list rows have their final height before the image loads
- * and the list never jumps while scrolling.
- */
+/** Always 16:9, so rows have their final height before the image loads. */
 public final class AspectImageView extends AppCompatImageView {
 	public AspectImageView(@NonNull Context context) {
 		super(context);
