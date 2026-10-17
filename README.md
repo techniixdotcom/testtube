@@ -2,7 +2,7 @@
 <img src="screens/header.png" alt="" width="400">
 </p>
 
-in a world full of excess we give you 4.5 mb of simplicity 
+in a world full of excess we give you 5 mb of simplicity 
 
 TestTube is an ad-free YouTube client for Android. No account needed: Home, search, subscriptions, queue and history all work without logging in. Signing in is optional and only used if you want your own YouTube subscriptions.
 
