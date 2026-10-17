@@ -18,7 +18,10 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.testtube.app.R;
 import com.testtube.app.extractor.FeedItem;
 
-/** Swipe right to queue a video, left to follow its channel. The row slides back afterwards. */
+/**
+ * Swipe right to queue a video, left to follow its channel (where that is offered). The row
+ * slides back afterwards.
+ */
 final class QueueSwipe extends ItemTouchHelper.SimpleCallback {
 	interface Target {
 		/**
@@ -33,6 +36,11 @@ final class QueueSwipe extends ItemTouchHelper.SimpleCallback {
 		 * Follows the channel of this video (swipe to the left).
 		 */
 		void follow(@NonNull FeedItem item);
+
+		/** False where following makes no sense, such as on the channel's own page. */
+		default boolean canFollow() {
+			return true;
+		}
 	}
 
 	@NonNull
@@ -65,7 +73,8 @@ final class QueueSwipe extends ItemTouchHelper.SimpleCallback {
 
 	@Override
 	public int getSwipeDirs(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder) {
-		return target.itemFor(viewHolder) == null ? 0 : super.getSwipeDirs(recyclerView, viewHolder);
+		if (target.itemFor(viewHolder) == null) return 0;
+		return target.canFollow() ? super.getSwipeDirs(recyclerView, viewHolder) : ItemTouchHelper.RIGHT;
 	}
 
 	@Override

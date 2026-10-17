@@ -11,15 +11,17 @@ public final class AppSettings {
 	private static final String KEY_CHANNEL_PAGES = "full_channel_pages";
 	private static final String KEY_FLOATING_PLAYER = "floating_player";
 	private static final String KEY_SWIPE_MINIMIZES = "swipe_down_minimizes";
+	private static final String KEY_COMMENTING = "commenting";
 	private static final String KEY_WELCOME_VERSION = "welcome_version";
 	/** Raised when the welcome dialog gets new choices, so everyone sees it once more. */
-	private static final int WELCOME_VERSION = 2;
+	private static final int WELCOME_VERSION = 3;
 
 	private static volatile boolean loaded;
 	private static volatile boolean shorts;
 	private static volatile boolean channelPages = true;
 	private static volatile boolean floatingPlayer;
 	private static volatile boolean swipeMinimizes = true;
+	private static volatile boolean commenting;
 
 	private AppSettings() {
 	}
@@ -52,8 +54,8 @@ public final class AppSettings {
 	}
 
 	/**
-	 * Minimizing the player (back or swipe down) opens a picture-in-picture window instead of the
-	 * bottom bar. Off by default.
+	 * Leaving the app while a video plays keeps it in a picture-in-picture window. When off, only
+	 * the sound keeps playing. Off by default.
 	 */
 	public static boolean floatingPlayer() {
 		load();
@@ -81,6 +83,18 @@ public final class AppSettings {
 		MMKV.defaultMMKV().encode(KEY_SWIPE_MINIMIZES, minimizes);
 	}
 
+	/** A box to write comments under videos, for signed-in accounts. Off by default. */
+	public static boolean commentingEnabled() {
+		load();
+		return commenting;
+	}
+
+	public static void setCommentingEnabled(boolean enabled) {
+		load();
+		commenting = enabled;
+		MMKV.defaultMMKV().encode(KEY_COMMENTING, enabled);
+	}
+
 	public static boolean welcomeShown() {
 		return MMKV.defaultMMKV().decodeInt(KEY_WELCOME_VERSION, 0) >= WELCOME_VERSION;
 	}
@@ -98,6 +112,7 @@ public final class AppSettings {
 			channelPages = store.decodeBool(KEY_CHANNEL_PAGES, true);
 			floatingPlayer = store.decodeBool(KEY_FLOATING_PLAYER, false);
 			swipeMinimizes = store.decodeBool(KEY_SWIPE_MINIMIZES, true);
+			commenting = store.decodeBool(KEY_COMMENTING, false);
 			loaded = true;
 		}
 	}

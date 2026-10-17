@@ -20,6 +20,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.ConcatAdapter;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.SimpleItemAnimator;
@@ -155,6 +156,29 @@ public final class PageScreen {
 		list.setLayoutManager(layoutManager);
 		list.setAdapter(new ConcatAdapter(header, items, status));
 		list.setItemViewCacheSize(6);
+		// Swipe a video right to add it to the queue, as on Home; the channel is already open here
+		new ItemTouchHelper(new QueueSwipe(root.getContext(), new QueueSwipe.Target() {
+			@Nullable
+			@Override
+			public FeedItem itemFor(@NonNull RecyclerView.ViewHolder holder) {
+				FeedItem item = items.itemAt(holder);
+				return item != null && item.kind() == FeedItem.Kind.VIDEO && item.videoId() != null ? item : null;
+			}
+
+			@Override
+			public void enqueue(@NonNull FeedItem item) {
+				host.enqueue(item);
+			}
+
+			@Override
+			public void follow(@NonNull FeedItem item) {
+			}
+
+			@Override
+			public boolean canFollow() {
+				return false;
+			}
+		})).attachToRecyclerView(list);
 		// The header rebinds when a tab changes; a cross-fade would make it blink
 		if (list.getItemAnimator() instanceof SimpleItemAnimator animator) {
 			animator.setSupportsChangeAnimations(false);

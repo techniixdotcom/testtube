@@ -1,10 +1,21 @@
 package com.testtube.app.player;
 
 import android.app.Activity;
+import android.app.PendingIntent;
+import android.app.RemoteAction;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.graphics.drawable.Icon;
+import android.os.Build;
 import android.view.View;
 
+import androidx.annotation.DrawableRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
+import androidx.core.content.ContextCompat;
 import androidx.media3.common.C;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
@@ -13,6 +24,7 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.ui.DefaultTimeBar;
 
 import com.tencent.mmkv.MMKV;
+import com.testtube.app.AppSettings;
 import com.testtube.app.PlaybackService;
 import com.testtube.app.R;
 import com.testtube.app.extractor.ExtractionSession;
@@ -33,6 +45,7 @@ import com.testtube.app.player.queue.QueueRepository;
 import com.testtube.app.player.sponsor.SponsorBlockManager;
 import com.testtube.app.player.sponsor.SponsorOverlayView;
 import com.testtube.app.ui.ErrorDialog;
+import com.testtube.app.util.NetworkWatcher;
 import com.testtube.app.util.ToastUtils;
 
 import org.schabi.newpipe.extractor.exceptions.AgeRestrictedContentException;
@@ -66,6 +79,12 @@ import java.util.function.Consumer;
 @UnstableApi
 public class TestTubePlayer {
 	private static final String KEY_LAST_AUDIO_LANG = "last_audio_lang";
+	/** Buttons of the floating window, sent back to the app as broadcasts. */
+	private static final String ACTION_FLOATING_CONTROL = "com.testtube.app.action.FLOATING_CONTROL";
+	private static final String EXTRA_CONTROL = "control";
+	private static final int CONTROL_PREVIOUS = 1;
+	private static final int CONTROL_PLAY_PAUSE = 2;
+	private static final int CONTROL_NEXT = 3;
 
 	@NonNull
 	private final Activity activity;
@@ -121,6 +140,13 @@ public class TestTubePlayer {
 	private VideoDetails currentDetails;
 	private long activeDurationSeconds;
 	private boolean wasInPip;
+	@Nullable
+	private NetworkWatcher network;
+	@NonNull
+	private final NetworkWatcher.Listener networkListener = this::onNetworkTypeChanged;
+	/** Registered while the floating window is open. */
+	@Nullable
+	private BroadcastReceiver floatingControls;
 
 	public TestTubePlayer(@NonNull Activity activity,
 	                  @NonNull YoutubeExtractor extractor,
@@ -143,9 +169,26 @@ public class TestTubePlayer {
 		this.stateStore = stateStore;
 		this.executor = executor;
 		playerView.setup();
+		playerView.setPiPActions(this::floatingActions);
 		queueRepo.addListener(queueListener);
 		engine.setPlanSelector(this::withPreferredPlan);
 		setupEngineListeners();
+	}
+
+	/** Switches the quality when the phone moves between Wi-Fi and mobile data. */
+	public void watchNetwork(@NonNull NetworkWatcher watcher) {
+		if (network != null) network.removeListener(networkListener);
+		network = watcher;
+		watcher.addListener(networkListener);
+	}
+
+	private void onNetworkTypeChanged(boolean mobile) {
+		applyPreferredQuality();
+	}
+
+	/** Plays the open video in the quality set for the network the phone is on now. */
+	public void applyPreferredQuality() {
+		if (activeId != null) engine.applyPreferredQuality();
 	}
 
 	private static boolean containsException(@Nullable Throwable throwable,
@@ -174,6 +217,7 @@ public class TestTubePlayer {
 			public void onIsPlayingChanged(boolean isPlaying) {
 				updateServiceProgress(isPlaying);
 				if (inMiniPlayer) miniBar().setPlaying(isPlaying);
+				updateFloatingPlayer();
 				Runnable listener = onStartedPlaying;
 				if (isPlaying && listener != null) listener.run();
 			}
@@ -244,6 +288,7 @@ public class TestTubePlayer {
 		activity.runOnUiThread(() -> {
 			controller.refreshQueueNavigationAvailability(availability);
 			miniBar().setNavigation(availability.isPreviousActionEnabled(), availability.isNextActionEnabled());
+			updateFloatingPlayer();
 		});
 		if (playbackSvc != null) {
 			playbackSvc.updateQueueNavigationAvailability(availability);
@@ -490,7 +535,7 @@ public class TestTubePlayer {
 		cancelExtraction();
 		if (task != null) task.cancel(true);
 		activity.runOnUiThread(() -> {
-			playerView.disableAutoPiP();
+			updateFloatingPlayer();
 			// Nothing is playing, so close the mini player without restoring the full player
 			if (inMiniPlayer) leaveMiniPlayer();
 			controller.resetBrightness();
@@ -539,16 +584,91 @@ public class TestTubePlayer {
 		return playerView.getVisibility() == View.VISIBLE;
 	}
 
+	/** A video is open and playing, so leaving the app keeps it in the floating window. */
+	private boolean floatsOnLeave() {
+		return AppSettings.floatingPlayer() && queuedId != null && engine.isPlaying();
+	}
+
 	/**
-	 * Moves the video into a picture-in-picture window; playback continues.
-	 *
-	 * @return false when picture-in-picture isn't available
+	 * Keeps the floating window's buttons and the open-on-leave setting current. Android 12 and
+	 * newer open the window by themselves when the app is left.
 	 */
-	public boolean enterFloatingPlayer() {
-		if (controller.isFullscreen()) controller.exitFullscreenImmediately();
-		// A brightness set by swiping would otherwise stay on while other apps are in front
-		controller.resetBrightness();
-		return playerView.enterPiP();
+	public void updateFloatingPlayer() {
+		playerView.updatePiPParams(floatsOnLeave());
+	}
+
+	/** The user is leaving the app (home or recent apps); before Android 12 the window opens here. */
+	public void onUserLeaveHint() {
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && floatsOnLeave()) {
+			playerView.enterPiP();
+		}
+	}
+
+	/** Previous, play or pause, and next; the system adds expand and close. */
+	@NonNull
+	private List<RemoteAction> floatingActions() {
+		QueueNav nav = engine.getQueueNavigationAvailability();
+		boolean playing = engine.isPlaying();
+		List<RemoteAction> actions = new ArrayList<>(3);
+		actions.add(floatingAction(CONTROL_PREVIOUS, R.drawable.ic_previous, R.string.mini_bar_previous,
+						nav.isPreviousActionEnabled()));
+		actions.add(floatingAction(CONTROL_PLAY_PAUSE, playing ? R.drawable.ic_pause : R.drawable.ic_play,
+						playing ? R.string.mini_bar_pause : R.string.mini_bar_play, true));
+		actions.add(floatingAction(CONTROL_NEXT, R.drawable.ic_next, R.string.mini_bar_next,
+						nav.isNextActionEnabled()));
+		return actions;
+	}
+
+	@NonNull
+	private RemoteAction floatingAction(int control, @DrawableRes int icon, @StringRes int title, boolean enabled) {
+		Intent intent = new Intent(ACTION_FLOATING_CONTROL)
+						.setPackage(activity.getPackageName())
+						.putExtra(EXTRA_CONTROL, control);
+		PendingIntent pending = PendingIntent.getBroadcast(activity, control, intent,
+						PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+		String label = activity.getString(title);
+		RemoteAction action = new RemoteAction(Icon.createWithResource(activity, icon), label, label, pending);
+		action.setEnabled(enabled);
+		return action;
+	}
+
+	private void onFloatingControl(int control) {
+		switch (control) {
+			case CONTROL_PREVIOUS -> engine.skipToPrevious();
+			case CONTROL_NEXT -> engine.skipToNext();
+			case CONTROL_PLAY_PAUSE -> {
+				if (engine.isPlaying()) {
+					engine.pause();
+				} else {
+					if (engine.getPlaybackState() == Player.STATE_ENDED) engine.seekTo(0L);
+					engine.play();
+				}
+			}
+			default -> {
+			}
+		}
+	}
+
+	private void listenToFloatingControls(boolean listen) {
+		if (listen == (floatingControls != null)) return;
+		if (listen) {
+			BroadcastReceiver receiver = new BroadcastReceiver() {
+				@Override
+				public void onReceive(Context context, Intent intent) {
+					onFloatingControl(intent.getIntExtra(EXTRA_CONTROL, 0));
+				}
+			};
+			ContextCompat.registerReceiver(activity, receiver, new IntentFilter(ACTION_FLOATING_CONTROL),
+							ContextCompat.RECEIVER_NOT_EXPORTED);
+			floatingControls = receiver;
+			return;
+		}
+		try {
+			activity.unregisterReceiver(floatingControls);
+		} catch (IllegalArgumentException e) {
+			// Already gone with the activity
+		}
+		floatingControls = null;
 	}
 
 	/** Moves the video into the bottom bar; playback continues. */
@@ -655,13 +775,30 @@ public class TestTubePlayer {
 		this.onClose = onClose;
 	}
 
-	public void onPictureInPictureModeChanged(boolean isInPiP) {
+	/**
+	 * @param closed the floating window was closed; otherwise it was expanded back into the app
+	 */
+	public void onPictureInPictureModeChanged(boolean isInPiP, boolean closed) {
 		controller.onPictureInPictureModeChanged(isInPiP);
-		if (!isInPiP) playerView.disableAutoPiP();
-		if (wasInPip && !isInPiP && inMiniPlayer && onRestore != null) {
-			onRestore.run();
+		listenToFloatingControls(isInPiP);
+		if (isInPiP) {
+			// A brightness set by swiping would otherwise stay on over other apps
+			controller.resetBrightness();
+			// In the bottom bar the picture is hidden; the window shows the video alone
+			if (inMiniPlayer) {
+				playerView.show();
+				miniBar().hide();
+			}
+		} else if (wasInPip && inMiniPlayer) {
+			if (!closed && onRestore != null) {
+				onRestore.run();
+			} else {
+				playerView.hide();
+				restoreInAppMiniPlayerUiIfNeeded();
+			}
 		}
 		wasInPip = isInPiP;
+		updateFloatingPlayer();
 	}
 
 	@Nullable
@@ -697,7 +834,11 @@ public class TestTubePlayer {
 		onRestore = null;
 		onClose = null;
 		controller.release();
-		activity.runOnUiThread(playerView::disableAutoPiP);
+		if (network != null) network.removeListener(networkListener);
+		activity.runOnUiThread(() -> {
+			listenToFloatingControls(false);
+			playerView.updatePiPParams(false);
+		});
 		inMiniPlayer = false;
 		if (miniBar != null) miniBar.hide();
 		engine.release();

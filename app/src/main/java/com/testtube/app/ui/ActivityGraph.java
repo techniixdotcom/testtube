@@ -49,6 +49,7 @@ public final class ActivityGraph {
 		player = new TestTubePlayer(activity, app.youtubeExtractor(), playerView, controller, engine,
 						app.sponsorBlockManager(), app.queueRepository(), app.playerPreferences(),
 						app.playerStateStore(), app.executor());
+		player.watchNetwork(app.networkWatcher());
 		holder[0] = player;
 	}
 }

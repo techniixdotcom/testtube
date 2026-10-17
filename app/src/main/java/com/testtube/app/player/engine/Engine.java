@@ -1163,19 +1163,35 @@ public class Engine {
 		return PlayerUtils.sortResolutionLabels(resolutions);
 	}
 
+	/** A quality picked in the player; it is kept for the network the phone is on. */
 	public void onQualitySelected(@Nullable String res) {
-		if (res == null) return;
+		if (res == null || state() == null) return;
+		prefs.setPreferredQuality(res);
+		switchQuality(res, true);
+	}
+
+	/**
+	 * Moves the video to the quality chosen for the network the phone is on now, after it switched
+	 * between Wi-Fi and mobile data. Nothing happens when that quality already plays.
+	 */
+	public void applyPreferredQuality() {
+		if (player.getPlaybackState() == Player.STATE_ENDED) return;
+		switchQuality(prefs.getPreferredQuality(), false);
+	}
+
+	/** @param reload load the streams again even when the same ones would play */
+	private void switchQuality(@NonNull String res, boolean reload) {
 		State state = state();
 		if (state == null) return;
-		prefs.setPreferredQuality(res);
 		PlaybackPlan plan = PlaybackPlanner.plan(state.deliveries(), res, null);
-		this.playbackPlan = plan;
 		Delivery delivery = plan.getDelivery();
 		if (isLiveMode(plan) && delivery != null && !delivery.isTrackLock()) {
+			this.playbackPlan = plan;
 			applyPlaybackTrackMode();
 			return;
 		}
 		if (delivery != null && delivery.isTrackLock()) {
+			this.playbackPlan = plan;
 			int actualHeight = StringUtils.parseHeight(res);
 			VideoStream match = selectedVideo(plan);
 			if (match != null) {
@@ -1184,14 +1200,35 @@ public class Engine {
 			setVideoQuality(actualHeight);
 			return;
 		}
+		keepAudioTrack(state.plan(), plan);
+		if (!reload && sameStreams(state.plan(), plan)) return;
+		this.playbackPlan = plan;
 		long pos = this.player.getCurrentPosition();
 		float speed = this.player.getPlaybackParameters().speed;
+		boolean playWhenReady = this.player.getPlayWhenReady();
 		play(new PlaybackDetails(state.video(), state.catalog(), state.deliveries(), plan, segments, subtitles));
 		if (plan.getMode() != PlaybackMode.LIVE_DASH
 						&& plan.getMode() != PlaybackMode.LIVE_HLS) {
 			this.player.seekTo(pos);
 		}
 		this.player.setPlaybackParameters(new PlaybackParameters(speed));
+		// A paused video stays paused in the new quality
+		this.player.setPlayWhenReady(playWhenReady);
+	}
+
+	/** A new quality keeps the audio track (language) that was playing. */
+	private static void keepAudioTrack(@NonNull PlaybackPlan current, @NonNull PlaybackPlan next) {
+		if (current.getMode() == PlaybackMode.ADAPTIVE && next.getMode() == PlaybackMode.ADAPTIVE
+						&& current.getAudioCandidate() != null) {
+			next.setAudioCandidate(current.getAudioCandidate());
+		}
+	}
+
+	private static boolean sameStreams(@NonNull PlaybackPlan current, @NonNull PlaybackPlan next) {
+		return current.getMode() == next.getMode()
+						&& Objects.equals(candidateKey(current.getVideoCandidate()), candidateKey(next.getVideoCandidate()))
+						&& Objects.equals(candidateKey(current.getAudioCandidate()), candidateKey(next.getAudioCandidate()))
+						&& Objects.equals(candidateKey(current.getMuxedCandidate()), candidateKey(next.getMuxedCandidate()));
 	}
 
 	public void setVideoQuality(int height) {

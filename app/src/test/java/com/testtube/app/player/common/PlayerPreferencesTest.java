@@ -2,6 +2,7 @@ package com.testtube.app.player.common;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.gson.Gson;
@@ -12,29 +13,51 @@ import org.junit.Test;
 public class PlayerPreferencesTest {
 
 	@Test
-	public void getPreferredQuality_returnsStoredVisibleQuality() {
+	public void getPreferredQuality_usesTheWifiQualityOnWifi() {
 		MMKV mmkv = mock(MMKV.class);
-		PlayerPreferences prefs = new PlayerPreferences(mmkv, new Gson());
+		PlayerPreferences prefs = new PlayerPreferences(mmkv, new Gson(), () -> false);
+		when(mmkv.decodeString("video_quality_wifi", null)).thenReturn("1080p");
+		when(mmkv.decodeString("video_quality_mobile", null)).thenReturn("360p");
+
+		assertEquals("1080p", prefs.getPreferredQuality());
+	}
+
+	@Test
+	public void getPreferredQuality_usesTheMobileQualityOnMobileData() {
+		MMKV mmkv = mock(MMKV.class);
+		PlayerPreferences prefs = new PlayerPreferences(mmkv, new Gson(), () -> true);
+		when(mmkv.decodeString("video_quality_wifi", null)).thenReturn("1080p");
+		when(mmkv.decodeString("video_quality_mobile", null)).thenReturn("360p");
+
+		assertEquals("360p", prefs.getPreferredQuality());
+	}
+
+	@Test
+	public void getPreferredQuality_startsFromTheQualityOfOlderVersions() {
+		MMKV mmkv = mock(MMKV.class);
+		PlayerPreferences prefs = new PlayerPreferences(mmkv, new Gson(), () -> true);
 		when(mmkv.decodeString("video_quality", null)).thenReturn("1080p");
 
 		assertEquals("1080p", prefs.getPreferredQuality());
 	}
 
 	@Test
-	public void getPreferredQuality_defaultsTo480pWhenBlank() {
+	public void getQuality_defaultsPerNetworkWhenNothingStored() {
 		MMKV mmkv = mock(MMKV.class);
-		PlayerPreferences prefs = new PlayerPreferences(mmkv, new Gson());
-		when(mmkv.decodeString("video_quality", null)).thenReturn(" ");
+		PlayerPreferences prefs = new PlayerPreferences(mmkv, new Gson(), () -> false);
+		when(mmkv.decodeString("video_quality_wifi", null)).thenReturn(" ");
 
-		assertEquals("480p", prefs.getPreferredQuality());
+		assertEquals("720p", prefs.getQuality(false));
+		assertEquals("480p", prefs.getQuality(true));
 	}
 
 	@Test
-	public void getPreferredQuality_defaultsTo480pWhenNothingStored() {
+	public void setPreferredQuality_savesForTheCurrentNetwork() {
 		MMKV mmkv = mock(MMKV.class);
-		PlayerPreferences prefs = new PlayerPreferences(mmkv, new Gson());
-		when(mmkv.decodeString("video_quality", null)).thenReturn(null);
+		PlayerPreferences prefs = new PlayerPreferences(mmkv, new Gson(), () -> true);
 
-		assertEquals("480p", prefs.getPreferredQuality());
+		prefs.setPreferredQuality("240p");
+
+		verify(mmkv).encode("video_quality_mobile", "240p");
 	}
 }

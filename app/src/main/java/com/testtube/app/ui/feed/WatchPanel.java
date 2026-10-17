@@ -6,16 +6,21 @@ import android.icu.text.CompactDecimalFormat;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.text.format.DateUtils;
 import android.text.method.LinkMovementMethod;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -102,6 +107,16 @@ public final class WatchPanel {
 	private Page commentsNext;
 	private boolean commentsLoading;
 	private long commentsToken;
+	@NonNull
+	private final View commentBox;
+	@NonNull
+	private final EditText commentInput;
+	@NonNull
+	private final ImageButton commentSend;
+	/** Token for posting on the video in {@link #commentsVideoId}; null when that isn't possible. */
+	@Nullable
+	private String commentParams;
+	private boolean commentPosting;
 	@Nullable
 	private String note;
 	@NonNull
@@ -144,6 +159,24 @@ public final class WatchPanel {
 		chatHint = root.findViewById(R.id.watch_chat_hint);
 		commentsMessage = root.findViewById(R.id.watch_comments_message);
 		commentsList = root.findViewById(R.id.watch_comments);
+		commentBox = root.findViewById(R.id.watch_comment_box);
+		commentInput = root.findViewById(R.id.watch_comment_input);
+		commentSend = root.findViewById(R.id.watch_comment_send);
+		commentInput.addTextChangedListener(new TextWatcher() {
+			@Override
+			public void beforeTextChanged(CharSequence text, int start, int count, int after) {
+			}
+
+			@Override
+			public void onTextChanged(CharSequence text, int start, int before, int count) {
+			}
+
+			@Override
+			public void afterTextChanged(Editable text) {
+				updateSendButton();
+			}
+		});
+		commentSend.setOnClickListener(v -> postComment());
 		LinearLayoutManager commentsLayout = new LinearLayoutManager(root.getContext());
 		commentsList.setLayoutManager(commentsLayout);
 		commentsList.setAdapter(comments);
@@ -395,8 +428,64 @@ public final class WatchPanel {
 		commentsVideoId = null;
 		commentsNext = null;
 		commentsLoading = false;
+		commentParams = null;
 		comments.submit(new ArrayList<>());
 		commentsMessage.setVisibility(View.GONE);
+		commentInput.setText("");
+		refreshCommentBox();
+	}
+
+	/**
+	 * Shows the box for writing a comment when commenting is switched on and YouTube lets the
+	 * signed-in account comment on this video.
+	 */
+	public void refreshCommentBox() {
+		boolean shown = AppSettings.commentingEnabled() && !live && commentParams != null
+						&& feedClient.isSignedIn();
+		commentBox.setVisibility(shown ? View.VISIBLE : View.GONE);
+		if (!shown) hideKeyboard();
+		updateSendButton();
+	}
+
+	private void updateSendButton() {
+		Editable text = commentInput.getText();
+		commentSend.setEnabled(!commentPosting && text != null && !text.toString().isBlank());
+	}
+
+	private void postComment() {
+		String params = commentParams;
+		Editable input = commentInput.getText();
+		String text = input == null ? "" : input.toString().trim();
+		if (params == null || text.isEmpty() || commentPosting) return;
+		commentPosting = true;
+		updateSendButton();
+		long current = commentsToken;
+		Context context = commentInput.getContext();
+		feedClient.postComment(params, text).whenComplete((posted, error) -> handler.post(() -> {
+			commentPosting = false;
+			if (error != null || posted == null) {
+				ToastUtils.show(context, R.string.comment_failed);
+				updateSendButton();
+				return;
+			}
+			ToastUtils.show(context, R.string.comment_posted);
+			// Another video was opened meanwhile; the comment is on the earlier one
+			if (current != commentsToken) return;
+			commentInput.setText("");
+			hideKeyboard();
+			String author = posted.author().isBlank() ? context.getString(R.string.comment_you) : posted.author();
+			comments.addFirst(new FeedClient.Comment(author, null, posted.text(),
+							context.getString(R.string.comment_just_now), 0, false));
+			commentsList.scrollToPosition(0);
+			commentsMessage.setVisibility(View.GONE);
+		}));
+	}
+
+	private void hideKeyboard() {
+		if (!commentInput.hasFocus()) return;
+		InputMethodManager keyboard = commentInput.getContext().getSystemService(InputMethodManager.class);
+		if (keyboard != null) keyboard.hideSoftInputFromWindow(commentInput.getWindowToken(), 0);
+		commentInput.clearFocus();
 	}
 
 	private void loadComments(boolean first) {
@@ -416,6 +505,10 @@ public final class WatchPanel {
 				return;
 			}
 			commentsNext = result.next();
+			if (first) {
+				commentParams = result.createParams();
+				refreshCommentBox();
+			}
 			comments.add(result.items());
 			Context context = commentsList.getContext();
 			if (result.disabled()) {
@@ -492,6 +585,11 @@ public final class WatchPanel {
 			data.clear();
 			data.addAll(items);
 			notifyDataSetChanged();
+		}
+
+		void addFirst(@NonNull FeedClient.Comment comment) {
+			data.add(0, comment);
+			notifyItemInserted(0);
 		}
 
 		void add(@NonNull List<FeedClient.Comment> items) {

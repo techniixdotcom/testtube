@@ -7,7 +7,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.util.UnstableApi;
 
-import com.testtube.app.AppSettings;
 import com.testtube.app.Constant;
 import com.testtube.app.extractor.PageSource;
 import com.testtube.app.extractor.PlaylistSource;
@@ -250,25 +249,16 @@ public class TabManager {
 		});
 	}
 
-	/** @return false when the watch screen isn't open */
+	/**
+	 * Back on the watch screen: the video moves to the bottom bar and the previous screen shows,
+	 * as in YouTube. The floating window is only for leaving the app.
+	 *
+	 * @return false when the watch screen isn't open
+	 */
 	public boolean goBack() {
 		if (!watchVisible) return false;
-		if (!minimizeByUser()) closeWatch();
+		if (!minimizeWatch()) closeWatch();
 		return true;
-	}
-
-	/**
-	 * Back or swipe down on the video: opens the floating player when that was chosen and the
-	 * device allows it, otherwise the bottom bar.
-	 *
-	 * @return false if the watch screen isn't in front or nothing can play
-	 */
-	public boolean minimizeByUser() {
-		if (watchVisible && AppSettings.floatingPlayer()) {
-			TestTubePlayer testtubePlayer = testtubePlayer();
-			if (testtubePlayer.canSuspendWatch() && testtubePlayer.enterFloatingPlayer()) return true;
-		}
-		return minimizeWatch();
 	}
 
 	/**

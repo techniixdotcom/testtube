@@ -36,6 +36,7 @@ import org.schabi.newpipe.extractor.playlist.PlaylistInfoItemExtractor;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
 import org.schabi.newpipe.extractor.services.youtube.InnertubeClientRequestInfo;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
+import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeCommentsExtractor;
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeMixOrPlaylistLockupInfoItemExtractor;
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeReelInfoItemExtractor;
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeShortsLockupInfoItemExtractor;
@@ -130,10 +131,13 @@ public final class FeedClient {
 	}
 
 	/**
-	 * @param next token for the next page, or null at the end
-	 * @param disabled true when the video has comments turned off
+	 * @param next         token for the next page, or null at the end
+	 * @param disabled     true when the video has comments turned off
+	 * @param createParams token for posting a comment, on the first page for a signed-in account
+	 *                     that may comment; null otherwise
 	 */
-	public record CommentPage(@NonNull List<Comment> items, @Nullable Page next, boolean disabled) {
+	public record CommentPage(@NonNull List<Comment> items, @Nullable Page next, boolean disabled,
+	                          @Nullable String createParams) {
 	}
 
 	/**
@@ -163,10 +167,14 @@ public final class FeedClient {
 					throws IOException, ExtractionException {
 		CommentsExtractor extractor = ServiceList.YouTube.getCommentsExtractor(watchUrl(videoId));
 		ListExtractor.InfoItemsPage<CommentsInfoItem> result;
+		String createParams = null;
 		if (page == null) {
 			extractor.fetchPage();
-			if (extractor.isCommentsDisabled()) return new CommentPage(new ArrayList<>(), null, true);
+			if (extractor.isCommentsDisabled()) return new CommentPage(new ArrayList<>(), null, true, null);
 			result = extractor.getInitialPage();
+			if (extractor instanceof YoutubeCommentsExtractor youtube) {
+				createParams = youtube.getCreateCommentParams();
+			}
 		} else {
 			result = extractor.getPage(page);
 		}
@@ -182,7 +190,92 @@ public final class FeedClient {
 							image(item.getUploaderAvatars()), content, item.getTextualUploadDate(),
 							item.getLikeCount(), item.isPinned()));
 		}
-		return new CommentPage(out, result.hasNextPage() ? result.getNextPage() : null, false);
+		return new CommentPage(out, result.hasNextPage() ? result.getNextPage() : null, false, createParams);
+	}
+
+	/**
+	 * Posts a top-level comment as the signed-in account.
+	 *
+	 * @param createParams the token from {@link CommentPage#createParams()}
+	 * @return the comment as YouTube shows it, with the account's name when it was in the answer
+	 */
+	@NonNull
+	public CompletableFuture<Comment> postComment(@NonNull String createParams, @NonNull String text) {
+		CompletableFuture<Comment> result = new CompletableFuture<>();
+		try {
+			executor.execute(() -> {
+				try {
+					AuthContext context = auth.current(true);
+					if (!context.loggedIn()) throw new IOException("Not signed in");
+					ExtractionSession session = new ExtractionSession(context);
+					result.complete(downloader.withExtractionSession(() -> createComment(createParams, text), session));
+				} catch (Throwable error) {
+					result.completeExceptionally(error);
+				}
+			});
+		} catch (RuntimeException rejected) {
+			result.completeExceptionally(new CompletionException(rejected));
+		}
+		return result;
+	}
+
+	@NonNull
+	private static Comment createComment(@NonNull String createParams, @NonNull String text)
+					throws IOException, ExtractionException {
+		Localization localization = NewPipe.getPreferredLocalization();
+		ContentCountry country = NewPipe.getPreferredContentCountry();
+		byte[] body = JsonWriter.string(YoutubeParsingHelper.prepareDesktopJsonBuilder(localization, country)
+										.value("commentText", text)
+										.value("createCommentParams", createParams)
+										.done())
+						.getBytes(StandardCharsets.UTF_8);
+		JsonObject response = YoutubeParsingHelper.getJsonPostResponse("comment/create_comment", body, localization);
+		if (response.has("error")) {
+			throw new IOException("YouTube refused the comment: "
+							+ response.getObject("error").getString("message", "no reason given"));
+		}
+		String status = response.getObject("actionResult").getString("status");
+		boolean created = "STATUS_SUCCEEDED".equals(status)
+						|| findObject(response, "createCommentAction", 0) != null
+						|| findObject(response, "commentEntityPayload", 0) != null;
+		if (!created) throw new IOException("YouTube did not confirm the comment (status " + status + ")");
+		return new Comment(commentAuthor(response), null, text, null, 0, false);
+	}
+
+	/** The account's name in the answer, from the newer or the older comment layout. */
+	@NonNull
+	private static String commentAuthor(@NonNull JsonObject response) {
+		JsonObject entity = findObject(response, "commentEntityPayload", 0);
+		if (entity != null) {
+			String name = entity.getObject("author").getString("displayName");
+			if (name != null && !name.isBlank()) return name;
+		}
+		JsonObject renderer = findObject(response, "commentRenderer", 0);
+		if (renderer != null) {
+			String name = renderer.getObject("authorText").getString("simpleText");
+			if (name != null && !name.isBlank()) return name;
+		}
+		return "";
+	}
+
+	/** The first object stored under {@code key} anywhere in {@code node}. */
+	@Nullable
+	private static JsonObject findObject(@Nullable Object node, @NonNull String key, int depth) {
+		if (depth > 32) return null;
+		if (node instanceof JsonObject object) {
+			Object direct = object.get(key);
+			if (direct instanceof JsonObject found) return found;
+			for (Object value : object.values()) {
+				JsonObject found = findObject(value, key, depth + 1);
+				if (found != null) return found;
+			}
+		} else if (node instanceof JsonArray array) {
+			for (Object value : array) {
+				JsonObject found = findObject(value, key, depth + 1);
+				if (found != null) return found;
+			}
+		}
+		return null;
 	}
 
 	/**

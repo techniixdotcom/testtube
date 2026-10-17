@@ -164,6 +164,14 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	}
 
 	/** Shorts were switched on or off: reload the lists so they show (or drop) them. */
+	/** Applies choices from the welcome dialog or the logo menu that affect what is open now. */
+	private void onSettingsSaved() {
+		if (isFinishing() || isDestroyed()) return;
+		player.updateFloatingPlayer();
+		player.applyPreferredQuality();
+		if (watchPanel != null) watchPanel.refreshCommentBox();
+	}
+
 	private void onShortsSettingChanged() {
 		if (nativeBrowser != null) nativeBrowser.reloadAll();
 		updateShortsTab();
@@ -233,7 +241,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		aiChannels.setOnChanged(this::onContentFiltersChanged);
 		aiChannels.start();
 		View.OnClickListener aboutClick = v -> SettingsDialog.showSettings(this, updates, aiChannels,
-						this::onShortsSettingChanged);
+						app.playerPreferences(), this::onShortsSettingChanged, this::onSettingsSaved);
 		browserView.findViewById(R.id.browser_logo).setOnClickListener(aboutClick);
 		browserView.findViewById(R.id.browser_title).setOnClickListener(aboutClick);
 		// On the very first start the update check waits until the welcome dialog is closed
@@ -550,11 +558,14 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		bootstrapped = true;
 		goTo(R.id.nav_home);
 		if (!AppSettings.welcomeShown()) {
-			UpdateManager updates = AppGraph.of(this).updateManager();
-			SettingsDialog.showWelcome(this, updates, AppGraph.of(this).aiChannelList(), this::onShortsSettingChanged, () -> {
-				AppSettings.setWelcomeShown();
-				if (!isFinishing() && !isDestroyed()) updates.checkOnStart(this);
-			});
+			AppGraph app = AppGraph.of(this);
+			UpdateManager updates = app.updateManager();
+			SettingsDialog.showWelcome(this, updates, app.aiChannelList(), app.playerPreferences(),
+							this::onShortsSettingChanged, () -> {
+								AppSettings.setWelcomeShown();
+								onSettingsSaved();
+								if (!isFinishing() && !isDestroyed()) updates.checkOnStart(this);
+							});
 		}
 		String initialUrl = restoredUrl;
 		if (initialUrl != null && !initialUrl.isBlank()) {
@@ -679,11 +690,17 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	@Override
 	public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, @NonNull Configuration newConfig) {
 		super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
-		player.onPictureInPictureModeChanged(isInPictureInPictureMode);
 		// Closing the floating window, rather than expanding it, leaves the activity stopped
-		if (!isInPictureInPictureMode && getLifecycle().getCurrentState() == Lifecycle.State.CREATED) {
-			player.pause();
-		}
+		boolean closed = !isInPictureInPictureMode && getLifecycle().getCurrentState() == Lifecycle.State.CREATED;
+		player.onPictureInPictureModeChanged(isInPictureInPictureMode, closed);
+		if (closed) player.pause();
+	}
+
+	/** Home or recent apps while a video plays: the floating player, when it is switched on. */
+	@Override
+	protected void onUserLeaveHint() {
+		super.onUserLeaveHint();
+		if (player != null) player.onUserLeaveHint();
 	}
 
 	private void handleIntent(@Nullable Intent intent) {

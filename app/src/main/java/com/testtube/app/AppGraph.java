@@ -38,6 +38,7 @@ import com.testtube.app.player.common.PlayerPreferences;
 import com.testtube.app.player.queue.QueueRepository;
 import com.testtube.app.player.sponsor.SponsorBlockManager;
 import com.testtube.app.update.UpdateManager;
+import com.testtube.app.util.NetworkWatcher;
 
 import okhttp3.Cache;
 import okhttp3.ConnectionPool;
@@ -89,6 +90,7 @@ public final class AppGraph {
 	private PlayerStateStore playerStateStore;
 	private QueueRepository queueRepository;
 	private PlayerPreferences playerPreferences;
+	private NetworkWatcher networkWatcher;
 	private SponsorBlockManager sponsorBlockManager;
 	private ContentFilters contentFilters;
 	private AiChannelList aiChannelList;
@@ -342,8 +344,17 @@ public final class AppGraph {
 
 	@NonNull
 	public synchronized PlayerPreferences playerPreferences() {
-		if (playerPreferences == null) playerPreferences = new PlayerPreferences(mmkv(), gson());
+		if (playerPreferences == null) {
+			NetworkWatcher network = networkWatcher();
+			playerPreferences = new PlayerPreferences(mmkv(), gson(), network::isMobile);
+		}
 		return playerPreferences;
+	}
+
+	@NonNull
+	public synchronized NetworkWatcher networkWatcher() {
+		if (networkWatcher == null) networkWatcher = new NetworkWatcher(context);
+		return networkWatcher;
 	}
 
 	@NonNull

@@ -738,9 +738,9 @@ public class Controller {
 		applyControllerState(previousState, !isInPiP);
 	}
 
-	/** Swipe down: the floating player or the bottom bar, as chosen in the settings. */
+	/** Swipe down: the video moves to the bottom bar. */
 	public boolean minimize() {
-		return tabManager.minimizeByUser();
+		return tabManager.minimizeWatch();
 	}
 
 	public void resetBrightness() {

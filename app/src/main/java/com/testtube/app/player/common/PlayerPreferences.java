@@ -12,10 +12,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 
 /** Position, quality and autoplay are always remembered; speed is fixed at 1x. */
 public final class PlayerPreferences {
+	/** The single quality of older versions; both networks start from it. */
 	private static final String KEY_VIDEO_QUALITY = "video_quality";
+	private static final String KEY_VIDEO_QUALITY_WIFI = "video_quality_wifi";
+	private static final String KEY_VIDEO_QUALITY_MOBILE = "video_quality_mobile";
 	private static final String KEY_LOOP_MODE = "loop_mode";
 	private static final String KEY_LOOP_ENABLED = "loop_enabled";
 	private static final String KEY_SUBTITLE_ENABLED = "subtitle_enabled";
@@ -33,28 +37,47 @@ public final class PlayerPreferences {
 	private final Gson gson;
 	@NonNull
 	private final MutableLiveData<PlayerLoopMode> loopModeState;
+	@NonNull
+	private final BooleanSupplier onMobileData;
 
-	public PlayerPreferences(@NonNull MMKV mmkv, @NonNull Gson gson) {
+	/** Qualities offered in the settings, lowest first. */
+	public static final String[] QUALITIES = {"144p", "240p", "360p", "480p", "720p", "1080p", "1440p", "2160p"};
+	public static final String DEFAULT_QUALITY_WIFI = "720p";
+	public static final String DEFAULT_QUALITY_MOBILE = "480p";
+
+	/** @param onMobileData tells whether the phone is on mobile data right now (else Wi-Fi) */
+	public PlayerPreferences(@NonNull MMKV mmkv, @NonNull Gson gson, @NonNull BooleanSupplier onMobileData) {
 		this.mmkv = mmkv;
 		this.gson = gson;
+		this.onMobileData = onMobileData;
 		this.loopModeState = new MutableLiveData<>(readLoopMode());
 	}
 
-	/** Quality used until one is picked in the player. */
-	public static final String DEFAULT_QUALITY = "480p";
-
 	/**
-	 * Last quality picked in the player, or 480p. Videos without that quality start in the next
+	 * Quality for the network the phone is on now. Videos without that quality start in the next
 	 * lower one.
 	 */
 	@NonNull
 	public String getPreferredQuality() {
-		String quality = mmkv.decodeString(KEY_VIDEO_QUALITY, null);
-		return quality == null || quality.isBlank() ? DEFAULT_QUALITY : quality;
+		return getQuality(onMobileData.getAsBoolean());
 	}
 
+	/** A quality picked in the player becomes the one for the network the phone is on. */
 	public void setPreferredQuality(@NonNull String quality) {
-		mmkv.encode(KEY_VIDEO_QUALITY, quality);
+		setQuality(onMobileData.getAsBoolean(), quality);
+	}
+
+	@NonNull
+	public String getQuality(boolean mobile) {
+		String quality = mmkv.decodeString(mobile ? KEY_VIDEO_QUALITY_MOBILE : KEY_VIDEO_QUALITY_WIFI, null);
+		if (quality != null && !quality.isBlank()) return quality;
+		String legacy = mmkv.decodeString(KEY_VIDEO_QUALITY, null);
+		if (legacy != null && !legacy.isBlank()) return legacy;
+		return mobile ? DEFAULT_QUALITY_MOBILE : DEFAULT_QUALITY_WIFI;
+	}
+
+	public void setQuality(boolean mobile, @NonNull String quality) {
+		mmkv.encode(mobile ? KEY_VIDEO_QUALITY_MOBILE : KEY_VIDEO_QUALITY_WIFI, quality);
 	}
 
 	@NonNull

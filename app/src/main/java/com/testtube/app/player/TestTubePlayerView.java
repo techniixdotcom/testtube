@@ -2,6 +2,7 @@ package com.testtube.app.player;
 
 import android.app.Activity;
 import android.app.PictureInPictureParams;
+import android.app.RemoteAction;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.ActivityInfo;
@@ -22,6 +23,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.view.ViewCompat;
+import androidx.media3.common.Player;
+import androidx.media3.common.VideoSize;
 import androidx.media3.common.text.Cue;
 import androidx.media3.common.text.CueGroup;
 import androidx.media3.common.util.UnstableApi;
@@ -40,11 +43,15 @@ import com.testtube.app.util.ViewUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 @UnstableApi
 public class TestTubePlayerView extends PlayerView {
 	private static final float SUBTITLE_LINE_FRACTION = 0.92f;
 	private static final float SUBTITLE_POSITION_FRACTION = 0.5f;
+	/** Widest and tallest shapes Android allows for a picture-in-picture window. */
+	private static final float MAX_PIP_ASPECT = 2.39f;
+	private static final float PIP_ELEVATION_DP = 64f;
 	@NonNull
 	private final Activity activity;
 	@Nullable
@@ -60,6 +67,9 @@ public class TestTubePlayerView extends PlayerView {
 	private int parentPaddingTop;
 	private int parentPaddingRight;
 	private int parentPaddingBottom;
+	/** Buttons of the floating window; the system adds expand and close. */
+	@Nullable
+	private Supplier<List<RemoteAction>> pipActions;
 
 	public TestTubePlayerView(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
 		super(context, attrs, defStyleAttr);
@@ -169,9 +179,21 @@ public class TestTubePlayerView extends PlayerView {
 		return false;
 	}
 
-	public void disableAutoPiP() {
-		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return;
-		activity.setPictureInPictureParams(buildPiPParams(false));
+	public void setPiPActions(@Nullable Supplier<List<RemoteAction>> actions) {
+		this.pipActions = actions;
+	}
+
+	/**
+	 * Updates the floating window: its buttons and shape, and whether leaving the app opens it by
+	 * itself (Android 12 and newer; older versions are handled on leaving).
+	 */
+	public void updatePiPParams(boolean autoEnter) {
+		if (!activity.getPackageManager().hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return;
+		try {
+			activity.setPictureInPictureParams(buildPiPParams(autoEnter));
+		} catch (IllegalArgumentException | IllegalStateException e) {
+			// The activity is finishing or picture-in-picture is turned off for the app
+		}
 	}
 
 	private void applyStandardPlayerAnchors(@NonNull ConstraintLayout.LayoutParams params) {
@@ -192,18 +214,38 @@ public class TestTubePlayerView extends PlayerView {
 	@NonNull
 	private PictureInPictureParams buildPiPParams(boolean autoEnter) {
 		PictureInPictureParams.Builder builder = new PictureInPictureParams.Builder()
-						.setAspectRatio(new Rational(16, 9));
+						.setAspectRatio(pipAspectRatio());
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
 			builder.setAutoEnterEnabled(autoEnter);
+			// Resizing a playing video smoothly costs more than it looks
+			builder.setSeamlessResizeEnabled(false);
+		}
+		Supplier<List<RemoteAction>> actions = pipActions;
+		if (actions != null) {
+			List<RemoteAction> list = actions.get();
+			int max = activity.getMaxNumPictureInPictureActions();
+			builder.setActions(list.size() > max ? list.subList(0, max) : list);
 		}
 		Rect sourceRectHint = new Rect();
-		if (getGlobalVisibleRect(sourceRectHint)) {
+		if (getVisibility() == View.VISIBLE && getGlobalVisibleRect(sourceRectHint)) {
 			builder.setSourceRectHint(sourceRectHint);
 		}
 		return builder.build();
 	}
 
+	/** The video's own shape, within what Android allows; 16:9 until the video is known. */
+	@NonNull
+	private Rational pipAspectRatio() {
+		Player player = getPlayer();
+		VideoSize size = player != null ? player.getVideoSize() : VideoSize.UNKNOWN;
+		if (size.width <= 0 || size.height <= 0) return new Rational(16, 9);
+		float ratio = size.width * size.pixelWidthHeightRatio / size.height;
+		ratio = Math.max(1f / MAX_PIP_ASPECT, Math.min(MAX_PIP_ASPECT, ratio));
+		return new Rational(Math.round(ratio * 10_000), 10_000);
+	}
+
 	private void applyNormalState() {
+		setTranslationZ(0f);
 		setBottomNavVisible(true);
 		isFs = false;
 		setParentInsetsSuppressed(false);
@@ -215,6 +257,7 @@ public class TestTubePlayerView extends PlayerView {
 
 	private void applyFullscreenState(@NonNull ControllerState.Mode previousState,
 	                                  int fsOrientation) {
+		setTranslationZ(0f);
 		setBottomNavVisible(false);
 		isFs = true;
 		if (previousState == ControllerState.Mode.NORMAL && !activity.isInPictureInPictureMode()) {
@@ -227,8 +270,10 @@ public class TestTubePlayerView extends PlayerView {
 		updateFullscreenButton(true);
 	}
 
+	/** The floating window shows the video alone, above the bars and lists of the app. */
 	private void applyPictureInPictureState(@NonNull ControllerState.Mode previousState) {
-		setBottomNavVisible(true);
+		setBottomNavVisible(false);
+		setTranslationZ(ViewUtils.dpToPx(activity, PIP_ELEVATION_DP));
 		isFs = false;
 		setParentInsetsSuppressed(false);
 		if (previousState == ControllerState.Mode.NORMAL) {

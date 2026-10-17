@@ -370,6 +370,50 @@ public class YoutubeCommentsExtractor extends CommentsExtractor {
         return commentsDisabled;
     }
 
+    /**
+     * TestTube: the token for posting a new top-level comment. YouTube only sends it to a signed-in
+     * account that may comment on the video.
+     *
+     * @return the token, or null when commenting isn't possible
+     */
+    @Nullable
+    public String getCreateCommentParams() {
+        if (commentsDisabled || ajaxJson == null) {
+            return null;
+        }
+        return findCreateCommentParams(ajaxJson, 0);
+    }
+
+    @Nullable
+    private static String findCreateCommentParams(@Nullable final Object node, final int depth) {
+        // The comment box sits a dozen levels deep in the header; the comments come after it
+        if (depth > 24) {
+            return null;
+        }
+        if (node instanceof JsonObject) {
+            final JsonObject object = (JsonObject) node;
+            final JsonObject endpoint = object.getObject("createCommentEndpoint");
+            final String params = endpoint.getString("createCommentParams");
+            if (!isNullOrEmpty(params)) {
+                return params;
+            }
+            for (final Object value : object.values()) {
+                final String found = findCreateCommentParams(value, depth + 1);
+                if (found != null) {
+                    return found;
+                }
+            }
+        } else if (node instanceof JsonArray) {
+            for (final Object value : (JsonArray) node) {
+                final String found = findCreateCommentParams(value, depth + 1);
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
     @Override
     public int getCommentsCount() throws ExtractionException {
         assertPageFetched();
