@@ -40,11 +40,12 @@ Subscriptions come from one of two places. By default the app shows the latest v
 * The only other service the app contacts is Sponsor-block, which sends the first 4 characters of a hash of the video ID to sponsor.ajay.app. There are no dislike-count lookups.
 * Update checks ask GitHub (api.github.com) for the latest release 5 seconds after the app starts. Nothing about you is sent, and you can switch it off by tapping the TestTube logo on Home and unticking "Check automatically".
 
+
+## Screenshots
+
 <p align="center">
 <img src="testtube.png" alt="" width="200">
 </p>
-
-## Screenshots
 
 <p align="center">
 <img src="screens/1.jpeg" alt="" width="200">
