@@ -1,0 +1,107 @@
+[17:56:53] [TestTube] Build started 2026-10-19 17:56:53
+[17:56:53] [TestTube] Live log: tail -f /home/decoi/Downloads/testtube/build.log
+[17:56:53] [TestTube] Platform: linux / x64
+[17:56:53] [TestTube] JDK 21 already installed
+[17:56:53] [TestTube] Android command-line tools already installed
+[17:56:53] [TestTube] Accepting Android SDK licenses
+[17:56:53] WARNING: The SDK Manager CLI tool (sdkmanager) is deprecated. Android CLI will be used instead.
+[17:56:53] The 'android' binary can also be found in the cmdline-tools directory, and 'android sdk' is the replacement for 'sdkmanager'.
+[17:56:53] To learn more about the Android CLI and how to use it, see the documentation (https://d.android.com/tools/agents/android-cli)
+[17:56:53] 
+[17:56:53] Warning: The --licenses option is no longer needed.
+[17:56:53] [TestTube] Installing Android platform tools
+[17:56:53] WARNING: The SDK Manager CLI tool (sdkmanager) is deprecated. Android CLI will be used instead.
+[17:56:53] The 'android' binary can also be found in the cmdline-tools directory, and 'android sdk' is the replacement for 'sdkmanager'.
+[17:56:53] To learn more about the Android CLI and how to use it, see the documentation (https://d.android.com/tools/agents/android-cli)
+[17:56:53] 
+[17:56:54] [TestTube] Android platform 37 installed
+[17:56:54] [TestTube] Using existing signing key /home/decoi/.testtube/signing/testtube-release.p12
+[17:56:54] [TestTube] Signing key fingerprint (SHA-256): C6:7E:C8:CC:37:92:66:78:73:D0:DF:7D:EA:23:DE:48:BD:0D:75:83:50:4A:E8:1E:EF:FF:98:B2:11:AA:3A:74
+[17:56:54] [TestTube] Running Gradle :app:assembleRelease (attempt 1 of 3)
+[17:56:54] To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/9.8.0/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+[17:56:55] Daemon will be stopped at the end of the build 
+[17:56:55] Calculating task graph as no cached configuration is available for tasks: :app:assembleRelease
+[17:57:01] > Task :app:preBuild UP-TO-DATE
+[17:57:01] > Task :newpipe-extractor:extractor:protobufDummy UP-TO-DATE
+[17:57:01] > Task :app:generateReleaseAssets UP-TO-DATE
+[17:57:01] > Task :app:preReleaseBuild UP-TO-DATE
+[17:57:01] > Task :newpipe-extractor:extractor:extractProto
+[17:57:01] > Task :app:generateReleaseResources
+[17:57:01] > Task :app:javaPreCompileRelease FROM-CACHE
+[17:57:01] > Task :newpipe-extractor:extractor:processProtoResources
+[17:57:01] > Task :newpipe-extractor:extractor:processResources
+[17:57:01] > Task :app:mapReleaseSourceSetPaths
+[17:57:02] > Task :app:processReleaseNavigationResources
+[17:57:02] > Task :app:compileReleaseNavigationResources FROM-CACHE
+[17:57:02] > Task :newpipe-extractor:extractor:extractIncludeProto
+[17:57:02] > Task :app:extractDeepLinksRelease FROM-CACHE
+[17:57:02] > Task :app:createReleaseCompatibleScreenManifests
+[17:57:02] > Task :newpipe-extractor:extractor:generateProto FROM-CACHE
+[17:57:02] > Task :app:mergeReleaseJniLibFolders
+[17:57:02] > Task :app:extractProguardFiles
+[17:57:02] > Task :app:checkReleaseAarMetadata
+[17:57:02] > Task :app:mergeReleaseStartupProfile
+[17:57:02] > Task :app:validateSigningRelease
+[17:57:02] > Task :app:writeReleaseAppMetadata
+[17:57:02] > Task :app:writeReleaseSigningConfigVersions
+[17:57:02] > Task :app:mergeReleaseAssets
+[17:57:02] > Task :app:compressReleaseAssets FROM-CACHE
+[17:57:02] > Task :app:mergeReleaseArtProfile
+[17:57:02] > Task :app:checkReleaseDuplicateClasses
+[17:57:02] > Task :app:extractReleaseVersionControlInfo
+[17:57:02] > Task :app:processReleaseMainManifest
+[17:57:02] > Task :newpipe-extractor:extractor:compileJava FROM-CACHE
+[17:57:02] > Task :newpipe-extractor:extractor:classes
+[17:57:02] > Task :app:packageReleaseResources
+[17:57:02] > Task :newpipe-extractor:extractor:jar
+[17:57:02] > Task :app:processReleaseManifest
+[17:57:02] > Task :app:processReleaseManifestForPackage
+[17:57:02] > Task :app:mergeReleaseNativeLibs
+[17:57:02] 
+[17:57:02] > Task :app:stripReleaseDebugSymbols
+[17:57:02] Unable to strip the following libraries, packaging them as they are: libmmkv.so. Run with --info option to learn more.
+[17:57:02] 
+[17:57:02] > Task :app:extractReleaseNativeSymbolTables FROM-CACHE
+[17:57:02] > Task :app:mergeReleaseNativeDebugMetadata NO-SOURCE
+[17:57:02] > Task :app:expandReleaseL8ArtProfileWildcards FROM-CACHE
+[17:57:02] > Task :app:parseReleaseLocalResources
+[17:57:02] > Task :app:generateReleaseRFile
+[17:57:02] > Task :app:compileReleaseKotlin NO-SOURCE
+[17:57:02] > Task :app:processReleaseJavaRes NO-SOURCE
+[17:57:02] > Task :app:mergeReleaseJavaResource
+[17:57:03] > Task :app:mergeReleaseResources
+[17:57:03] > Task :app:processReleaseResources
+[17:57:04] 
+[17:57:04] > Task :app:compileReleaseJavaWithJavac
+[17:57:04] Note: Some input files use or override a deprecated API.
+[17:57:04] Note: Recompile with -Xlint:deprecation for details.
+[17:57:04] 
+[17:57:04] > Task :app:mergeReleaseGeneratedProguardFiles
+[17:57:04] > Task :app:expandReleaseArtProfileWildcards
+[17:57:27] > Task :app:minifyReleaseWithR8
+[17:57:27] > Task :app:convertShrunkResourcesToBinaryRelease
+[17:57:27] > Task :app:optimizeReleaseResources
+[17:57:29] > Task :app:l8DexDesugarLibRelease
+[17:57:29] > Task :app:compileReleaseArtProfile
+[17:57:29] > Task :app:packageRelease
+[17:57:29] > Task :app:assembleRelease
+[17:57:29] > Task :app:createReleaseApkListingFileRedirect
+[17:57:29] 
+[17:57:29] > Task :app:exportReleaseApk
+[17:57:29] APK: /home/decoi/Downloads/testtube/dist/testtube2.0.2.apk
+[17:57:29] 
+[17:57:29] [Incubating] Problems report is available at: file:///home/decoi/Downloads/testtube/build/reports/problems/problems-report.html
+[17:57:29] 
+[17:57:29] Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+[17:57:29] 
+[17:57:29] You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+[17:57:29] 
+[17:57:29] For more on this, please refer to https://docs.gradle.org/9.8.0/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+[17:57:29] 
+[17:57:29] BUILD SUCCESSFUL in 35s
+[17:57:29] 50 actionable tasks: 42 executed, 8 from cache
+[17:57:29] Configuration cache entry stored.
+[17:57:30] [TestTube] Signature verified
+[17:57:30] [TestTube] APK version: v2.0.2
+[17:57:30] [TestTube] SHA-256: 46810ee9463894c4af36746cd64bc7f07b5d93143857b652ec9a8e12261be57e
+[17:57:30] [TestTube] Done. Your APK: /home/decoi/Downloads/testtube/dist/testtube2.0.2.apk

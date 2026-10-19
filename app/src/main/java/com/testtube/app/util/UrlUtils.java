@@ -125,7 +125,7 @@ public final class UrlUtils {
 	}
 
 	@NonNull
-	static String getPageClassFromHost(@NonNull String host, @NonNull List<String> segments) {
+	private static String getPageClassFromHost(@NonNull String host, @NonNull List<String> segments) {
 		String lowerHost = host.toLowerCase(NORMAL_LOCALE);
 		if (lowerHost.equals("youtu.be")) {
 			return segments.isEmpty() ? "unknown" : Constant.PAGE_WATCH;

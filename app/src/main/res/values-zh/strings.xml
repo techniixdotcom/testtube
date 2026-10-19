@@ -9,8 +9,6 @@
     <string name="add_to_queue">加入队列</string>
     <string name="queue_item_added">已加入队列</string>
     <string name="queue_item_unavailable">无法获取当前视频信息，未加入队列</string>
-    <string name="queue_enabled_on">已启用队列播放</string>
-    <string name="queue_enabled_off">已关闭队列播放</string>
     <string name="clear_queue">清空队列</string>
     <string name="clear_queue_confirmation">确定清空全部队列项吗？</string>
     <string name="remove_queue_item">移除队列项</string>
@@ -148,6 +146,8 @@
     <string name="nav_home">首页</string>
     <string name="nav_subscriptions">订阅</string>
     <string name="nav_shorts">Shorts</string>
+    <string name="feed_shorts">SHORTS</string>
+    <string name="page_tab_shorts">Shorts</string>
     <string name="shorts_error">无法播放此 Short</string>
     <string name="shorts_load_failed">无法加载 Shorts。点按即可重试。</string>
     <string name="shorts_empty">未找到 Shorts。点按即可重试。</string>
@@ -187,6 +187,16 @@
     <string name="welcome_message">选择你想看到的内容。之后可以点按 TestTube 标志进行更改。</string>
     <string name="setting_shorts">显示 Shorts</string>
     <string name="setting_shorts_summary">显示在首页、订阅、搜索中，并作为频道的标签页</string>
+    <string name="setting_subscriptions">订阅标签页</string>
+    <string name="setting_subscriptions_summary">在底部栏显示订阅</string>
+    <string name="setting_grey_watched">将已看过的视频变灰</string>
+    <string name="setting_grey_watched_summary">已看过的视频在列表中变暗并显示为黑白</string>
+    <string name="setting_watched_dim" formatted="true">已看视频的变暗程度：%1$d%%</string>
+    <string name="setting_watched_dim_description">已看视频变暗的程度</string>
+    <string name="setting_watched_threshold" formatted="true">播放 %1$d%% 后算作已看</string>
+    <string name="setting_watched_threshold_description">算作已看的播放比例</string>
+    <string name="setting_watched_threshold_summary">用于变灰，自动播放会优先选择你还没看过的视频</string>
+    <string name="app_icon_settings">TestTube 设置</string>
     <string name="setting_ai_filter">隐藏 AI 视频 (AiSList)</string>
     <string name="setting_ai_filter_summary">隐藏 AiSList 中的频道。AiSList 是一份社区维护的列表，收录发布 AI 生成视频的频道。该列表 (CC BY-NC 4.0) 每天从 GitHub 下载一次。</string>
     <string name="setting_channel_pages">完整频道页面</string>

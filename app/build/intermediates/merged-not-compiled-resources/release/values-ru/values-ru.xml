@@ -1,0 +1,522 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:ns1="http://schemas.android.com/tools" xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string-array name="discover_queries">
+        <item>в тренде</item>
+        <item>популярное сегодня</item>
+        <item>новинки недели</item>
+        <item>самые просматриваемые</item>
+        <item>документальный фильм</item>
+        <item>музыка</item>
+        <item>игры</item>
+        <item>наука</item>
+        <item>как это работает</item>
+        <item>путешествия</item>
+        <item>рецепты</item>
+        <item>юмор</item>
+        <item>обзор техники</item>
+        <item>история</item>
+        <item>спортивные моменты</item>
+        <item>подкаст</item>
+    </string-array>
+    <string-array name="exo_controls_playback_speeds">
+    <item>0,25</item>
+    <item>0,5</item>
+    <item>0,75</item>
+    <item>Обычная</item>
+    <item>1,25</item>
+    <item>1,5</item>
+    <item>2</item>
+  </string-array>
+    <plurals name="exo_controls_fastforward_by_amount_description">
+    <item quantity="one">Перемотать на %d секунду вперед</item>
+    <item quantity="few">Перемотать на %d секунды вперед</item>
+    <item quantity="many">Перемотать на %d секунд вперед</item>
+    <item quantity="other">Перемотать на %d секунды вперед</item>
+  </plurals>
+    <plurals name="exo_controls_rewind_by_amount_description">
+    <item quantity="one">Перемотать на %d секунду назад</item>
+    <item quantity="few">Перемотать на %d секунды назад</item>
+    <item quantity="many">Перемотать на %d секунд назад</item>
+    <item quantity="other">Перемотать на %d секунды назад</item>
+  </plurals>
+    <plurals name="mtrl_badge_content_description">
+    <item quantity="one">%d новое уведомление</item>
+    <item quantity="few">%d новых уведомления</item>
+    <item quantity="many">%d новых уведомлений</item>
+    <item quantity="other">%d нового уведомления</item>
+  </plurals>
+    <plurals name="swipe_more_reminders">
+        <item quantity="one">Осталось %d напоминание</item>
+        <item quantity="few">Осталось %d напоминания</item>
+        <item quantity="many">Осталось %d напоминаний</item>
+        <item quantity="other">Осталось %d напоминания</item>
+    </plurals>
+    <string msgid="5976598919945601918" name="abc_action_bar_home_description">"Перейти на главный экран"</string>
+    <string msgid="8388173803310557296" name="abc_action_bar_up_description">"Перейти вверх"</string>
+    <string msgid="3937310113216875497" name="abc_action_menu_overflow_description">"Ещё"</string>
+    <string msgid="4692188335987374352" name="abc_action_mode_done">"Готово"</string>
+    <string msgid="1189761859438369441" name="abc_activity_chooser_view_see_all">"Показать все"</string>
+    <string msgid="2165779757652331008" name="abc_activitychooserview_choose_application">"Выберите приложение"</string>
+    <string msgid="4215997306490295099" name="abc_capital_off">"ВЫКЛ"</string>
+    <string msgid="884982626291842264" name="abc_capital_on">"ВКЛ"</string>
+    <string msgid="8833365367933412986" name="abc_menu_alt_shortcut_label">"Alt +"</string>
+    <string msgid="2223301931652355242" name="abc_menu_ctrl_shortcut_label">"Ctrl +"</string>
+    <string msgid="838001238306846836" name="abc_menu_delete_shortcut_label">"Delete"</string>
+    <string msgid="7986526966204849475" name="abc_menu_enter_shortcut_label">"Ввод"</string>
+    <string msgid="375214403600139847" name="abc_menu_function_shortcut_label">"Fn +"</string>
+    <string msgid="4192209724446364286" name="abc_menu_meta_shortcut_label">"Meta +"</string>
+    <string msgid="4741552369836443843" name="abc_menu_shift_shortcut_label">"Shift +"</string>
+    <string msgid="5473865519181928982" name="abc_menu_space_shortcut_label">"Пробел"</string>
+    <string msgid="6180552449598693998" name="abc_menu_sym_shortcut_label">"Sym +"</string>
+    <string msgid="5520303668377388990" name="abc_prepend_shortcut_label">"Меню +"</string>
+    <string msgid="7208076849092622260" name="abc_search_hint">"Введите запрос"</string>
+    <string msgid="3741173234950517107" name="abc_searchview_description_clear">"Удалить запрос"</string>
+    <string msgid="693312494995508443" name="abc_searchview_description_query">"Поисковый запрос"</string>
+    <string msgid="3417662926640357176" name="abc_searchview_description_search">"Поиск"</string>
+    <string msgid="1486535517437947103" name="abc_searchview_description_submit">"Отправить запрос"</string>
+    <string msgid="2293578557972875415" name="abc_searchview_description_voice">"Голосовой поиск"</string>
+    <string msgid="8875138169939072951" name="abc_shareactionprovider_share_with">"Поделиться с помощью"</string>
+    <string msgid="9055268688411532828" name="abc_shareactionprovider_share_with_application">"Поделиться с помощью <xliff:g id="APPLICATION_NAME">%s</xliff:g>"</string>
+    <string msgid="1656852541809559762" name="abc_toolbar_collapse_description">"Свернуть"</string>
+    <string name="action_fullscreen">Полноэкранный режим</string>
+    <string name="action_next">Перейти к следующему</string>
+    <string name="action_pause">Пауза</string>
+    <string name="action_play">Играть</string>
+    <string name="action_previous">Перейти к предыдущему</string>
+    <string name="action_replay">Повторить</string>
+    <string name="action_search">Поиск</string>
+    <string name="action_seek_back_10">Назад на 10 секунд</string>
+    <string name="action_seek_forward_10">Вперёд на 10 секунд</string>
+    <string name="active_label">Активно</string>
+    <string name="active_stream_audio">Поток: %1$s %2$s %3$s</string>
+    <string name="active_stream_video">Поток #%1$d [%2$s]: %3$s %4$s %5$s</string>
+    <string name="add_to_queue">Добавить в очередь</string>
+    <string name="app_icon_settings">Настройки TestTube</string>
+    <string name="app_name">TestTube</string>
+    <string name="application_not_found">Приложение не найдено</string>
+    <string name="audio_format">Формат аудио</string>
+    <string name="audio_only">Аудио</string>
+    <string name="audio_track">Аудиодорожка</string>
+    <string name="bitrate">Битрейт</string>
+    <string name="block">Заблокировать</string>
+    <string name="block_channel">Заблокировать канал</string>
+    <string name="block_channel_confirm">Скрыть все видео канала %1$s?</string>
+    <string name="block_channel_named">Заблокировать %1$s</string>
+    <string name="bottomsheet_action_collapse">Свернуть</string>
+    <string name="bottomsheet_action_collapse_description">Свернуть нижний экран</string>
+    <string name="bottomsheet_action_expand">Развернуть</string>
+    <string name="bottomsheet_action_expand_description">Развернуть нижний экран</string>
+    <string name="bottomsheet_action_expand_halfway">Развернуть наполовину</string>
+    <string name="bottomsheet_action_half_expand_description">Развернуть нижний экран наполовину</string>
+    <string name="bottomsheet_drag_handle_content_description">Маркер перемещения</string>
+    <string name="bottomsheet_state_collapsed">Свернуто</string>
+    <string name="bottomsheet_state_expanded">Развернуто</string>
+    <string name="bottomsheet_state_half_expanded">Развернуто наполовину</string>
+    <string msgid="881409763997275156" name="call_notification_answer_action">"Ответить"</string>
+    <string msgid="8793775615905189152" name="call_notification_answer_video_action">"Видео"</string>
+    <string msgid="3229508546291798546" name="call_notification_decline_action">"Отклонить"</string>
+    <string msgid="2659457946726154263" name="call_notification_hang_up_action">"Завершить"</string>
+    <string msgid="6107532579223922871" name="call_notification_incoming_text">"Входящий вызов"</string>
+    <string msgid="8623827134497363134" name="call_notification_ongoing_text">"Текущий вызов"</string>
+    <string msgid="59049573811482460" name="call_notification_screening_text">"Фильтрация входящего вызова"</string>
+    <string name="cancel">Отменить</string>
+    <string name="channel_blocked">%1$s заблокирован</string>
+    <string name="channel_lookup_failed">Не удалось найти канал этого видео</string>
+    <string name="channels">Каналы</string>
+    <string name="character_counter_content_description">Введено символов: %1$d из %2$d</string>
+    <string name="character_counter_overflowed_content_description">Превышено ограничение на количество символов (%1$d из %2$d)</string>
+    <string name="clear">Очистить</string>
+    <string name="clear_history">Очистить историю</string>
+    <string name="clear_history_confirmation">Очистить всю историю загрузок?</string>
+    <string name="clear_queue">Очистить очередь</string>
+    <string name="clear_queue_confirmation">Очистить все элементы очереди?</string>
+    <string name="clear_text_end_icon_content_description">Очистить текстовое поле</string>
+    <string name="close">Закрыть</string>
+    <string name="comment_failed">Не удалось опубликовать комментарий</string>
+    <string name="comment_hint">Добавьте комментарий…</string>
+    <string name="comment_just_now">только что</string>
+    <string name="comment_posted">Комментарий опубликован</string>
+    <string name="comment_send">Отправить комментарий</string>
+    <string name="comment_you">Вы</string>
+    <string name="confirm">Подтвердить</string>
+    <string name="copy">Копировать</string>
+    <string name="debug_info_copied">Отладочная информация скопирована в буфер обмена</string>
+    <string name="delete_local_file">Удалить локальный файл</string>
+    <string name="delete_record">Удалить</string>
+    <string name="download">Скачать</string>
+    <string name="download_action_cancel">Отменить загрузку</string>
+    <string name="download_action_copy_video_id">Скопировать ID видео</string>
+    <string name="download_action_open_file">Открыть файл</string>
+    <string name="download_action_pause">Приостановить загрузку</string>
+    <string name="download_action_redownload">Скачать заново</string>
+    <string name="download_action_resume">Возобновить загрузку</string>
+    <string name="download_action_retry">Повторить загрузку</string>
+    <string name="download_history">Загрузки</string>
+    <string name="download_playlist_summary">%1$d / %2$d элементов\n(%3$d%%)</string>
+    <string name="download_progress_simple">%1$sMB</string>
+    <string name="download_progress_with_total">%1$sMB/%2$sMB(%3$d%%)</string>
+    <string name="download_tasks_added">Задачи на загрузку добавлены</string>
+    <string name="download_tasks_added_count">Добавлено %1$d задач в очередь</string>
+    <string name="downloading_file">Загрузка: %1$s</string>
+    <string name="downloads_running">%1$d загрузок в процессе</string>
+    <string name="dropped_frames">Пропущенные кадры</string>
+    <string name="error_a11y_label">Ошибка: недопустимое значение</string>
+    <string name="error_icon_content_description">Ошибка</string>
+    <string name="error_title">Ошибка</string>
+    <string name="exo_controls_cc_disabled_description">Включить субтитры</string>
+    <string name="exo_controls_cc_enabled_description">Выключить субтитры</string>
+    <string name="exo_controls_fastforward_description">Перемотать вперед</string>
+    <string name="exo_controls_fullscreen_enter_description">Полноэкранный режим</string>
+    <string name="exo_controls_fullscreen_exit_description">Выйти из полноэкранного режима</string>
+    <string name="exo_controls_hide">Скрыть панель управления</string>
+    <string name="exo_controls_next_description">Следующий трек</string>
+    <string name="exo_controls_overflow_hide_description">Скрыть дополнительные настройки</string>
+    <string name="exo_controls_overflow_show_description">Показать дополнительные настройки</string>
+    <string name="exo_controls_pause_description">Приостановить</string>
+    <string name="exo_controls_play_description">Воспроизвести</string>
+    <string name="exo_controls_playback_speed">Скорость</string>
+    <string name="exo_controls_previous_description">Предыдущий трек</string>
+    <string name="exo_controls_repeat_all_description">Выбрано: повторять все. Изменить режим повтора.</string>
+    <string name="exo_controls_repeat_off_description">Выбрано: не повторять. Изменить режим повтора.</string>
+    <string name="exo_controls_repeat_one_description">Выбрано: повторять один раз. Изменить режим повтора.</string>
+    <string name="exo_controls_rewind_description">Перемотать назад</string>
+    <string name="exo_controls_seek_bar_description">Полоса прокрутки воспроизведения</string>
+    <string name="exo_controls_settings_description">Настройки</string>
+    <string name="exo_controls_show">Показать панель управления</string>
+    <string name="exo_controls_shuffle_off_description">Включить перемешивание</string>
+    <string name="exo_controls_shuffle_on_description">Отключить перемешивание</string>
+    <string name="exo_controls_stop_description">Остановить</string>
+    <string name="exo_controls_vr_description">VR-режим</string>
+    <string name="exo_download_completed">Скачивание завершено</string>
+    <string name="exo_download_description">Скачать</string>
+    <string name="exo_download_downloading">Скачивание…</string>
+    <string name="exo_download_failed">Ошибка скачивания</string>
+    <string name="exo_download_notification_channel_name">Скачивания</string>
+    <string name="exo_download_paused">Скачивание приостановлено</string>
+    <string name="exo_download_paused_for_network">Ожидание подключения к сети</string>
+    <string name="exo_download_paused_for_wifi">Ожидание подключения к Wi-Fi</string>
+    <string name="exo_download_removing">Удаление скачанных файлов…</string>
+    <string name="exo_item_list">%1$s, %2$s</string>
+    <string name="exo_track_bitrate">%1$.2f Мбит/сек</string>
+    <string name="exo_track_mono">Моно</string>
+    <string name="exo_track_resolution">%1$d × %2$d</string>
+    <string name="exo_track_role_alternate">Другая запись</string>
+    <string name="exo_track_role_closed_captions">Субтитры</string>
+    <string name="exo_track_role_commentary">Комментарии</string>
+    <string name="exo_track_role_supplementary">Дополнительные материалы</string>
+    <string name="exo_track_selection_auto">Авто</string>
+    <string name="exo_track_selection_none">Нет</string>
+    <string name="exo_track_selection_title_audio">Аудио</string>
+    <string name="exo_track_stereo">Стерео</string>
+    <string name="exo_track_surround">Объемный звук</string>
+    <string name="exo_track_surround_5_point_1">Система объемного звука 5.1</string>
+    <string name="exo_track_surround_7_point_1">Система объемного звука 7.1</string>
+    <string name="exo_track_unknown">Неизвестный трек</string>
+    <string name="exo_track_unknown_name">Неизвестно (%1$s)</string>
+    <string name="exposed_dropdown_menu_content_description">Показать раскрывающееся меню</string>
+    <string name="failed_to_download">Не удалось скачать</string>
+    <string name="failed_to_load_video_details">Не удалось загрузить сведения о видео</string>
+    <string name="feed_channel">Канал</string>
+    <string name="feed_empty">Здесь пока ничего нет</string>
+    <string name="feed_error">Не удалось загрузить. Потяните вниз, чтобы повторить.</string>
+    <string name="feed_live">ПРЯМОЙ ЭФИР</string>
+    <string name="feed_shorts">SHORTS</string>
+    <string name="feed_sign_in">Войдите, чтобы видеть подписки</string>
+    <string name="feed_subscribers">Подписчиков: %1$s</string>
+    <string name="feed_videos">Видео: %1$s</string>
+    <string name="feed_views">%1$s просмотров</string>
+    <string name="fetching_download_links">Получение ссылок для загрузки…</string>
+    <string name="file_not_found">Файл не найден</string>
+    <string name="filename">Имя файла</string>
+    <string name="fps">FPS</string>
+    <string name="icon_content_description">Значок диалогового окна</string>
+    <string name="info">Инфо</string>
+    <string name="item_view_role_description">Вкладка</string>
+    <string name="jump">Перейти</string>
+    <string name="jumped_to_segment">Переход к: %1$s</string>
+    <string name="local_history">Локальная история</string>
+    <string name="lock_screen">Заблокировать экран</string>
+    <string name="login_subtitle">Войдите с помощью аккаунта Google</string>
+    <string name="looking_up_channel">Поиск канала…</string>
+    <string name="m3_loading_indicator_content_description">Загрузка</string>
+    <string name="m3_overflow_linear_layout_button_content_description">Дополнительное меню</string>
+    <string name="m3_overflow_linear_layout_button_tooltip_text">Ещё</string>
+    <string name="mark_as_unwatched">Отметить как непросмотренное</string>
+    <string name="mark_as_watched">Отметить как просмотренное</string>
+    <string name="marked_as_unwatched">Отмечено как непросмотренное</string>
+    <string name="marked_as_watched">Отмечено как просмотренное</string>
+    <string name="material_clock_toggle_content_description">Выберите AM (до полудня) или PM (после полудня)</string>
+    <string name="material_hour_24h_suffix">%1$s ч.</string>
+    <string name="material_hour_selection">Выберите час</string>
+    <string name="material_hour_suffix">%1$s ч.</string>
+    <string name="material_minute_selection">Выберите минуты</string>
+    <string name="material_minute_suffix">%1$s мин.</string>
+    <string name="material_slider_range_end">Конец диапазона</string>
+    <string name="material_slider_range_start">Начало диапазона</string>
+    <string name="material_slider_value">Значение</string>
+    <string name="material_timepicker_am">AM</string>
+    <string name="material_timepicker_clock_mode_description">Чтобы ввести время, перейдите в режим часов.</string>
+    <string name="material_timepicker_clock_mode_tooltip">Перейти в режим часов</string>
+    <string name="material_timepicker_hour">Час</string>
+    <string name="material_timepicker_hour_error">Укажите от 1 до 12 ч.</string>
+    <string name="material_timepicker_hour_error_24h">Укажите от 0 до 23 ч.</string>
+    <string name="material_timepicker_minute">Минуты</string>
+    <string name="material_timepicker_minute_error">Укажите от 0 до 59 мин.</string>
+    <string name="material_timepicker_pm">PM</string>
+    <string name="material_timepicker_select_time">Выбор времени</string>
+    <string name="material_timepicker_text_input_mode_description">Чтобы ввести время, перейдите в режим ввода текста.</string>
+    <string name="material_timepicker_text_input_mode_tooltip">Перейти в режим ввода текста</string>
+    <string name="mini_bar_next">Следующее видео</string>
+    <string name="mini_bar_pause">Пауза</string>
+    <string name="mini_bar_play">Воспроизвести</string>
+    <string name="mini_bar_previous">Предыдущее видео</string>
+    <string name="mini_bar_restore">Открыть плеер</string>
+    <string name="more_options">Дополнительные параметры</string>
+    <string name="mtrl_badge_numberless_content_description">Новое уведомление</string>
+    <string name="mtrl_button_collapsed_content_description">Свернуто</string>
+    <string name="mtrl_button_expanded_content_description">Развернуто</string>
+    <string name="mtrl_button_overflow_icon_content_description">Дополнительное меню</string>
+    <string name="mtrl_button_snackbar_close_content_description">Закрыть</string>
+    <string name="mtrl_checkbox_state_description_checked">Флажок установлен.</string>
+    <string name="mtrl_checkbox_state_description_indeterminate">Флажки установлены частично.</string>
+    <string name="mtrl_checkbox_state_description_unchecked">Флажок не установлен.</string>
+    <string name="mtrl_chip_close_icon_content_description">Удалить \"%1$s\"</string>
+    <string name="mtrl_exceed_max_badge_number_content_description" ns1:ignore="PluralsCandidate">Новых уведомлений больше %1$d</string>
+    <string name="mtrl_picker_a11y_next_month">Перейти к следующему месяцу</string>
+    <string name="mtrl_picker_a11y_prev_month">Перейти к предыдущему месяцу</string>
+    <string name="mtrl_picker_announce_current_range_selection">Выбранная дата начала: %1$s. Выбранная дата окончания: %2$s.</string>
+    <string name="mtrl_picker_announce_current_selection">Выбранный элемент: %1$s</string>
+    <string name="mtrl_picker_announce_current_selection_none">нет</string>
+    <string name="mtrl_picker_cancel">Отмена</string>
+    <string name="mtrl_picker_confirm">ОК</string>
+    <string name="mtrl_picker_date_header_selected">%1$s</string>
+    <string name="mtrl_picker_date_header_title">Выберите дату</string>
+    <string name="mtrl_picker_date_header_unselected">Выбранная дата</string>
+    <string name="mtrl_picker_day_of_week_column_header">%1$s</string>
+    <string name="mtrl_picker_end_date_description">Дата окончания: %1$s</string>
+    <string name="mtrl_picker_invalid_format">Недействительный формат.</string>
+    <string name="mtrl_picker_invalid_format_example">Пример: %1$s</string>
+    <string name="mtrl_picker_invalid_format_use">Используйте: %1$s</string>
+    <string name="mtrl_picker_invalid_range">Недопустимый диапазон.</string>
+    <string name="mtrl_picker_navigate_to_current_year_description">Перейти к текущему году: %1$d</string>
+    <string name="mtrl_picker_navigate_to_year_description">Перейти к %1$d году</string>
+    <string name="mtrl_picker_next_month_tooltip">Следующий месяц</string>
+    <string name="mtrl_picker_out_of_range">Вне диапазона: %1$s</string>
+    <string name="mtrl_picker_pane_title_calendar_view">Режим просмотра \"Календарь\"</string>
+    <string name="mtrl_picker_pane_title_year_view">Режим просмотра \"Год\"</string>
+    <string name="mtrl_picker_prev_month_tooltip">Предыдущий месяц</string>
+    <string name="mtrl_picker_range_header_only_end_selected">Дата начала – %1$s</string>
+    <string name="mtrl_picker_range_header_only_start_selected">%1$s – Дата окончания</string>
+    <string name="mtrl_picker_range_header_selected">%1$s – %2$s</string>
+    <string name="mtrl_picker_range_header_title">Выберите диапазон дат</string>
+    <string name="mtrl_picker_range_header_unselected">Дата начала – дата окончания</string>
+    <string name="mtrl_picker_save">Сохранить</string>
+    <string name="mtrl_picker_start_date_description">Дата начала: %1$s</string>
+    <string name="mtrl_picker_text_input_date_hint">Дата</string>
+    <string name="mtrl_picker_text_input_date_range_end_hint">Дата окончания</string>
+    <string name="mtrl_picker_text_input_date_range_start_hint">Дата начала</string>
+    <string name="mtrl_picker_text_input_day_abbr">д</string>
+    <string name="mtrl_picker_text_input_month_abbr">м</string>
+    <string name="mtrl_picker_text_input_year_abbr">г</string>
+    <string name="mtrl_picker_today_description">Сегодня: %1$s</string>
+    <string name="mtrl_picker_toggle_to_calendar_input_mode">Перейти в режим выбора дней</string>
+    <string name="mtrl_picker_toggle_to_calendar_input_mode_tooltip">Перейти в календарь</string>
+    <string name="mtrl_picker_toggle_to_day_selection">Перейти в режим выбора даты</string>
+    <string name="mtrl_picker_toggle_to_text_input_mode">Перейти в режим ввода текста</string>
+    <string name="mtrl_picker_toggle_to_text_input_mode_tooltip">Перейти в режим ввода текста</string>
+    <string name="mtrl_picker_toggle_to_year_selection">Перейти в режим выбора года</string>
+    <string name="mtrl_timepicker_cancel">Отмена</string>
+    <string name="mtrl_timepicker_confirm">ОК</string>
+    <string name="nav_home">Главная</string>
+    <string name="nav_shorts">Shorts</string>
+    <string name="nav_subscriptions">Подписки</string>
+    <string name="no_download_records">Нет записей о загрузках</string>
+    <string name="no_queue_items">Нет элементов очереди</string>
+    <string name="no_subtitles">Субтитры недоступны</string>
+    <string name="no_suggestions">Нет рекомендуемого видео для воспроизведения</string>
+    <string name="page_play_all">Воспроизвести все</string>
+    <string name="page_tab_courses">Курсы</string>
+    <string name="page_tab_error">Не удалось загрузить. Нажмите, чтобы повторить.</string>
+    <string name="page_tab_live">Трансляции</string>
+    <string name="page_tab_playlists">Плейлисты</string>
+    <string name="page_tab_podcasts">Подкасты</string>
+    <string name="page_tab_releases">Релизы</string>
+    <string name="page_tab_shorts">Shorts</string>
+    <string name="page_tab_videos">Видео</string>
+    <string name="page_verified">Подтверждено</string>
+    <string name="password_toggle_content_description">Показать пароль</string>
+    <string name="pip">Картинка в картинке</string>
+    <string name="play_next">Воспроизвести следующим</string>
+    <string name="playback_end_loop">Повторять видео</string>
+    <string name="playback_end_next">Воспроизвести следующее</string>
+    <string name="playback_end_pause">Пауза в конце</string>
+    <string name="playback_end_playlist_random">Случайный порядок плейлиста</string>
+    <string name="player_brightness">Яркость %1$d%%</string>
+    <string name="player_quality_auto">Авто</string>
+    <string name="player_volume">Громкость %1$d%%</string>
+    <string name="playlist_download_batch_added">Добавлено элементов: %1$d</string>
+    <string name="playlist_download_batch_added_before_cancel">Добавлено %1$d элементов до отмены пакета</string>
+    <string name="playlist_download_batch_segment_failed">Сбой: %1$d</string>
+    <string name="playlist_download_batch_segment_partial">Частично: %1$d</string>
+    <string name="playlist_download_empty">Плейлист пуст</string>
+    <string name="playlist_download_loading">Загрузка плейлиста…</string>
+    <string name="playlist_download_options">Параметры загрузки</string>
+    <string name="playlist_download_prepare_progress">Подготовка %1$d / %2$d</string>
+    <string name="playlist_download_select_all">Выбрать все</string>
+    <string name="playlist_download_started">Загрузка плейлиста начата</string>
+    <string name="playlist_download_status_canceled">Отменено</string>
+    <string name="playlist_download_status_failed">Сбой</string>
+    <string name="playlist_download_status_loading">Загрузка</string>
+    <string name="playlist_download_status_partial">Частично</string>
+    <string name="playlist_download_status_preparing">Подготовка</string>
+    <string name="playlist_download_status_queued">В очереди</string>
+    <string name="playlist_download_status_ready">Готово</string>
+    <string name="playlist_download_status_unavailable">Недоступно</string>
+    <string name="playlist_download_summary">Выбрано %1$d / готово %2$d / всего %3$d</string>
+    <string name="playlist_download_title_placeholder">Плейлист</string>
+    <string name="preparing_download">Подготовка загрузки…</string>
+    <string name="press_back_again_to_exit">Нажмите еще раз, чтобы выйти</string>
+    <string name="queue">Очередь</string>
+    <string name="queue_download_unavailable">Нет элементов очереди для загрузки</string>
+    <string name="queue_item_added">Добавлено в очередь</string>
+    <string name="queue_item_already_playing">Это видео уже воспроизводится</string>
+    <string name="queue_item_play_next">Будет воспроизведено следующим</string>
+    <string name="queue_item_unavailable">Не удалось получить данные текущего видео. Элемент не был добавлен в очередь.</string>
+    <string name="queue_now_playing">Сейчас воспроизводится</string>
+    <string name="queue_unknown_author">Неизвестный автор</string>
+    <string name="remove_queue_item">Удалить элемент очереди</string>
+    <string name="remove_queue_item_confirmation">Удалить этот элемент очереди?</string>
+    <string name="reset">Сброс</string>
+    <string name="resolution">Разрешение</string>
+    <string name="sample_rate">Частота дискретизации</string>
+    <string name="search_hint">Поиск на TestTube</string>
+    <string msgid="6264217191555673260" name="search_menu_title">"Поиск"</string>
+    <string name="search_no_results">Ничего не найдено</string>
+    <string name="searchview_clear_text_content_description">Очистить текстовое поле</string>
+    <string name="searchview_navigation_content_description">Назад</string>
+    <string name="segments">Сегменты</string>
+    <string name="select_something_first">Сначала выберите что-нибудь</string>
+    <string name="setting_ai_filter">Скрывать ИИ-видео (AiSList)</string>
+    <string name="setting_ai_filter_summary">Скрывает каналы из AiSList — списка сообщества с каналами, которые публикуют видео, созданные ИИ. Список (CC BY-NC 4.0) загружается с GitHub раз в день.</string>
+    <string name="setting_channel_pages">Полные страницы каналов</string>
+    <string name="setting_channel_pages_summary">Баннер, @имя, кнопка «Подписаться» и вкладки. Выкл.: только видео канала</string>
+    <string name="setting_commenting">Писать комментарии</string>
+    <string name="setting_commenting_summary">Поле для комментария во вкладке «Комментарии», когда вы вошли в YouTube</string>
+    <string name="setting_floating_player">Плавающий плеер</string>
+    <string name="setting_floating_player_summary">Если выйти из приложения во время видео (домой или к недавним приложениям), оно останется в маленьком окне поверх других приложений. Выкл.: продолжает играть только звук</string>
+    <string name="setting_grey_watched">Затемнять просмотренные видео</string>
+    <string name="setting_grey_watched_summary">Просмотренные видео в списках затемняются и становятся чёрно-белыми</string>
+    <string name="setting_quality_mobile">Качество видео по мобильной сети</string>
+    <string name="setting_quality_summary">Меняется само, когда телефон переключается между Wi-Fi и мобильной сетью, даже во время видео. Качество, выбранное в плеере, сохраняется для текущей сети</string>
+    <string name="setting_quality_wifi">Качество видео по Wi-Fi</string>
+    <string name="setting_shorts">Показывать Shorts</string>
+    <string name="setting_shorts_summary">На главной, в подписках, в поиске и вкладкой на каналах</string>
+    <string name="setting_subscriptions">Вкладка «Подписки»</string>
+    <string name="setting_subscriptions_summary">Показывать «Подписки» в нижней панели</string>
+    <string name="setting_swipe_minimize">Свайп вниз сворачивает</string>
+    <string name="setting_swipe_minimize_summary">Выкл.: свайп вверх или вниз слева меняет яркость, справа — громкость</string>
+    <string formatted="true" name="setting_watched_dim">Затемнение просмотренных видео: %1$d%%</string>
+    <string name="setting_watched_dim_description">Насколько затемнять просмотренные видео</string>
+    <string formatted="true" name="setting_watched_threshold">Считается просмотренным после %1$d%%</string>
+    <string name="setting_watched_threshold_description">Доля просмотра, после которой видео считается просмотренным</string>
+    <string name="setting_watched_threshold_summary">Используется для затемнения, а автовоспроизведение выбирает непросмотренные видео</string>
+    <string name="share">Поделиться</string>
+    <string name="shorts_empty">Shorts не найдены. Нажмите, чтобы повторить.</string>
+    <string name="shorts_error">Не удалось воспроизвести этот Short</string>
+    <string name="shorts_load_failed">Не удалось загрузить Shorts. Нажмите, чтобы повторить.</string>
+    <string name="side_sheet_accessibility_pane_title">Боковая панель</string>
+    <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">">999"</string>
+    <string name="status_cancelled">Отменено</string>
+    <string name="status_completed">Завершено</string>
+    <string name="status_downloading_simple">Загружается</string>
+    <string name="status_failed">Ошибка</string>
+    <string name="status_merging">Объединение…</string>
+    <string name="status_paused">На паузе</string>
+    <string name="status_queued">В очереди</string>
+    <string name="subs_add_failed">Канал не найден</string>
+    <string name="subs_add_hint">Ссылка на канал или @имя</string>
+    <string name="subs_add_url">Добавить канал</string>
+    <string name="subs_export">Экспорт каналов</string>
+    <string name="subs_export_done">Каналы сохранены</string>
+    <string name="subs_export_empty">Пока нечего экспортировать</string>
+    <string name="subs_export_failed">Не удалось сохранить файл</string>
+    <string name="subs_followed">Вы подписались на канал</string>
+    <string name="subs_import">Импорт</string>
+    <string name="subs_import_done">Импортировано каналов: %d</string>
+    <string name="subs_import_export">Импорт / экспорт</string>
+    <string name="subs_import_failed">Не удалось прочитать файл</string>
+    <string name="subs_local_empty">Каналов пока нет. Нажмите «Управление», чтобы добавить или импортировать каналы, или подпишитесь на них из видео.</string>
+    <string name="subs_logged_out">Вы вышли из аккаунта</string>
+    <string name="subs_logout">Выйти</string>
+    <string name="subs_logout_confirm">Выйти из аккаунта YouTube? Ваши подписки на каналы сохранятся.</string>
+    <string name="subs_looking_up">Поиск канала…</string>
+    <string name="subs_manage">Управление</string>
+    <string name="subs_manage_empty">Вы пока не подписаны ни на один канал. Добавьте канал по ссылке или @имени либо импортируйте список (Google Takeout, NewPipe или OPML).</string>
+    <string name="subs_manage_title">Подписки на каналы (%d)</string>
+    <string name="subs_unfollow">Отписаться</string>
+    <string name="subs_unfollow_confirm">Отписаться от канала %s?</string>
+    <string name="subs_use_account">Использовать мой аккаунт YouTube</string>
+    <string name="subs_use_local">Использовать мои подписки</string>
+    <string name="subtitles">Субтитры</string>
+    <string name="subtitles_off">Субтитры выкл.</string>
+    <string name="subtitles_on">Субтитры вкл.</string>
+    <string name="swipe_added">Добавлено</string>
+    <string name="swipe_already_following">Вы уже подписаны</string>
+    <string name="swipe_follow">Подписаться</string>
+    <string name="swipe_follow_title">Подписаться на %s?</string>
+    <string name="swipe_last_reminder">Последнее напоминание</string>
+    <string name="swipe_this_channel">этот канал</string>
+    <string name="threads">Потоки</string>
+    <string name="thumbnail">Миниатюра</string>
+    <string name="type_audio">Аудио</string>
+    <string name="type_playlist">Плейлист</string>
+    <string name="type_subtitle">Субтитры</string>
+    <string name="type_thumbnail">Миниатюра</string>
+    <string name="type_video">Видео</string>
+    <string name="unable_to_get_stream_info">Не удалось получить информацию о потоке</string>
+    <string name="unknown">Неизвестно</string>
+    <string name="unknown_bitrate">Неизвестный битрейт</string>
+    <string name="unlock_screen">Разблокировать экран</string>
+    <string name="up_next_cancel">Отмена</string>
+    <string name="up_next_title">Далее: %s</string>
+    <string name="update_action">Обновить</string>
+    <string name="update_allow_install">Разрешите TestTube устанавливать приложения, затем снова нажмите «Обновить»</string>
+    <string name="update_auto">Проверять обновления автоматически</string>
+    <string name="update_auto_summary">Ищет новую версию через 5 секунд после запуска</string>
+    <string name="update_check_failed">Не удалось проверить обновления</string>
+    <string name="update_check_now">Проверить обновления</string>
+    <string name="update_checking">Проверка обновлений…</string>
+    <string name="update_close">Закрыть</string>
+    <string name="update_downloading">Загрузка обновления</string>
+    <string name="update_failed">Не удалось загрузить обновление</string>
+    <string name="update_later">Позже</string>
+    <string name="update_message">TestTube %1$s готов к установке. У вас версия %2$s.</string>
+    <string name="update_none">У вас последняя версия TestTube (%1$s)</string>
+    <string name="update_progress">%1$s из %2$s</string>
+    <string name="update_title">Доступно обновление</string>
+    <string name="vid_copied">ID видео скопирован</string>
+    <string name="video">Видео</string>
+    <string name="video_format">Формат видео</string>
+    <string name="video_quality">Качество видео</string>
+    <string name="video_unavailable_skipped">Видео недоступно, пропущено</string>
+    <string name="watch_chat_hint">Чат работает во время трансляций и премьер.</string>
+    <string name="watch_comment_likes">Нравится: %d</string>
+    <string name="watch_comment_pinned">Закреплено</string>
+    <string name="watch_comments_disabled">Комментарии к этому видео отключены</string>
+    <string name="watch_comments_empty">Комментариев нет</string>
+    <string name="watch_follow">Подписаться</string>
+    <string name="watch_following">Вы подписаны</string>
+    <string name="watch_history_clear">Очистить историю</string>
+    <string name="watch_history_clear_confirm">Удалить все видео из истории просмотра?</string>
+    <string name="watch_history_empty">Вы ещё не смотрели видео.</string>
+    <string name="watch_history_remove">Удалить из истории</string>
+    <string name="watch_likes">%1$s лайков</string>
+    <string name="watch_no_suggestions">Нет рекомендаций</string>
+    <string name="watch_tab_chat">Чат</string>
+    <string name="watch_tab_comments">Комментарии</string>
+    <string name="watch_tab_description">Описание</string>
+    <string name="watch_up_next">Далее</string>
+    <string name="welcome_message">Выберите, что показывать. Позже это можно изменить, нажав на логотип TestTube.</string>
+    <string name="welcome_start">Начать</string>
+    <string name="welcome_title">Добро пожаловать в TestTube</string>
+</resources>

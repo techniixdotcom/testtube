@@ -5,6 +5,5 @@ public enum StreamCandidateKind {
 	HLS_MANIFEST,
 	VIDEO_ONLY,
 	AUDIO_ONLY,
-	MUXED,
-	SUBTITLE
+	MUXED
 }

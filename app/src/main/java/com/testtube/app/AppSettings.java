@@ -12,9 +12,17 @@ public final class AppSettings {
 	private static final String KEY_FLOATING_PLAYER = "floating_player";
 	private static final String KEY_SWIPE_MINIMIZES = "swipe_down_minimizes";
 	private static final String KEY_COMMENTING = "commenting";
+	private static final String KEY_SUBSCRIPTIONS = "show_subscriptions";
+	private static final String KEY_GREY_WATCHED = "grey_out_watched";
+	private static final String KEY_WATCHED_DIM = "watched_dim_percent";
 	private static final String KEY_WELCOME_VERSION = "welcome_version";
+	private static final int MIN_WATCHED_DIM = 10;
+	private static final int MAX_WATCHED_DIM = 90;
+	private static final int WATCHED_DIM_STEP = 5;
+	/** As dark as watched videos were before this became a setting. */
+	private static final int DEFAULT_WATCHED_DIM = 70;
 	/** Raised when the welcome dialog gets new choices, so everyone sees it once more. */
-	private static final int WELCOME_VERSION = 3;
+	private static final int WELCOME_VERSION = 4;
 
 	private static volatile boolean loaded;
 	private static volatile boolean shorts;
@@ -22,6 +30,9 @@ public final class AppSettings {
 	private static volatile boolean floatingPlayer;
 	private static volatile boolean swipeMinimizes = true;
 	private static volatile boolean commenting;
+	private static volatile boolean subscriptions = true;
+	private static volatile boolean greyWatched = true;
+	private static volatile int watchedDim = DEFAULT_WATCHED_DIM;
 
 	private AppSettings() {
 	}
@@ -95,6 +106,48 @@ public final class AppSettings {
 		MMKV.defaultMMKV().encode(KEY_COMMENTING, enabled);
 	}
 
+	/** The Subscriptions tab in the bottom bar. On by default. */
+	public static boolean showSubscriptions() {
+		load();
+		return subscriptions;
+	}
+
+	public static void setShowSubscriptions(boolean show) {
+		load();
+		subscriptions = show;
+		MMKV.defaultMMKV().encode(KEY_SUBSCRIPTIONS, show);
+	}
+
+	/** Watched videos are dimmed and shown in black and white in the lists. On by default. */
+	public static boolean greyOutWatched() {
+		load();
+		return greyWatched;
+	}
+
+	public static void setGreyOutWatched(boolean grey) {
+		load();
+		greyWatched = grey;
+		MMKV.defaultMMKV().encode(KEY_GREY_WATCHED, grey);
+	}
+
+	/** How much watched videos are darkened, in percent: 10 is barely, 90 almost gone. */
+	public static int watchedDimPercent() {
+		load();
+		return watchedDim;
+	}
+
+	public static void setWatchedDimPercent(int percent) {
+		load();
+		watchedDim = clampDim(percent);
+		MMKV.defaultMMKV().encode(KEY_WATCHED_DIM, watchedDim);
+	}
+
+	/** Within the slider's range and on one of its steps, so it can show the saved value. */
+	private static int clampDim(int percent) {
+		int stepped = Math.round(percent / (float) WATCHED_DIM_STEP) * WATCHED_DIM_STEP;
+		return Math.max(MIN_WATCHED_DIM, Math.min(MAX_WATCHED_DIM, stepped));
+	}
+
 	public static boolean welcomeShown() {
 		return MMKV.defaultMMKV().decodeInt(KEY_WELCOME_VERSION, 0) >= WELCOME_VERSION;
 	}
@@ -113,6 +166,9 @@ public final class AppSettings {
 			floatingPlayer = store.decodeBool(KEY_FLOATING_PLAYER, false);
 			swipeMinimizes = store.decodeBool(KEY_SWIPE_MINIMIZES, true);
 			commenting = store.decodeBool(KEY_COMMENTING, false);
+			subscriptions = store.decodeBool(KEY_SUBSCRIPTIONS, true);
+			greyWatched = store.decodeBool(KEY_GREY_WATCHED, true);
+			watchedDim = clampDim(store.decodeInt(KEY_WATCHED_DIM, DEFAULT_WATCHED_DIM));
 			loaded = true;
 		}
 	}

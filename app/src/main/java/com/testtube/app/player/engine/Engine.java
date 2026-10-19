@@ -14,7 +14,6 @@ import androidx.media3.common.Format;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.PlaybackParameters;
 import androidx.media3.common.Player;
-import androidx.media3.common.TrackGroup;
 import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.VideoSize;
@@ -30,7 +29,6 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 
 import com.testtube.app.Constant;
 import com.testtube.app.R;
-import com.testtube.app.extractor.Delivery;
 import com.testtube.app.extractor.DeliveryCatalog;
 import com.testtube.app.extractor.FeedClient;
 import com.testtube.app.extractor.FeedItem;
@@ -165,7 +163,7 @@ public class Engine {
 		} else {
 			watchedMarked = false;
 			if (pos > SAFE_ZONE_MS) {
-				prefs.persistProgress(videoId, pos, duration, TimeUnit.MILLISECONDS);
+				prefs.persistProgress(videoId, pos);
 			}
 		}
 	}
@@ -322,11 +320,6 @@ public class Engine {
 			public void onCues(@NonNull CueGroup cueGroup) {
 				playerView.cueing(cueGroup);
 			}
-
-			@Override
-			public void onTracksChanged(@NonNull Tracks tracks) {
-				applyPreferredVideoTrack();
-			}
 		});
 		playerView.setPlayer(this.player);
 	}
@@ -378,7 +371,7 @@ public class Engine {
 	/**
 	 * Length of the tail of a video after which it counts as watched.
 	 */
-	static long watchedTailMs(long durationMs) {
+	private static long watchedTailMs(long durationMs) {
 		return Math.max(MIN_WATCHED_TAIL_MS, Math.min(MAX_WATCHED_TAIL_MS, durationMs / 20L));
 	}
 
@@ -687,11 +680,10 @@ public class Engine {
 	 *               false when the current video ended on its own
 	 */
 	public void skipToNext(boolean manual) {
-		boolean queueEnabled = queueRepository.isEnabled();
 		boolean hasQueueItems = queueRepository.hasItems();
 		String watchId = watchVideoId();
 		boolean hasPlaylist = tabManager.watchHasPlaylist();
-		boolean queueContext = queueEnabled && hasQueueItems;
+		boolean queueContext = hasQueueItems;
 		boolean playlistContext = !queueContext && hasPlaylist;
 		if (queueContext) {
 			// Inside the queue, follow its order; from any other video, start at its first item.
@@ -720,7 +712,7 @@ public class Engine {
 	 * @return true if the video was skipped
 	 */
 	public boolean skipUnavailable(@NonNull String unavailableId) {
-		boolean queueContext = queueRepository.isEnabled() && queueRepository.hasItems();
+		boolean queueContext = queueRepository.hasItems();
 		boolean playlistContext = !queueContext && tabManager.watchHasPlaylist();
 		if (!queueContext && !playlistContext) return false;
 		skipToNext(false);
@@ -893,7 +885,7 @@ public class Engine {
 	 */
 	@Nullable
 	private String nextTitle(@NonNull String currentId) {
-		if (queueRepository.isEnabled() && queueRepository.hasItems()) {
+		if (queueRepository.hasItems()) {
 			QueueItem item = queueRepository.findRelative(currentId, 1);
 			return item != null ? item.getTitle() : null;
 		}
@@ -955,7 +947,7 @@ public class Engine {
 	/** Near the end, picks the next video and preloads it. */
 	private void prefetchNext(@NonNull String sourceId) {
 		if (!loopMode.skipsToNextOnEnded()) return;
-		if (queueRepository.isEnabled() && queueRepository.hasItems()) {
+		if (queueRepository.hasItems()) {
 			QueueItem item = queueRepository.findRelative(watchVideoId(), 1);
 			if (item != null && item.getVideoUrl() != null) preload(item.getVideoUrl());
 			return;
@@ -997,7 +989,7 @@ public class Engine {
 		handler.post(() -> {
 			String current = videoId;
 			if (current == null || !current.equals(prefetchedFor) || !loopMode.skipsToNextOnEnded()) return;
-			if (!queueRepository.isEnabled() || !queueRepository.hasItems()) return;
+			if (!queueRepository.hasItems()) return;
 			QueueItem item = queueRepository.findRelative(watchVideoId(), 1);
 			if (item != null && item.getVideoUrl() != null) preload(item.getVideoUrl());
 		});
@@ -1009,12 +1001,11 @@ public class Engine {
 	}
 
 	public void skipToPrevious() {
-		boolean queueEnabled = queueRepository.isEnabled();
 		boolean hasQueueItems = queueRepository.hasItems();
 		String watchId = watchVideoId();
 		boolean inQueue = queueRepository.containsVideo(watchId);
 		boolean hasPlaylist = tabManager.watchHasPlaylist();
-		boolean queueContext = queueEnabled && hasQueueItems;
+		boolean queueContext = hasQueueItems;
 		boolean playlistContext = !queueContext && hasPlaylist;
 		if (queueContext && inQueue) {
 			QueueItem item = queueRepository.findRelative(watchId, -1);
@@ -1050,11 +1041,10 @@ public class Engine {
 	}
 
 	public void playRandomPlaylistItem() {
-		boolean queueEnabled = queueRepository.isEnabled();
 		boolean hasQueueItems = queueRepository.hasItems();
 		String watchId = watchVideoId();
 		boolean hasPlaylist = tabManager.watchHasPlaylist();
-		boolean queueContext = queueEnabled && hasQueueItems;
+		boolean queueContext = hasQueueItems;
 		boolean playlistContext = !queueContext && hasPlaylist;
 		if (queueContext) {
 			QueueItem item = queueRepository.findRandom(watchId);
@@ -1072,14 +1062,13 @@ public class Engine {
 
 	@NonNull
 	public QueueNav getQueueNavigationAvailability() {
-		boolean queueEnabled = queueRepository.isEnabled();
 		boolean hasQueueItems = queueRepository.hasItems();
 		String watchId = watchVideoId();
 		boolean inQueue = queueRepository.containsVideo(watchId);
 		boolean hasPlaylist = tabManager.watchHasPlaylist();
 		boolean canGoBack = !history.isEmpty() || tabManager.canGoBackInWatch();
 		boolean playlistAtHead = UrlUtils.isPlaylistFirstItemUrl(tabManager.getWatchUrl());
-		boolean queueContext = queueEnabled && hasQueueItems;
+		boolean queueContext = hasQueueItems;
 		boolean playlistContext = !queueContext && hasPlaylist;
 		boolean queueAtHead = queueContext && queueRepository.findRelative(watchId, -1) == null;
 		if (queueContext) {
@@ -1184,20 +1173,9 @@ public class Engine {
 		State state = state();
 		if (state == null) return;
 		PlaybackPlan plan = PlaybackPlanner.plan(state.deliveries(), res, null);
-		Delivery delivery = plan.getDelivery();
-		if (isLiveMode(plan) && delivery != null && !delivery.isTrackLock()) {
+		if (isLiveMode(plan) && plan.getDelivery() != null) {
 			this.playbackPlan = plan;
 			applyPlaybackTrackMode();
-			return;
-		}
-		if (delivery != null && delivery.isTrackLock()) {
-			this.playbackPlan = plan;
-			int actualHeight = StringUtils.parseHeight(res);
-			VideoStream match = selectedVideo(plan);
-			if (match != null) {
-				actualHeight = match.getHeight();
-			}
-			setVideoQuality(actualHeight);
 			return;
 		}
 		keepAudioTrack(state.plan(), plan);
@@ -1231,81 +1209,18 @@ public class Engine {
 						&& Objects.equals(candidateKey(current.getMuxedCandidate()), candidateKey(next.getMuxedCandidate()));
 	}
 
-	public void setVideoQuality(int height) {
-		DefaultTrackSelector trackSelector = trackSelector();
-		final DefaultTrackSelector.Parameters.Builder builder = params(trackSelector)
-						.clearOverridesOfType(C.TRACK_TYPE_VIDEO)
-						.setForceHighestSupportedBitrate(false)
-						.setMaxVideoSize(Integer.MAX_VALUE, height)
-						.setMinVideoSize(0, height);
-		TrackOverride override = findVideoOverride(height);
-		if (override != null) {
-			builder.setOverrideForType(new TrackSelectionOverride(override.group(), override.track()));
-		}
-		trackSelector.setParameters(builder.build());
-	}
-
-	private void applyPreferredVideoTrack() {
-		PlaybackPlan plan = playbackPlan;
-		if (plan == null || plan.getDelivery() == null || !plan.getDelivery().isTrackLock()) {
-			return;
-		}
-		String quality = prefs.getPreferredQuality();
-		if (quality == null || quality.isEmpty()) {
-			return;
-		}
-		int height = StringUtils.parseHeight(quality);
-		if (height > 0) {
-			setVideoQuality(height);
-		}
-	}
-
 	private void applyPlaybackTrackMode() {
 		DefaultTrackSelector trackSelector = trackSelector();
-		final DefaultTrackSelector.Parameters.Builder builder = params(trackSelector)
+		DefaultTrackSelector.Parameters.Builder builder = params(trackSelector)
 						.clearOverridesOfType(C.TRACK_TYPE_VIDEO)
-						.setForceHighestSupportedBitrate(false);
+						.setForceHighestSupportedBitrate(false)
+						.clearVideoSizeConstraints();
 		PlaybackPlan plan = playbackPlan;
-		if (plan == null || plan.getDelivery() == null) {
-			builder.clearVideoSizeConstraints();
-		} else {
-			int height = StringUtils.parseHeight(prefs.getPreferredQuality());
-			if (height > 0) {
-				builder.setMaxVideoSize(Integer.MAX_VALUE, height);
-				if (plan.getDelivery().isTrackLock()) {
-					builder.setMinVideoSize(0, height);
-				} else {
-					builder.clearVideoSizeConstraints();
-					builder.setMaxVideoSize(Integer.MAX_VALUE, height);
-				}
-			} else {
-				builder.clearVideoSizeConstraints();
-			}
+		int height = StringUtils.parseHeight(prefs.getPreferredQuality());
+		if (plan != null && plan.getDelivery() != null && height > 0) {
+			builder.setMaxVideoSize(Integer.MAX_VALUE, height);
 		}
 		trackSelector.setParameters(builder.build());
-	}
-
-	@Nullable
-	private TrackOverride findVideoOverride(int preferredHeight) {
-		TrackOverride best = null;
-		int bestDelta = Integer.MAX_VALUE;
-		for (final Tracks.Group group : this.player.getCurrentTracks().getGroups()) {
-			if (group.getType() != C.TRACK_TYPE_VIDEO) {
-				continue;
-			}
-			for (int i = 0; i < group.length; i++) {
-				Format format = group.getTrackFormat(i);
-				if (format.height == Format.NO_VALUE || !group.isTrackSupported(i)) {
-					continue;
-				}
-				int delta = Math.abs(format.height - preferredHeight);
-				if (best == null || delta < bestDelta) {
-					best = new TrackOverride(group.getMediaTrackGroup(), i);
-					bestDelta = delta;
-				}
-			}
-		}
-		return best;
 	}
 
 	@Nullable
@@ -1378,11 +1293,11 @@ public class Engine {
 	public List<StreamSegment> getSegments() {
 		if (!segments.isEmpty()) return segments;
 
-		// Create default segment with video title at 0 seconds
-		List<StreamSegment> segments = new ArrayList<>();
+		// Without chapters the whole video is one, named after its title
+		List<StreamSegment> whole = new ArrayList<>(1);
 		VideoDetails video = videoDetails;
-		if (video != null) segments.add(new StreamSegment(video.getTitle() != null ? video.getTitle() : "", 0));
-		return segments;
+		if (video != null) whole.add(new StreamSegment(video.getTitle() != null ? video.getTitle() : "", 0));
+		return whole;
 	}
 
 	@Nullable
@@ -1513,9 +1428,6 @@ public class Engine {
 		preloadTarget = null;
 		preloader.release();
 		this.player.release();
-	}
-
-	private record TrackOverride(@NonNull TrackGroup group, int track) {
 	}
 
 	private record State(@NonNull VideoDetails video,

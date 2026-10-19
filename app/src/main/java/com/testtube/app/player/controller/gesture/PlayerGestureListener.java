@@ -7,6 +7,7 @@ import android.provider.Settings;
 import android.view.GestureDetector;
 import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
+import android.view.VelocityTracker;
 import android.view.Window;
 import android.view.WindowManager;
 
@@ -24,8 +25,9 @@ import java.util.Locale;
 
 /**
  * Tap toggles the controls, double tap seeks ten seconds or toggles playback, horizontal swipes
- * seek. Vertical swipes either minimize (down) and open fullscreen (up), or, when that is switched
- * off in the settings, change the brightness on the left half and the volume on the right half.
+ * seek. Vertical swipes either drag the video down to the bottom bar and open fullscreen (up), or,
+ * when that is switched off in the settings, change the brightness on the left half and the volume
+ * on the right half.
  */
 @UnstableApi
 public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListener {
@@ -52,6 +54,13 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 	private long lastTapTime;
 	@Nullable
 	private Runnable longPressAction;
+	@Nullable
+	private WatchDrag watchDrag;
+	/** The finger is dragging the video; its moves go to {@link #onDragTouch} instead of the detector. */
+	private boolean dragging;
+	private float dragStartY;
+	@Nullable
+	private VelocityTracker velocity;
 
 	public PlayerGestureListener(Activity activity, TestTubePlayerView playerView, Engine engine, Controller controller) {
 		this.activity = activity;
@@ -73,6 +82,62 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 		if (gesturing) {
 			handler.postDelayed(hideHint, AUTO_HIDE_DELAY_MS);
 			gesturing = false;
+		}
+	}
+
+	public void setWatchDrag(@Nullable WatchDrag drag) {
+		this.watchDrag = drag;
+	}
+
+	public boolean isDragging() {
+		return dragging;
+	}
+
+	/**
+	 * Follows the finger once a drag started. Screen coordinates are used because the video itself
+	 * moves and shrinks under the finger.
+	 */
+	public void onDragTouch(@NonNull MotionEvent ev) {
+		WatchDrag drag = watchDrag;
+		if (drag == null) {
+			stopDragging();
+			return;
+		}
+		track(ev);
+		switch (ev.getActionMasked()) {
+			case MotionEvent.ACTION_MOVE -> drag.moveBy(ev.getRawY() - dragStartY);
+			case MotionEvent.ACTION_UP -> {
+				float speed = 0f;
+				if (velocity != null) {
+					velocity.computeCurrentVelocity(1000);
+					speed = velocity.getYVelocity();
+				}
+				stopDragging();
+				drag.release(speed);
+			}
+			case MotionEvent.ACTION_CANCEL -> {
+				stopDragging();
+				drag.release(0f);
+			}
+			default -> {
+			}
+		}
+	}
+
+	private void track(@NonNull MotionEvent ev) {
+		if (velocity == null) velocity = VelocityTracker.obtain();
+		MotionEvent screen = MotionEvent.obtain(ev);
+		screen.setLocation(ev.getRawX(), ev.getRawY());
+		velocity.addMovement(screen);
+		screen.recycle();
+	}
+
+	private void stopDragging() {
+		dragging = false;
+		gesturing = false;
+		if (velocity != null) {
+			velocity.recycle();
+			velocity = null;
 		}
 	}
 
@@ -214,19 +279,28 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 	private void handleMinimizeGesture(@NonNull MotionEvent e1, @NonNull MotionEvent e2) {
 		if (swipeTriggered) return;
 		float dy = e2.getY() - e1.getY();
-		float threshold = playerView.getHeight() * 0.12f;
-		if (Math.abs(dy) < threshold) return;
-		if (controller.isFullscreen()) {
+		boolean fullscreen = controller.isFullscreen();
+		WatchDrag drag = watchDrag;
+		if (dy > 0 && !fullscreen && drag != null) {
+			swipeTriggered = true;
+			if (!drag.begin()) return;
+			dragging = true;
+			dragStartY = e2.getRawY();
+			controller.setControlsVisible(false);
+			controller.hideHint();
+			track(e2);
+			return;
+		}
+		if (Math.abs(dy) < playerView.getHeight() * 0.12f) return;
+		if (fullscreen) {
 			if (dy > 0) {
 				swipeTriggered = true;
 				controller.exitFullscreen();
 			}
 			return;
 		}
-		swipeTriggered = true;
-		if (dy > 0) {
-			controller.minimize();
-		} else {
+		if (dy < 0) {
+			swipeTriggered = true;
 			controller.enterFullscreen();
 		}
 	}

@@ -20,7 +20,6 @@ import org.schabi.newpipe.extractor.stream.Stream;
 import org.schabi.newpipe.extractor.stream.StreamInfo;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.StreamType;
-import org.schabi.newpipe.extractor.stream.SubtitlesStream;
 import org.schabi.newpipe.extractor.stream.VideoStream;
 
 import java.io.IOException;
@@ -157,14 +156,10 @@ public final class YoutubeExtractor {
 	 * Returns the InnerTube client that produced a googlevideo URL (the {@code c} query parameter).
 	 */
 	@Nullable
-	static String clientOf(@Nullable String url) {
+	private static String clientOf(@Nullable String url) {
 		if (url == null) return null;
 		Matcher matcher = CLIENT_PATTERN.matcher(url);
 		return matcher.find() ? matcher.group(1).toUpperCase(Locale.ROOT) : null;
-	}
-
-	private static boolean hasStreamPoToken(@Nullable String url) {
-		return url != null && (url.contains("&pot=") || url.contains("?pot="));
 	}
 
 	@NonNull
@@ -310,28 +305,15 @@ public final class YoutubeExtractor {
 	private StreamCatalog buildCatalog(@NonNull StreamInfo streamInfo) {
 		StreamCatalog catalog = new StreamCatalog();
 		catalog.setStreamType(streamInfo.getStreamType());
-		boolean live = isLive(streamInfo.getStreamType());
-
-		addManifests(catalog, streamInfo, live);
+		addManifests(catalog, streamInfo);
 		for (VideoStream stream : normalizeVideoStreams(filterPlayableStreams(streamInfo.getVideoOnlyStreams()))) {
-			String url = stream.getContent();
-			addUnique(catalog.getVideoCandidates(),
-							StreamCandidate.videoOnly(stream, clientOf(url), false, hasStreamPoToken(url), live));
+			addUnique(catalog.getVideoCandidates(), StreamCandidate.videoOnly(stream, clientOf(stream.getContent())));
 		}
 		for (AudioStream stream : normalizeAudioStreams(filterPlayableAudioStreams(streamInfo.getAudioStreams()))) {
-			String url = stream.getContent();
-			addUnique(catalog.getAudioCandidates(),
-							StreamCandidate.audioOnly(stream, clientOf(url), false, hasStreamPoToken(url), live));
+			addUnique(catalog.getAudioCandidates(), StreamCandidate.audioOnly(stream, clientOf(stream.getContent())));
 		}
 		for (VideoStream stream : normalizeVideoStreams(filterPlayableStreams(streamInfo.getVideoStreams()))) {
-			String url = stream.getContent();
-			addUnique(catalog.getMuxedCandidates(),
-							StreamCandidate.muxed(stream, clientOf(url), false, hasStreamPoToken(url), live));
-		}
-		for (SubtitlesStream stream : orEmpty(streamInfo.getSubtitles())) {
-			if (stream != null && isPlayableUrl(stream.getContent())) {
-				catalog.getSubtitleCandidates().add(StreamCandidate.subtitle(stream));
-			}
+			addUnique(catalog.getMuxedCandidates(), StreamCandidate.muxed(stream, clientOf(stream.getContent())));
 		}
 		return catalog;
 	}
@@ -340,30 +322,21 @@ public final class YoutubeExtractor {
 	private DeliveryCatalog buildDeliveries(@NonNull StreamCatalog catalog) {
 		DeliveryCatalog deliveries = new DeliveryCatalog();
 		deliveries.setStreamType(catalog.getStreamType());
-		boolean live = isLive(catalog.getStreamType());
-		if (live) {
+		if (isLive(catalog.getStreamType())) {
 			StreamCandidate dash = catalog.firstDashManifest();
 			if (dash != null) {
 				Delivery delivery = new Delivery();
 				delivery.setMode(PlaybackMode.LIVE_DASH);
-				delivery.setStreamType(catalog.getStreamType());
 				delivery.setManifest(dash);
 				delivery.setVideo(copyList(catalog.getVideoCandidates()));
 				delivery.setAudio(copyList(catalog.getAudioCandidates()));
-				delivery.setAbr(true);
-				delivery.setTrackLock(false);
-				delivery.setCache(false);
 				deliveries.getItems().add(delivery);
 			}
 			StreamCandidate hls = catalog.firstHlsManifest();
 			if (hls != null) {
 				Delivery delivery = new Delivery();
 				delivery.setMode(PlaybackMode.LIVE_HLS);
-				delivery.setStreamType(catalog.getStreamType());
 				delivery.setManifest(hls);
-				delivery.setAbr(false);
-				delivery.setTrackLock(false);
-				delivery.setCache(false);
 				deliveries.getItems().add(delivery);
 			}
 			return deliveries;
@@ -371,49 +344,33 @@ public final class YoutubeExtractor {
 		if (!catalog.getVideoCandidates().isEmpty() && !catalog.getAudioCandidates().isEmpty()) {
 			Delivery delivery = new Delivery();
 			delivery.setMode(PlaybackMode.ADAPTIVE);
-			delivery.setStreamType(catalog.getStreamType());
 			delivery.setVideo(copyList(catalog.getVideoCandidates()));
 			delivery.setAudio(copyList(catalog.getAudioCandidates()));
-			delivery.setAbr(false);
-			delivery.setTrackLock(false);
-			delivery.setCache(true);
 			deliveries.getItems().add(delivery);
 		}
 		if (!catalog.getMuxedCandidates().isEmpty()) {
 			Delivery delivery = new Delivery();
 			delivery.setMode(PlaybackMode.MUXED);
-			delivery.setStreamType(catalog.getStreamType());
 			delivery.setMuxed(copyList(catalog.getMuxedCandidates()));
-			delivery.setAbr(false);
-			delivery.setTrackLock(false);
-			delivery.setCache(true);
 			deliveries.getItems().add(delivery);
 		}
 		if (deliveries.getItems().isEmpty() && !catalog.getAudioCandidates().isEmpty()) {
 			Delivery delivery = new Delivery();
 			delivery.setMode(PlaybackMode.AUDIO_ONLY);
-			delivery.setStreamType(catalog.getStreamType());
 			delivery.setAudio(copyList(catalog.getAudioCandidates()));
-			delivery.setAbr(false);
-			delivery.setTrackLock(false);
-			delivery.setCache(true);
 			deliveries.getItems().add(delivery);
 		}
 		return deliveries;
 	}
 
-	private void addManifests(@NonNull StreamCatalog catalog,
-	                          @NonNull StreamInfo streamInfo,
-	                          boolean live) {
+	private void addManifests(@NonNull StreamCatalog catalog, @NonNull StreamInfo streamInfo) {
 		String dash = sanitizePlaybackUrl(streamInfo.getDashMpdUrl());
 		String hls = sanitizePlaybackUrl(streamInfo.getHlsUrl());
 		if (dash != null) {
-			addUnique(catalog.getManifestCandidates(), StreamCandidate.dashManifest(
-							dash, clientOf(dash), false, hasStreamPoToken(dash), live));
+			addUnique(catalog.getManifestCandidates(), StreamCandidate.dashManifest(dash, clientOf(dash)));
 		}
 		if (hls != null) {
-			addUnique(catalog.getManifestCandidates(), StreamCandidate.hlsManifest(
-							hls, clientOf(hls), false, hasStreamPoToken(hls), live));
+			addUnique(catalog.getManifestCandidates(), StreamCandidate.hlsManifest(hls, clientOf(hls)));
 		}
 	}
 

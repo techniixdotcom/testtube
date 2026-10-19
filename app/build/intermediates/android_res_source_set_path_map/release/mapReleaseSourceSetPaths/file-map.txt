@@ -1,0 +1,9 @@
+com.testtube.app-pngs-0 /home/decoi/Downloads/testtube/app/build/generated/res/pngs/release
+com.testtube.app-updated_navigation_xml-1 /home/decoi/Downloads/testtube/app/build/generated/updated_navigation_xml/release
+com.testtube.app-packageReleaseResources-2 /home/decoi/Downloads/testtube/app/build/intermediates/incremental/release/packageReleaseResources/merged.dir
+com.testtube.app-packageReleaseResources-3 /home/decoi/Downloads/testtube/app/build/intermediates/incremental/release/packageReleaseResources/stripped.dir
+com.testtube.app-merged-not-compiled-resources-4 /home/decoi/Downloads/testtube/app/build/intermediates/merged-not-compiled-resources/release
+com.testtube.app-release-5 /home/decoi/Downloads/testtube/app/build/intermediates/merged_res/release/mergeReleaseResources
+com.testtube.app-main-6 /home/decoi/Downloads/testtube/app/src/main/res
+com.testtube.app-release-7 /home/decoi/Downloads/testtube/app/src/release/res
+gradleHome-0 /home/decoi/.gradle

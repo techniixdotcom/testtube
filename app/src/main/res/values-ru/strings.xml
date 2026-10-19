@@ -78,8 +78,6 @@
     <string name="add_to_queue">Добавить в очередь</string>
     <string name="queue_item_added">Добавлено в очередь</string>
     <string name="queue_item_unavailable">Не удалось получить данные текущего видео. Элемент не был добавлен в очередь.</string>
-    <string name="queue_enabled_on">Воспроизведение из очереди включено</string>
-    <string name="queue_enabled_off">Воспроизведение из очереди выключено</string>
     <string name="clear_queue">Очистить очередь</string>
     <string name="clear_queue_confirmation">Очистить все элементы очереди?</string>
     <string name="remove_queue_item">Удалить элемент очереди</string>
@@ -148,6 +146,8 @@
     <string name="nav_home">Главная</string>
     <string name="nav_subscriptions">Подписки</string>
     <string name="nav_shorts">Shorts</string>
+    <string name="feed_shorts">SHORTS</string>
+    <string name="page_tab_shorts">Shorts</string>
     <string name="shorts_error">Не удалось воспроизвести этот Short</string>
     <string name="shorts_load_failed">Не удалось загрузить Shorts. Нажмите, чтобы повторить.</string>
     <string name="shorts_empty">Shorts не найдены. Нажмите, чтобы повторить.</string>
@@ -187,6 +187,16 @@
     <string name="welcome_message">Выберите, что показывать. Позже это можно изменить, нажав на логотип TestTube.</string>
     <string name="setting_shorts">Показывать Shorts</string>
     <string name="setting_shorts_summary">На главной, в подписках, в поиске и вкладкой на каналах</string>
+    <string name="setting_subscriptions">Вкладка «Подписки»</string>
+    <string name="setting_subscriptions_summary">Показывать «Подписки» в нижней панели</string>
+    <string name="setting_grey_watched">Затемнять просмотренные видео</string>
+    <string name="setting_grey_watched_summary">Просмотренные видео в списках затемняются и становятся чёрно-белыми</string>
+    <string name="setting_watched_dim" formatted="true">Затемнение просмотренных видео: %1$d%%</string>
+    <string name="setting_watched_dim_description">Насколько затемнять просмотренные видео</string>
+    <string name="setting_watched_threshold" formatted="true">Считается просмотренным после %1$d%%</string>
+    <string name="setting_watched_threshold_description">Доля просмотра, после которой видео считается просмотренным</string>
+    <string name="setting_watched_threshold_summary">Используется для затемнения, а автовоспроизведение выбирает непросмотренные видео</string>
+    <string name="app_icon_settings">Настройки TestTube</string>
     <string name="setting_ai_filter">Скрывать ИИ-видео (AiSList)</string>
     <string name="setting_ai_filter_summary">Скрывает каналы из AiSList — списка сообщества с каналами, которые публикуют видео, созданные ИИ. Список (CC BY-NC 4.0) загружается с GitHub раз в день.</string>
     <string name="setting_channel_pages">Полные страницы каналов</string>

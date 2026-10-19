@@ -174,7 +174,7 @@ public final class UpdateManager {
 	}
 
 	/** Compares dotted numbers, so "v1.10.0" is newer than "v1.9.3". */
-	static boolean isNewer(String remote, String local) {
+	private static boolean isNewer(String remote, String local) {
 		int[] a = numbers(remote);
 		int[] b = numbers(local);
 		for (int i = 0; i < Math.max(a.length, b.length); i++) {

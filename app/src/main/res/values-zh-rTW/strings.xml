@@ -83,8 +83,6 @@
     <string name="add_to_queue">加入佇列</string>
     <string name="queue_item_added">已加入佇列</string>
     <string name="queue_item_unavailable">無法取得目前影片資訊，未加入佇列</string>
-    <string name="queue_enabled_on">已啟用佇列播放</string>
-    <string name="queue_enabled_off">已關閉佇列播放</string>
     <string name="clear_queue">清空佇列</string>
     <string name="clear_queue_confirmation">確定清空全部佇列項目嗎？</string>
     <string name="remove_queue_item">移除佇列項目</string>
@@ -148,6 +146,8 @@
     <string name="nav_home">首頁</string>
     <string name="nav_subscriptions">訂閱內容</string>
     <string name="nav_shorts">Shorts</string>
+    <string name="feed_shorts">SHORTS</string>
+    <string name="page_tab_shorts">Shorts</string>
     <string name="shorts_error">無法播放這部 Short</string>
     <string name="shorts_load_failed">無法載入 Shorts。輕觸即可重試。</string>
     <string name="shorts_empty">找不到 Shorts。輕觸即可重試。</string>
@@ -187,6 +187,16 @@
     <string name="welcome_message">選擇你想看到的內容。之後可以輕觸 TestTube 標誌進行變更。</string>
     <string name="setting_shorts">顯示 Shorts</string>
     <string name="setting_shorts_summary">顯示在首頁、訂閱內容、搜尋中，並作為頻道的分頁</string>
+    <string name="setting_subscriptions">訂閱內容分頁</string>
+    <string name="setting_subscriptions_summary">在底部列顯示訂閱內容</string>
+    <string name="setting_grey_watched">將已觀看的影片變灰</string>
+    <string name="setting_grey_watched_summary">已觀看的影片在清單中會變暗並以黑白顯示</string>
+    <string name="setting_watched_dim" formatted="true">已觀看影片的變暗程度：%1$d%%</string>
+    <string name="setting_watched_dim_description">已觀看影片變暗的程度</string>
+    <string name="setting_watched_threshold" formatted="true">播放 %1$d%% 後算作已觀看</string>
+    <string name="setting_watched_threshold_description">算作已觀看的播放比例</string>
+    <string name="setting_watched_threshold_summary">用於變灰，自動播放會優先選擇你還沒看過的影片</string>
+    <string name="app_icon_settings">TestTube 設定</string>
     <string name="setting_ai_filter">隱藏 AI 影片 (AiSList)</string>
     <string name="setting_ai_filter_summary">隱藏 AiSList 中的頻道。AiSList 是社群維護的清單，收錄發布 AI 生成影片的頻道。清單 (CC BY-NC 4.0) 每天從 GitHub 下載一次。</string>
     <string name="setting_channel_pages">完整頻道頁面</string>

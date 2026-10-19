@@ -1,0 +1,513 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:ns1="http://schemas.android.com/tools" xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string-array name="discover_queries">
+        <item>發燒影片</item>
+        <item>今日熱門</item>
+        <item>本週新片</item>
+        <item>最多觀看</item>
+        <item>紀錄片</item>
+        <item>音樂</item>
+        <item>遊戲</item>
+        <item>科學</item>
+        <item>原理解說</item>
+        <item>旅遊</item>
+        <item>美食</item>
+        <item>搞笑</item>
+        <item>科技開箱</item>
+        <item>歷史</item>
+        <item>體育精華</item>
+        <item>Podcast</item>
+    </string-array>
+    <string-array name="exo_controls_playback_speeds">
+    <item>0.25 倍</item>
+    <item>0.5 倍</item>
+    <item>0.75 倍</item>
+    <item>正常</item>
+    <item>1.25 倍</item>
+    <item>1.5 倍</item>
+    <item>2 倍</item>
+  </string-array>
+    <plurals name="exo_controls_fastforward_by_amount_description">
+    <item quantity="one">快轉 %d 秒</item>
+    <item quantity="other">快轉 %d 秒</item>
+  </plurals>
+    <plurals name="exo_controls_rewind_by_amount_description">
+    <item quantity="one">倒轉 %d 秒</item>
+    <item quantity="other">倒轉 %d 秒</item>
+  </plurals>
+    <plurals name="mtrl_badge_content_description">
+    <item quantity="one">%d 則新通知</item>
+    <item quantity="other">%d 則新通知</item>
+  </plurals>
+    <plurals name="swipe_more_reminders">
+        <item quantity="other">還會提醒 %d 次</item>
+    </plurals>
+    <string msgid="5976598919945601918" name="abc_action_bar_home_description">"瀏覽首頁"</string>
+    <string msgid="8388173803310557296" name="abc_action_bar_up_description">"向上瀏覽"</string>
+    <string msgid="3937310113216875497" name="abc_action_menu_overflow_description">"更多選項"</string>
+    <string msgid="4692188335987374352" name="abc_action_mode_done">"完成"</string>
+    <string msgid="1189761859438369441" name="abc_activity_chooser_view_see_all">"查看全部"</string>
+    <string msgid="2165779757652331008" name="abc_activitychooserview_choose_application">"選擇應用程式"</string>
+    <string msgid="4215997306490295099" name="abc_capital_off">"關閉"</string>
+    <string msgid="884982626291842264" name="abc_capital_on">"開啟"</string>
+    <string msgid="8833365367933412986" name="abc_menu_alt_shortcut_label">"Alt +"</string>
+    <string msgid="2223301931652355242" name="abc_menu_ctrl_shortcut_label">"Ctrl +"</string>
+    <string msgid="838001238306846836" name="abc_menu_delete_shortcut_label">"Delete 鍵"</string>
+    <string msgid="7986526966204849475" name="abc_menu_enter_shortcut_label">"Enter 鍵"</string>
+    <string msgid="375214403600139847" name="abc_menu_function_shortcut_label">"Fn +"</string>
+    <string msgid="4192209724446364286" name="abc_menu_meta_shortcut_label">"Meta +"</string>
+    <string msgid="4741552369836443843" name="abc_menu_shift_shortcut_label">"Shift +"</string>
+    <string msgid="5473865519181928982" name="abc_menu_space_shortcut_label">"空格鍵"</string>
+    <string msgid="6180552449598693998" name="abc_menu_sym_shortcut_label">"Sym +"</string>
+    <string msgid="5520303668377388990" name="abc_prepend_shortcut_label">"Menu +"</string>
+    <string msgid="7208076849092622260" name="abc_search_hint">"搜尋…"</string>
+    <string msgid="3741173234950517107" name="abc_searchview_description_clear">"清除查詢"</string>
+    <string msgid="693312494995508443" name="abc_searchview_description_query">"搜尋查詢"</string>
+    <string msgid="3417662926640357176" name="abc_searchview_description_search">"搜尋"</string>
+    <string msgid="1486535517437947103" name="abc_searchview_description_submit">"提交查詢"</string>
+    <string msgid="2293578557972875415" name="abc_searchview_description_voice">"語音搜尋"</string>
+    <string msgid="8875138169939072951" name="abc_shareactionprovider_share_with">"分享對象"</string>
+    <string msgid="9055268688411532828" name="abc_shareactionprovider_share_with_application">"與「<xliff:g id="APPLICATION_NAME">%s</xliff:g>」分享"</string>
+    <string msgid="1656852541809559762" name="abc_toolbar_collapse_description">"收合"</string>
+    <string name="action_fullscreen">全屏</string>
+    <string name="action_next">下一個</string>
+    <string name="action_pause">暫停</string>
+    <string name="action_play">播放</string>
+    <string name="action_previous">上一個</string>
+    <string name="action_replay">重新播放</string>
+    <string name="action_search">搜尋</string>
+    <string name="action_seek_back_10">倒轉 10 秒</string>
+    <string name="action_seek_forward_10">快轉 10 秒</string>
+    <string name="active_label">活動</string>
+    <string name="active_stream_audio">音訊流: %1$s %2$s %3$s</string>
+    <string name="active_stream_video">影片流 #%1$d [%2$s]: %3$s %4$s %5$s</string>
+    <string name="add_to_queue">加入佇列</string>
+    <string name="app_icon_settings">TestTube 設定</string>
+    <string name="app_name">TestTube</string>
+    <string name="application_not_found">未找到應用程式</string>
+    <string name="audio_format">音訊格式</string>
+    <string name="audio_only">音訊</string>
+    <string name="audio_track">音訊軌道</string>
+    <string name="bitrate">位元率</string>
+    <string name="block">封鎖</string>
+    <string name="block_channel">封鎖頻道</string>
+    <string name="block_channel_confirm">要隱藏 %1$s 的所有影片嗎？</string>
+    <string name="block_channel_named">封鎖 %1$s</string>
+    <string name="bottomsheet_action_collapse">收合</string>
+    <string name="bottomsheet_action_collapse_description">收合底部功能表</string>
+    <string name="bottomsheet_action_expand">展開</string>
+    <string name="bottomsheet_action_expand_description">展開底部功能表</string>
+    <string name="bottomsheet_action_expand_halfway">展開一半</string>
+    <string name="bottomsheet_action_half_expand_description">展開一半底部功能表</string>
+    <string name="bottomsheet_drag_handle_content_description">拖曳控點</string>
+    <string name="bottomsheet_state_collapsed">已收合</string>
+    <string name="bottomsheet_state_expanded">已展開</string>
+    <string name="bottomsheet_state_half_expanded">已展開一半</string>
+    <string msgid="881409763997275156" name="call_notification_answer_action">"接聽"</string>
+    <string msgid="8793775615905189152" name="call_notification_answer_video_action">"視訊"</string>
+    <string msgid="3229508546291798546" name="call_notification_decline_action">"拒接"</string>
+    <string msgid="2659457946726154263" name="call_notification_hang_up_action">"掛斷"</string>
+    <string msgid="6107532579223922871" name="call_notification_incoming_text">"來電"</string>
+    <string msgid="8623827134497363134" name="call_notification_ongoing_text">"通話中"</string>
+    <string msgid="59049573811482460" name="call_notification_screening_text">"正在過濾來電"</string>
+    <string name="cancel">取消</string>
+    <string name="channel_blocked">已封鎖 %1$s</string>
+    <string name="channel_lookup_failed">找不到此影片的頻道</string>
+    <string name="channels">聲道</string>
+    <string name="character_counter_content_description">已輸入 %1$d 個字元 (上限為 %2$d 個字元)</string>
+    <string name="character_counter_overflowed_content_description">超過字元限制 (共 %1$d 字元，上限 %2$d 字元)</string>
+    <string name="clear">清除</string>
+    <string name="clear_history">清空記錄</string>
+    <string name="clear_history_confirmation">確定要清空所有下載歷史嗎？</string>
+    <string name="clear_queue">清空佇列</string>
+    <string name="clear_queue_confirmation">確定清空全部佇列項目嗎？</string>
+    <string name="clear_text_end_icon_content_description">清除文字</string>
+    <string name="close">關閉</string>
+    <string name="comment_failed">無法發布留言</string>
+    <string name="comment_hint">新增留言…</string>
+    <string name="comment_just_now">剛剛</string>
+    <string name="comment_posted">留言已發布</string>
+    <string name="comment_send">發布留言</string>
+    <string name="comment_you">你</string>
+    <string name="confirm">確認</string>
+    <string name="copy">複製</string>
+    <string name="debug_info_copied">調試資訊已複製到剪貼板</string>
+    <string name="delete_local_file">同時刪除本地文件</string>
+    <string name="delete_record">刪除</string>
+    <string name="download">下載</string>
+    <string name="download_action_cancel">取消下載</string>
+    <string name="download_action_copy_video_id">複製影片 ID</string>
+    <string name="download_action_open_file">開啟檔案</string>
+    <string name="download_action_pause">暫停下載</string>
+    <string name="download_action_redownload">重新下載</string>
+    <string name="download_action_resume">繼續下載</string>
+    <string name="download_action_retry">重試下載</string>
+    <string name="download_history">下載記錄</string>
+    <string name="download_playlist_summary">%1$d / %2$d 項目\n(%3$d%%)</string>
+    <string name="download_progress_simple">%1$sMB</string>
+    <string name="download_progress_with_total">%1$sMB/%2$sMB(%3$d%%)</string>
+    <string name="download_tasks_added">下載任務已添加</string>
+    <string name="download_tasks_added_count">已添加 %1$d 個任務到隊列</string>
+    <string name="downloading_file">正在下載: %1$s</string>
+    <string name="downloads_running">%1$d 個下載進行中</string>
+    <string name="dropped_frames">丟幀</string>
+    <string name="error_a11y_label">錯誤：無效</string>
+    <string name="error_icon_content_description">錯誤</string>
+    <string name="error_title">錯誤</string>
+    <string name="exo_controls_cc_disabled_description">啟用字幕 (Subtitle)</string>
+    <string name="exo_controls_cc_enabled_description">停用字幕 (Subtitle)</string>
+    <string name="exo_controls_fastforward_description">快轉</string>
+    <string name="exo_controls_fullscreen_enter_description">進入全螢幕模式</string>
+    <string name="exo_controls_fullscreen_exit_description">結束全螢幕模式</string>
+    <string name="exo_controls_hide">隱藏播放器控制選項</string>
+    <string name="exo_controls_next_description">繼續</string>
+    <string name="exo_controls_overflow_hide_description">隱藏其他設定</string>
+    <string name="exo_controls_overflow_show_description">顯示其他設定</string>
+    <string name="exo_controls_pause_description">暫停</string>
+    <string name="exo_controls_play_description">播放</string>
+    <string name="exo_controls_playback_speed">速度</string>
+    <string name="exo_controls_previous_description">返回</string>
+    <string name="exo_controls_repeat_all_description">目前模式：重複播放所有項目。切換重複播放模式。</string>
+    <string name="exo_controls_repeat_off_description">目前模式：不重複播放。切換重複播放模式。</string>
+    <string name="exo_controls_repeat_one_description">目前模式：重複播放單一項目。切換重複播放模式。</string>
+    <string name="exo_controls_rewind_description">倒轉</string>
+    <string name="exo_controls_seek_bar_description">播放進度</string>
+    <string name="exo_controls_settings_description">設定</string>
+    <string name="exo_controls_show">顯示播放器控制選項</string>
+    <string name="exo_controls_shuffle_off_description">啟用隨機播放模式</string>
+    <string name="exo_controls_shuffle_on_description">停用隨機播放模式</string>
+    <string name="exo_controls_stop_description">停止</string>
+    <string name="exo_controls_vr_description">虛擬實境模式</string>
+    <string name="exo_download_completed">下載完成</string>
+    <string name="exo_download_description">下載</string>
+    <string name="exo_download_downloading">下載中</string>
+    <string name="exo_download_failed">無法下載</string>
+    <string name="exo_download_notification_channel_name">下載</string>
+    <string name="exo_download_paused">已暫停下載</string>
+    <string name="exo_download_paused_for_network">系統會等到連上網路後再開始下載</string>
+    <string name="exo_download_paused_for_wifi">系統會等到連上 Wi-Fi 後再開始下載</string>
+    <string name="exo_download_removing">正在移除下載內容</string>
+    <string name="exo_item_list">%1$s、%2$s</string>
+    <string name="exo_track_bitrate">%1$.2f Mbps</string>
+    <string name="exo_track_mono">單聲道</string>
+    <string name="exo_track_resolution">%1$d × %2$d</string>
+    <string name="exo_track_role_alternate">替用軌</string>
+    <string name="exo_track_role_closed_captions">CC</string>
+    <string name="exo_track_role_commentary">旁白</string>
+    <string name="exo_track_role_supplementary">補充軌</string>
+    <string name="exo_track_selection_auto">自動</string>
+    <string name="exo_track_selection_none">無</string>
+    <string name="exo_track_selection_title_audio">音訊</string>
+    <string name="exo_track_stereo">立體聲</string>
+    <string name="exo_track_surround">環繞音效</string>
+    <string name="exo_track_surround_5_point_1">5.1 環繞音效</string>
+    <string name="exo_track_surround_7_point_1">7.1 環繞音效</string>
+    <string name="exo_track_unknown">不明</string>
+    <string name="exo_track_unknown_name">不明 (%1$s)</string>
+    <string name="exposed_dropdown_menu_content_description">顯示下拉式選單</string>
+    <string name="failed_to_download">下載失敗</string>
+    <string name="failed_to_load_video_details">加載影片詳情失敗</string>
+    <string name="feed_channel">頻道</string>
+    <string name="feed_empty">目前沒有內容</string>
+    <string name="feed_error">無法載入，請下拉重試。</string>
+    <string name="feed_live">直播</string>
+    <string name="feed_shorts">SHORTS</string>
+    <string name="feed_sign_in">登入後即可查看訂閱內容</string>
+    <string name="feed_subscribers">%1$s 位訂閱者</string>
+    <string name="feed_videos">%1$s 部影片</string>
+    <string name="feed_views">觀看次數：%1$s次</string>
+    <string name="fetching_download_links">正在取得下載連結…</string>
+    <string name="file_not_found">文件不存在</string>
+    <string name="filename">檔案名稱</string>
+    <string name="fps">FPS</string>
+    <string name="icon_content_description">對話方塊圖示</string>
+    <string name="info">詳情</string>
+    <string name="item_view_role_description">分頁標籤</string>
+    <string name="jump">跳轉</string>
+    <string name="jumped_to_segment">跳轉至: %1$s</string>
+    <string name="local_history">本機記錄</string>
+    <string name="lock_screen">鎖定螢幕</string>
+    <string name="login_subtitle">使用 Google 帳戶登入</string>
+    <string name="looking_up_channel">正在查詢頻道…</string>
+    <string name="m3_loading_indicator_content_description">載入中</string>
+    <string name="m3_overflow_linear_layout_button_content_description">溢位選單</string>
+    <string name="m3_overflow_linear_layout_button_tooltip_text">更多選項</string>
+    <string name="mark_as_unwatched">標記為未看</string>
+    <string name="mark_as_watched">標記為已看</string>
+    <string name="marked_as_unwatched">已標記為未看</string>
+    <string name="marked_as_watched">已標記為已看</string>
+    <string name="material_clock_toggle_content_description">選取上午或下午</string>
+    <string name="material_hour_24h_suffix">%1$s 小時</string>
+    <string name="material_hour_selection">請選取時段</string>
+    <string name="material_hour_suffix">%1$s 點</string>
+    <string name="material_minute_selection">選取分鐘數</string>
+    <string name="material_minute_suffix">%1$s 分</string>
+    <string name="material_slider_range_end">範圍終點</string>
+    <string name="material_slider_range_start">範圍起點</string>
+    <string name="material_slider_value">值</string>
+    <string name="material_timepicker_am">AM</string>
+    <string name="material_timepicker_clock_mode_description">切換至時鐘模式來輸入時間。</string>
+    <string name="material_timepicker_clock_mode_tooltip">切換到時鐘模式</string>
+    <string name="material_timepicker_hour">小時</string>
+    <string name="material_timepicker_hour_error">小時值須介於 1 至 12 之間</string>
+    <string name="material_timepicker_hour_error_24h">小時值須介於 0 至 23 之間</string>
+    <string name="material_timepicker_minute">分鐘</string>
+    <string name="material_timepicker_minute_error">分鐘值須介於 0 至 59 之間</string>
+    <string name="material_timepicker_pm">PM</string>
+    <string name="material_timepicker_select_time">選取時間</string>
+    <string name="material_timepicker_text_input_mode_description">切換至文字輸入模式來輸入時間。</string>
+    <string name="material_timepicker_text_input_mode_tooltip">切換至文字輸入模式</string>
+    <string name="mini_bar_next">下一部影片</string>
+    <string name="mini_bar_pause">暫停</string>
+    <string name="mini_bar_play">播放</string>
+    <string name="mini_bar_previous">上一部影片</string>
+    <string name="mini_bar_restore">開啟播放器</string>
+    <string name="more_options">更多選項</string>
+    <string name="mtrl_badge_numberless_content_description">新通知</string>
+    <string name="mtrl_button_collapsed_content_description">已收合</string>
+    <string name="mtrl_button_expanded_content_description">已展開</string>
+    <string name="mtrl_button_overflow_icon_content_description">溢位選單</string>
+    <string name="mtrl_button_snackbar_close_content_description">關閉</string>
+    <string name="mtrl_checkbox_state_description_checked">已勾選</string>
+    <string name="mtrl_checkbox_state_description_indeterminate">已勾選部分選項</string>
+    <string name="mtrl_checkbox_state_description_unchecked">未勾選</string>
+    <string name="mtrl_chip_close_icon_content_description">移除 %1$s</string>
+    <string name="mtrl_exceed_max_badge_number_content_description" ns1:ignore="PluralsCandidate">超過 %1$d 則新通知</string>
+    <string name="mtrl_picker_a11y_next_month">變更至下個月</string>
+    <string name="mtrl_picker_a11y_prev_month">變更至上個月</string>
+    <string name="mtrl_picker_announce_current_range_selection">所選開始日期：%1$s - 所選結束日期：%2$s</string>
+    <string name="mtrl_picker_announce_current_selection">目前選取：%1$s</string>
+    <string name="mtrl_picker_announce_current_selection_none">無</string>
+    <string name="mtrl_picker_cancel">取消</string>
+    <string name="mtrl_picker_confirm">確定</string>
+    <string name="mtrl_picker_date_header_selected">%1$s</string>
+    <string name="mtrl_picker_date_header_title">選取日期</string>
+    <string name="mtrl_picker_date_header_unselected">所選日期</string>
+    <string name="mtrl_picker_day_of_week_column_header">%1$s</string>
+    <string name="mtrl_picker_end_date_description">結束日期：%1$s</string>
+    <string name="mtrl_picker_invalid_format">格式無效。</string>
+    <string name="mtrl_picker_invalid_format_example">範例：%1$s</string>
+    <string name="mtrl_picker_invalid_format_use">使用：%1$s</string>
+    <string name="mtrl_picker_invalid_range">日期範圍無效。</string>
+    <string name="mtrl_picker_navigate_to_current_year_description">前往今年 %1$d</string>
+    <string name="mtrl_picker_navigate_to_year_description">前往 %1$d 年</string>
+    <string name="mtrl_picker_next_month_tooltip">下個月</string>
+    <string name="mtrl_picker_out_of_range">超出日期範圍：%1$s</string>
+    <string name="mtrl_picker_pane_title_calendar_view">「日曆」檢視模式</string>
+    <string name="mtrl_picker_pane_title_year_view">「年」檢視模式</string>
+    <string name="mtrl_picker_prev_month_tooltip">上個月</string>
+    <string name="mtrl_picker_range_header_only_end_selected">開始日期 – %1$s</string>
+    <string name="mtrl_picker_range_header_only_start_selected">%1$s – 結束日期</string>
+    <string name="mtrl_picker_range_header_selected">%1$s – %2$s</string>
+    <string name="mtrl_picker_range_header_title">選取範圍</string>
+    <string name="mtrl_picker_range_header_unselected">開始日期 - 結束日期</string>
+    <string name="mtrl_picker_save">儲存</string>
+    <string name="mtrl_picker_start_date_description">開始日期：%1$s</string>
+    <string name="mtrl_picker_text_input_date_hint">日期</string>
+    <string name="mtrl_picker_text_input_date_range_end_hint">結束日期</string>
+    <string name="mtrl_picker_text_input_date_range_start_hint">開始日期</string>
+    <string name="mtrl_picker_text_input_day_abbr">d</string>
+    <string name="mtrl_picker_text_input_month_abbr">m</string>
+    <string name="mtrl_picker_text_input_year_abbr">y</string>
+    <string name="mtrl_picker_today_description">今天 %1$s</string>
+    <string name="mtrl_picker_toggle_to_calendar_input_mode">切換至日曆輸入模式</string>
+    <string name="mtrl_picker_toggle_to_calendar_input_mode_tooltip">切換至日曆</string>
+    <string name="mtrl_picker_toggle_to_day_selection">切換至日曆檢視模式</string>
+    <string name="mtrl_picker_toggle_to_text_input_mode">切換至文字輸入模式</string>
+    <string name="mtrl_picker_toggle_to_text_input_mode_tooltip">切換至文字輸入</string>
+    <string name="mtrl_picker_toggle_to_year_selection">切換至「年」檢視模式</string>
+    <string name="mtrl_timepicker_cancel">取消</string>
+    <string name="mtrl_timepicker_confirm">確定</string>
+    <string name="nav_home">首頁</string>
+    <string name="nav_shorts">Shorts</string>
+    <string name="nav_subscriptions">訂閱內容</string>
+    <string name="no_download_records">暫无下載記錄</string>
+    <string name="no_queue_items">暫無佇列內容</string>
+    <string name="no_subtitles">無可用字幕</string>
+    <string name="no_suggestions">沒有可接著播放的推薦影片</string>
+    <string name="page_play_all">全部播放</string>
+    <string name="page_tab_courses">課程</string>
+    <string name="page_tab_error">無法載入，請輕觸重試。</string>
+    <string name="page_tab_live">直播</string>
+    <string name="page_tab_playlists">播放清單</string>
+    <string name="page_tab_podcasts">Podcast</string>
+    <string name="page_tab_releases">發行內容</string>
+    <string name="page_tab_shorts">Shorts</string>
+    <string name="page_tab_videos">影片</string>
+    <string name="page_verified">已驗證</string>
+    <string name="password_toggle_content_description">顯示密碼</string>
+    <string name="pip">畫中畫</string>
+    <string name="play_next">下一個播放</string>
+    <string name="playback_end_loop">播完後單曲循環</string>
+    <string name="playback_end_next">播完後播放下一個</string>
+    <string name="playback_end_pause">播完後暫停</string>
+    <string name="playback_end_playlist_random">播完後隨機播放清單</string>
+    <string name="player_brightness">亮度 %1$d%%</string>
+    <string name="player_quality_auto">自動</string>
+    <string name="player_volume">音量 %1$d%%</string>
+    <string name="playlist_download_batch_added">已新增 %1$d 項</string>
+    <string name="playlist_download_batch_added_before_cancel">取消前已新增 %1$d 項</string>
+    <string name="playlist_download_batch_segment_failed">%1$d 個失敗</string>
+    <string name="playlist_download_batch_segment_partial">%1$d 個部分成功</string>
+    <string name="playlist_download_empty">播放清單為空</string>
+    <string name="playlist_download_loading">正在載入播放清單…</string>
+    <string name="playlist_download_options">下載選項</string>
+    <string name="playlist_download_prepare_progress">正在準備 %1$d / %2$d</string>
+    <string name="playlist_download_select_all">全選</string>
+    <string name="playlist_download_started">播放清單下載已開始</string>
+    <string name="playlist_download_status_canceled">已取消</string>
+    <string name="playlist_download_status_failed">失敗</string>
+    <string name="playlist_download_status_loading">載入中</string>
+    <string name="playlist_download_status_partial">部分可用</string>
+    <string name="playlist_download_status_preparing">準備中</string>
+    <string name="playlist_download_status_queued">已排隊</string>
+    <string name="playlist_download_status_ready">可用</string>
+    <string name="playlist_download_status_unavailable">不可用</string>
+    <string name="playlist_download_summary">已選 %1$d / 可用 %2$d / 共 %3$d</string>
+    <string name="playlist_download_title_placeholder">播放清單</string>
+    <string name="preparing_download">正在準備下載…</string>
+    <string name="press_back_again_to_exit">再按一次退出</string>
+    <string name="queue">佇列</string>
+    <string name="queue_download_unavailable">目前沒有可下載的佇列內容</string>
+    <string name="queue_item_added">已加入佇列</string>
+    <string name="queue_item_already_playing">此影片正在播放</string>
+    <string name="queue_item_play_next">將在下一個播放</string>
+    <string name="queue_item_unavailable">無法取得目前影片資訊，未加入佇列</string>
+    <string name="queue_now_playing">正在播放</string>
+    <string name="queue_unknown_author">未知作者</string>
+    <string name="remove_queue_item">移除佇列項目</string>
+    <string name="remove_queue_item_confirmation">確定移除這個佇列項目嗎？</string>
+    <string name="reset">重置</string>
+    <string name="resolution">解析度</string>
+    <string name="sample_rate">採樣率</string>
+    <string name="search_hint">搜尋 TestTube</string>
+    <string msgid="6264217191555673260" name="search_menu_title">"搜尋"</string>
+    <string name="search_no_results">沒有結果</string>
+    <string name="searchview_clear_text_content_description">清除文字</string>
+    <string name="searchview_navigation_content_description">返回</string>
+    <string name="segments">片段</string>
+    <string name="select_something_first">請先選擇項目</string>
+    <string name="setting_ai_filter">隱藏 AI 影片 (AiSList)</string>
+    <string name="setting_ai_filter_summary">隱藏 AiSList 中的頻道。AiSList 是社群維護的清單，收錄發布 AI 生成影片的頻道。清單 (CC BY-NC 4.0) 每天從 GitHub 下載一次。</string>
+    <string name="setting_channel_pages">完整頻道頁面</string>
+    <string name="setting_channel_pages_summary">橫幅、@帳號、追蹤按鈕和分頁。關閉時：僅顯示頻道的影片</string>
+    <string name="setting_commenting">發表留言</string>
+    <string name="setting_commenting_summary">登入 YouTube 後，在留言分頁中顯示撰寫留言的輸入框</string>
+    <string name="setting_floating_player">懸浮播放器</string>
+    <string name="setting_floating_player_summary">播放影片時離開應用程式（回到主畫面或開啟最近使用的應用程式），影片會留在其他應用程式上方的小視窗中。關閉時：只繼續播放聲音</string>
+    <string name="setting_grey_watched">將已觀看的影片變灰</string>
+    <string name="setting_grey_watched_summary">已觀看的影片在清單中會變暗並以黑白顯示</string>
+    <string name="setting_quality_mobile">行動數據下的畫質</string>
+    <string name="setting_quality_summary">手機在 Wi-Fi 和行動數據之間切換時會自動變更，播放中也會。在播放器中選擇的畫質會儲存為目前網路的畫質</string>
+    <string name="setting_quality_wifi">Wi-Fi 下的畫質</string>
+    <string name="setting_shorts">顯示 Shorts</string>
+    <string name="setting_shorts_summary">顯示在首頁、訂閱內容、搜尋中，並作為頻道的分頁</string>
+    <string name="setting_subscriptions">訂閱內容分頁</string>
+    <string name="setting_subscriptions_summary">在底部列顯示訂閱內容</string>
+    <string name="setting_swipe_minimize">向下滑動以縮小</string>
+    <string name="setting_swipe_minimize_summary">關閉時：在左側上下滑動調整亮度，在右側調整音量</string>
+    <string formatted="true" name="setting_watched_dim">已觀看影片的變暗程度：%1$d%%</string>
+    <string name="setting_watched_dim_description">已觀看影片變暗的程度</string>
+    <string formatted="true" name="setting_watched_threshold">播放 %1$d%% 後算作已觀看</string>
+    <string name="setting_watched_threshold_description">算作已觀看的播放比例</string>
+    <string name="setting_watched_threshold_summary">用於變灰，自動播放會優先選擇你還沒看過的影片</string>
+    <string name="share">分享</string>
+    <string name="shorts_empty">找不到 Shorts。輕觸即可重試。</string>
+    <string name="shorts_error">無法播放這部 Short</string>
+    <string name="shorts_load_failed">無法載入 Shorts。輕觸即可重試。</string>
+    <string name="side_sheet_accessibility_pane_title">側邊功能表</string>
+    <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
+    <string name="status_cancelled">已取消</string>
+    <string name="status_completed">已完成</string>
+    <string name="status_downloading_simple">下載中</string>
+    <string name="status_failed">下載失敗</string>
+    <string name="status_merging">合併中…</string>
+    <string name="status_paused">已暫停</string>
+    <string name="status_queued">排隊中</string>
+    <string name="subs_add_failed">找不到這個頻道</string>
+    <string name="subs_add_hint">頻道連結或 @帳號</string>
+    <string name="subs_add_url">新增頻道</string>
+    <string name="subs_export">匯出頻道</string>
+    <string name="subs_export_done">已儲存頻道</string>
+    <string name="subs_export_empty">目前沒有可匯出的頻道</string>
+    <string name="subs_export_failed">無法儲存檔案</string>
+    <string name="subs_followed">已追蹤頻道</string>
+    <string name="subs_import">匯入</string>
+    <string name="subs_import_done">已匯入 %d 個頻道</string>
+    <string name="subs_import_export">匯入 / 匯出</string>
+    <string name="subs_import_failed">無法讀取這個檔案</string>
+    <string name="subs_local_empty">目前沒有頻道。輕觸「管理」即可新增或匯入頻道，也可以從影片追蹤頻道。</string>
+    <string name="subs_logged_out">已登出</string>
+    <string name="subs_logout">登出</string>
+    <string name="subs_logout_confirm">要登出 YouTube 帳戶嗎？你追蹤的頻道會保留。</string>
+    <string name="subs_looking_up">正在尋找頻道…</string>
+    <string name="subs_manage">管理</string>
+    <string name="subs_manage_empty">你還沒有追蹤任何頻道。可以透過連結或 @帳號新增，或匯入清單（Google Takeout、NewPipe 或 OPML）。</string>
+    <string name="subs_manage_title">追蹤中的頻道 (%d)</string>
+    <string name="subs_unfollow">取消追蹤</string>
+    <string name="subs_unfollow_confirm">要取消追蹤 %s 嗎？</string>
+    <string name="subs_use_account">使用我的 YouTube 帳戶</string>
+    <string name="subs_use_local">使用我追蹤的頻道</string>
+    <string name="subtitles">字幕</string>
+    <string name="subtitles_off">字幕關閉</string>
+    <string name="subtitles_on">字幕開啟</string>
+    <string name="swipe_added">已新增</string>
+    <string name="swipe_already_following">已在追蹤</string>
+    <string name="swipe_follow">追蹤</string>
+    <string name="swipe_follow_title">要追蹤 %s 嗎？</string>
+    <string name="swipe_last_reminder">最後一次提醒</string>
+    <string name="swipe_this_channel">這個頻道</string>
+    <string name="threads">線程</string>
+    <string name="thumbnail">封面</string>
+    <string name="type_audio">音訊</string>
+    <string name="type_playlist">播放清單</string>
+    <string name="type_subtitle">字幕</string>
+    <string name="type_thumbnail">封面</string>
+    <string name="type_video">影片</string>
+    <string name="unable_to_get_stream_info">無法獲取流資訊</string>
+    <string name="unknown">未知</string>
+    <string name="unknown_bitrate">未知位元率</string>
+    <string name="unlock_screen">解鎖螢幕</string>
+    <string name="up_next_cancel">取消</string>
+    <string name="up_next_title">接著播放：%s</string>
+    <string name="update_action">更新</string>
+    <string name="update_allow_install">請允許 TestTube 安裝應用程式，然後再次輕觸「更新」</string>
+    <string name="update_auto">自動檢查更新</string>
+    <string name="update_auto_summary">應用程式啟動 5 秒後檢查新版本</string>
+    <string name="update_check_failed">無法檢查更新</string>
+    <string name="update_check_now">檢查更新</string>
+    <string name="update_checking">正在檢查更新…</string>
+    <string name="update_close">關閉</string>
+    <string name="update_downloading">正在下載更新</string>
+    <string name="update_failed">無法下載更新</string>
+    <string name="update_later">稍後</string>
+    <string name="update_message">TestTube %1$s 已準備就緒。你目前的版本是 %2$s。</string>
+    <string name="update_none">TestTube 已是最新版本 (%1$s)</string>
+    <string name="update_progress">%1$s / %2$s</string>
+    <string name="update_title">有可用的更新</string>
+    <string name="vid_copied">影片 ID 已複製</string>
+    <string name="video">影片</string>
+    <string name="video_format">影片格式</string>
+    <string name="video_quality">影片畫質</string>
+    <string name="video_unavailable_skipped">影片無法播放，已略過</string>
+    <string name="watch_chat_hint">聊天室會在直播和首播期間開放。</string>
+    <string name="watch_comment_likes">%d 個喜歡</string>
+    <string name="watch_comment_pinned">已置頂</string>
+    <string name="watch_comments_disabled">這部影片已關閉留言</string>
+    <string name="watch_comments_empty">沒有留言</string>
+    <string name="watch_follow">追蹤</string>
+    <string name="watch_following">追蹤中</string>
+    <string name="watch_history_clear">清除記錄</string>
+    <string name="watch_history_clear_confirm">要從觀看記錄中移除所有影片嗎？</string>
+    <string name="watch_history_empty">還沒有播放過影片。</string>
+    <string name="watch_history_remove">從記錄中移除</string>
+    <string name="watch_likes">%1$s 個喜歡</string>
+    <string name="watch_no_suggestions">沒有推薦內容</string>
+    <string name="watch_tab_chat">聊天室</string>
+    <string name="watch_tab_comments">留言</string>
+    <string name="watch_tab_description">說明</string>
+    <string name="watch_up_next">即將播放</string>
+    <string name="welcome_message">選擇你想看到的內容。之後可以輕觸 TestTube 標誌進行變更。</string>
+    <string name="welcome_start">開始</string>
+    <string name="welcome_title">歡迎使用 TestTube</string>
+</resources>

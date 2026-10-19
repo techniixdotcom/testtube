@@ -21,7 +21,10 @@ import java.util.regex.Pattern;
 public final class ContentFilters {
 	private static final String WATCH_STORE_ID = "testtube_watch_history";
 	private static final String KEY_BLOCKED_CHANNELS = "blocked_channels";
-	private static final int WATCHED_THRESHOLD_PERCENT = 75;
+	private static final String KEY_WATCHED_THRESHOLD = "watched_threshold_percent";
+	public static final int DEFAULT_WATCHED_THRESHOLD = 75;
+	public static final int MIN_WATCHED_THRESHOLD = 50;
+	public static final int MAX_WATCHED_THRESHOLD = 100;
 	private static final int MAX_WATCH_ENTRIES = 20_000;
 	private static final int PRUNE_TO_ENTRIES = 18_000;
 	private static final int PERCENT_BITS = 7;
@@ -36,6 +39,8 @@ public final class ContentFilters {
 	private final Gson gson;
 	@NonNull
 	private final AiChannelList aiChannels;
+	/** Read once from storage; -1 until then. Every list row asks for it. */
+	private volatile int threshold = -1;
 
 	public ContentFilters(@NonNull MMKV mmkv, @NonNull Gson gson, @NonNull AiChannelList aiChannels) {
 		this.mmkv = mmkv;
@@ -91,8 +96,24 @@ public final class ContentFilters {
 		return stored < 0L ? 0 : percentOf(stored);
 	}
 
+	/** How much of a video has to be played for it to count as watched, in percent. */
 	public int watchedThreshold() {
-		return WATCHED_THRESHOLD_PERCENT;
+		int percent = threshold;
+		if (percent < 0) {
+			percent = clampThreshold(mmkv.decodeInt(KEY_WATCHED_THRESHOLD, DEFAULT_WATCHED_THRESHOLD));
+			threshold = percent;
+		}
+		return percent;
+	}
+
+	public void setWatchedThreshold(int percent) {
+		int clamped = clampThreshold(percent);
+		threshold = clamped;
+		mmkv.encode(KEY_WATCHED_THRESHOLD, clamped);
+	}
+
+	private static int clampThreshold(int percent) {
+		return Math.max(MIN_WATCHED_THRESHOLD, Math.min(MAX_WATCHED_THRESHOLD, percent));
 	}
 
 	public boolean isWatched(@Nullable String videoId) {

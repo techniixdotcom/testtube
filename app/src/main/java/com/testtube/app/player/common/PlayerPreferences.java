@@ -29,7 +29,7 @@ public final class PlayerPreferences {
 	private static final int RECENTLY_PLAYED_LIMIT = 500;
 	private static final long RECENTLY_PLAYED_WINDOW_MS = 24L * 60 * 60 * 1000;
 
-	private static final long EXPIRATION_DAYS_3 = 3L * 24 * 60 * 60 * 1000;
+	private static final long PROGRESS_EXPIRY_MS = TimeUnit.DAYS.toMillis(3);
 
 	@NonNull
 	private final MMKV mmkv;
@@ -133,18 +133,16 @@ public final class PlayerPreferences {
 		} catch (RuntimeException e) {
 			progress = null;
 		}
-		if (progress == null || System.currentTimeMillis() - progress.timestamp > EXPIRATION_DAYS_3) {
+		if (progress == null || System.currentTimeMillis() - progress.timestamp > PROGRESS_EXPIRY_MS) {
 			mmkv.removeValueForKey(key);
 			return 0;
 		}
 		return progress.position;
 	}
 
-	public void persistProgress(@Nullable String videoId, long position, long duration, TimeUnit unit) {
+	public void persistProgress(@Nullable String videoId, long positionMs) {
 		if (videoId == null) return;
-		String key = PREFIX_PROGRESS + videoId;
-		String json = gson.toJson(new Progress(position, unit.toMillis(duration), System.currentTimeMillis()));
-		mmkv.encode(key, json);
+		mmkv.encode(PREFIX_PROGRESS + videoId, gson.toJson(new Progress(positionMs, System.currentTimeMillis())));
 	}
 
 	/** Forgets the saved position, e.g. after a video was watched to the end. */
@@ -200,32 +198,14 @@ public final class PlayerPreferences {
 
 	static class Progress {
 		private long position;
-		private long duration;
 		private long timestamp;
 
-		public Progress() {
+		Progress() {
 		}
 
-		public Progress(long position, long duration, long timestamp) {
+		Progress(long position, long timestamp) {
 			this.position = position;
-			this.duration = duration;
 			this.timestamp = timestamp;
-		}
-
-		public long getPosition() {
-			return position;
-		}
-
-		public void setPosition(long position) {
-			this.position = position;
-		}
-
-		public long getDuration() {
-			return duration;
-		}
-
-		public void setDuration(long duration) {
-			this.duration = duration;
 		}
 	}
 
@@ -233,20 +213,12 @@ public final class PlayerPreferences {
 		private String id;
 		private long at;
 
-		public Played() {
+		Played() {
 		}
 
-		public Played(String id, long at) {
+		Played(String id, long at) {
 			this.id = id;
 			this.at = at;
-		}
-
-		public String getId() {
-			return id;
-		}
-
-		public void setId(String id) {
-			this.id = id;
 		}
 	}
 }

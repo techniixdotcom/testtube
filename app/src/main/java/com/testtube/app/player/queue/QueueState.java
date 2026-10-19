@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public record QueueState(boolean enabled, @NonNull List<QueueItem> items) {
+public record QueueState(@NonNull List<QueueItem> items) {
 	public QueueState {
 		List<QueueItem> copies = new ArrayList<>(items.size());
 		for (QueueItem item : items) {

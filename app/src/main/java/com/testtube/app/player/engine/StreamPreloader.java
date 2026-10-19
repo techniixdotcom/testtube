@@ -168,7 +168,7 @@ final class StreamPreloader {
 	}
 
 	/** The first {@link #PRELOAD_SECONDS} at the stream's bitrate, always with its index. */
-	static long preloadBytes(@Nullable ItagItem itag, long defaultBytes, long maxBytes) {
+	private static long preloadBytes(@Nullable ItagItem itag, long defaultBytes, long maxBytes) {
 		if (itag == null) return defaultBytes;
 		long bytes = itag.getBitrate() > 0 ? itag.getBitrate() / 8L * PRELOAD_SECONDS : defaultBytes;
 		bytes = Math.min(bytes, maxBytes);

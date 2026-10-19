@@ -61,7 +61,7 @@ public class PlaybackService extends Service {
 		ContextCompat.startForegroundService(context, new Intent(context, PlaybackService.class));
 	}
 
-	static long playbackActionsFor(@NonNull QueueNav availability) {
+	private static long playbackActionsFor(@NonNull QueueNav availability) {
 		long actions = PlaybackStateCompat.ACTION_PLAY
 						| PlaybackStateCompat.ACTION_PAUSE
 						| PlaybackStateCompat.ACTION_PLAY_PAUSE
@@ -75,11 +75,11 @@ public class PlaybackService extends Service {
 		return actions;
 	}
 
-	static boolean shouldIncludePreviousAction(@NonNull QueueNav availability) {
+	private static boolean shouldIncludePreviousAction(@NonNull QueueNav availability) {
 		return availability.isPreviousActionEnabled();
 	}
 
-	static boolean shouldIncludeNextAction(@NonNull QueueNav availability) {
+	private static boolean shouldIncludeNextAction(@NonNull QueueNav availability) {
 		return availability.isNextActionEnabled();
 	}
 
@@ -216,7 +216,7 @@ public class PlaybackService extends Service {
 		launchIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
 		PendingIntent contentIntent = PendingIntent.getActivity(this, 101, launchIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 		final NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-						.setSmallIcon(R.mipmap.ic_launcher_foreground)
+						.setSmallIcon(R.drawable.ic_notification)
 						.setContentTitle(title)
 						.setContentText(artist)
 						.setLargeIcon(largeIcon)

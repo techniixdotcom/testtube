@@ -1,8 +1,0 @@
-- Optional AI video block with the community list AiSList
-- Shorts tab with swipeable full-screen Shorts (when Shorts are on)
-- Setup on first start: Shorts, full channel pages, floating player, swipe gestures and update check, all changeable from the logo
-- Channel pages like YouTube's, with tabs
-- Channel pictures on Home and under the player; long-press one to follow
-- Swipe for brightness and volume
-- Next video preloaded for an instant start; queue fix
-- Everything translated

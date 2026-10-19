@@ -10,10 +10,12 @@ import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.slider.Slider;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.testtube.app.AppSettings;
 import com.testtube.app.R;
 import com.testtube.app.filter.AiChannelList;
+import com.testtube.app.filter.ContentFilters;
 import com.testtube.app.player.common.PlayerPreferences;
 import com.testtube.app.update.UpdateManager;
 import com.testtube.app.util.StringUtils;
@@ -23,6 +25,8 @@ import com.testtube.app.util.StringUtils;
  * choices; they are saved when the dialog closes.
  */
 final class SettingsDialog {
+	private static final float DISABLED_ALPHA = 0.38f;
+
 	private SettingsDialog() {
 	}
 
@@ -34,32 +38,52 @@ final class SettingsDialog {
 	                        @NonNull UpdateManager updates,
 	                        @NonNull AiChannelList aiChannels,
 	                        @NonNull PlayerPreferences prefs,
+	                        @NonNull ContentFilters filters,
 	                        @NonNull Runnable onShortsChanged,
 	                        @NonNull Runnable onSaved) {
-		show(activity, updates, aiChannels, prefs, true, onShortsChanged, onSaved);
+		show(activity, updates, aiChannels, prefs, filters, true, onShortsChanged, onSaved);
 	}
 
 	static void showSettings(@NonNull Activity activity,
 	                         @NonNull UpdateManager updates,
 	                         @NonNull AiChannelList aiChannels,
 	                         @NonNull PlayerPreferences prefs,
+	                         @NonNull ContentFilters filters,
 	                         @NonNull Runnable onShortsChanged,
 	                         @NonNull Runnable onSaved) {
-		show(activity, updates, aiChannels, prefs, false, onShortsChanged, onSaved);
+		show(activity, updates, aiChannels, prefs, filters, false, onShortsChanged, onSaved);
 	}
 
 	private static void show(@NonNull Activity activity,
 	                         @NonNull UpdateManager updates,
 	                         @NonNull AiChannelList aiChannels,
 	                         @NonNull PlayerPreferences prefs,
+	                         @NonNull ContentFilters filters,
 	                         boolean welcome,
 	                         @NonNull Runnable onShortsChanged,
 	                         @NonNull Runnable onSaved) {
 		View view = activity.getLayoutInflater().inflate(R.layout.dialog_settings, null, false);
 		view.findViewById(R.id.settings_message).setVisibility(welcome ? View.VISIBLE : View.GONE);
 		SwitchMaterial shorts = bind(view, R.id.settings_shorts, AppSettings.showShorts());
+		SwitchMaterial subscriptions = bind(view, R.id.settings_subscriptions, AppSettings.showSubscriptions());
 		SwitchMaterial aiFilter = bind(view, R.id.settings_ai_filter, aiChannels.isEnabled());
 		SwitchMaterial channelPages = bind(view, R.id.settings_channel_pages, AppSettings.fullChannelPages());
+		SwitchMaterial greyWatched = bind(view, R.id.settings_grey_watched, AppSettings.greyOutWatched());
+		TextView dimLabel = view.findViewById(R.id.settings_watched_dim_label);
+		Slider dim = view.findViewById(R.id.settings_watched_dim);
+		dim.setValue(AppSettings.watchedDimPercent());
+		dimLabel.setText(activity.getString(R.string.setting_watched_dim, AppSettings.watchedDimPercent()));
+		dim.addOnChangeListener((slider, value, fromUser) ->
+						dimLabel.setText(activity.getString(R.string.setting_watched_dim, Math.round(value))));
+		// The darkness only matters while watched videos are greyed out
+		enableDim(dimLabel, dim, greyWatched.isChecked());
+		greyWatched.setOnCheckedChangeListener((button, checked) -> enableDim(dimLabel, dim, checked));
+		TextView thresholdLabel = view.findViewById(R.id.settings_watched_threshold_label);
+		Slider threshold = view.findViewById(R.id.settings_watched_threshold);
+		threshold.setValue(filters.watchedThreshold());
+		thresholdLabel.setText(activity.getString(R.string.setting_watched_threshold, filters.watchedThreshold()));
+		threshold.addOnChangeListener((slider, value, fromUser) ->
+						thresholdLabel.setText(activity.getString(R.string.setting_watched_threshold, Math.round(value))));
 		QualityRow wifi = new QualityRow(activity, view, R.id.settings_quality_wifi,
 						R.string.setting_quality_wifi, prefs.getQuality(false));
 		QualityRow mobile = new QualityRow(activity, view, R.id.settings_quality_mobile,
@@ -74,9 +98,13 @@ final class SettingsDialog {
 						.setOnDismissListener(dialog -> {
 							boolean shortsChanged = shorts.isChecked() != AppSettings.showShorts();
 							AppSettings.setShowShorts(shorts.isChecked());
+							AppSettings.setShowSubscriptions(subscriptions.isChecked());
 							// Downloads the list when switched on; the lists refresh once it is loaded
 							aiChannels.setEnabled(aiFilter.isChecked());
 							AppSettings.setFullChannelPages(channelPages.isChecked());
+							AppSettings.setGreyOutWatched(greyWatched.isChecked());
+							AppSettings.setWatchedDimPercent(Math.round(dim.getValue()));
+							filters.setWatchedThreshold(Math.round(threshold.getValue()));
 							prefs.setQuality(false, wifi.quality);
 							prefs.setQuality(true, mobile.quality);
 							AppSettings.setFloatingPlayer(floating.isChecked());
@@ -102,6 +130,11 @@ final class SettingsDialog {
 		SwitchMaterial view = root.findViewById(id);
 		view.setChecked(checked);
 		return view;
+	}
+
+	private static void enableDim(@NonNull TextView label, @NonNull Slider slider, boolean enabled) {
+		slider.setEnabled(enabled);
+		label.setAlpha(enabled ? 1f : DISABLED_ALPHA);
 	}
 
 	@NonNull

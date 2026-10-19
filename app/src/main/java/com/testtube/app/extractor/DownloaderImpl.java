@@ -151,7 +151,7 @@ public final class DownloaderImpl extends Downloader {
 	}
 
 	@NonNull
-	String mergeCookiesForUrl(@NonNull String url,
+	private String mergeCookiesForUrl(@NonNull String url,
 	                          @Nullable String cookies) {
 		// Account cookies must never leave the YouTube domain.
 		String scopedCookies = isYoutubeHost(getHost(url)) ? cookies : null;

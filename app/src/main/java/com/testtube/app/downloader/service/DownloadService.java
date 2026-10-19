@@ -315,7 +315,7 @@ public class DownloadService extends Service {
 
 	private synchronized void initNotification() {
 		notificationBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
-						.setSmallIcon(R.mipmap.ic_launcher_foreground)
+						.setSmallIcon(R.drawable.ic_notification)
 						.setContentTitle("Initializing...")
 						.setContentIntent(createContentIntent())
 						.setPriority(NotificationCompat.PRIORITY_DEFAULT)

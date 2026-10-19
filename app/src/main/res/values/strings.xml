@@ -9,8 +9,6 @@
     <string name="add_to_queue">Add to queue</string>
     <string name="queue_item_added">Added to queue</string>
     <string name="queue_item_unavailable">Couldn\'t get current video info. Queue item was not added.</string>
-    <string name="queue_enabled_on">Queue playback enabled</string>
-    <string name="queue_enabled_off">Queue playback disabled</string>
     <string name="clear_queue">Clear queue</string>
     <string name="clear_queue_confirmation">Clear all queue items?</string>
     <string name="remove_queue_item">Remove queue item</string>
@@ -191,6 +189,16 @@
     <string name="welcome_message">Choose what you want to see. You can change this later by tapping the TestTube logo.</string>
     <string name="setting_shorts">Show Shorts</string>
     <string name="setting_shorts_summary">On Home, in Subscriptions and search, and as a tab on channels</string>
+    <string name="setting_subscriptions">Subscriptions tab</string>
+    <string name="setting_subscriptions_summary">Show Subscriptions in the bottom bar</string>
+    <string name="setting_grey_watched">Grey out watched videos</string>
+    <string name="setting_grey_watched_summary">Watched videos are dimmed and shown in black and white in the lists</string>
+    <string name="setting_watched_dim" formatted="true">Darkness of watched videos: %1$d%%</string>
+    <string name="setting_watched_dim_description">How dark watched videos are greyed out</string>
+    <string name="setting_watched_threshold" formatted="true">Counts as watched after %1$d%% played</string>
+    <string name="setting_watched_threshold_description">Played share that counts as watched</string>
+    <string name="setting_watched_threshold_summary">Used for greying out, and autoplay prefers videos you haven\'t watched</string>
+    <string name="app_icon_settings">TestTube settings</string>
     <string name="setting_ai_filter">Hide AI videos (AiSList)</string>
     <string name="setting_ai_filter_summary">Hides channels on AiSList, a community list of channels that post AI-generated videos. The list (CC BY-NC 4.0) is downloaded from GitHub once a day.</string>
     <string name="setting_channel_pages">Full channel pages</string>

@@ -1,0 +1,515 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:ns1="http://schemas.android.com/tools" xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string-array name="discover_queries">
+        <item>tendances</item>
+        <item>populaire aujourd\'hui</item>
+        <item>nouveautés de la semaine</item>
+        <item>les plus regardées</item>
+        <item>documentaire</item>
+        <item>musique</item>
+        <item>jeux vidéo</item>
+        <item>science</item>
+        <item>comment ça marche</item>
+        <item>voyage</item>
+        <item>recettes de cuisine</item>
+        <item>humour</item>
+        <item>test high-tech</item>
+        <item>histoire</item>
+        <item>résumé sportif</item>
+        <item>podcast</item>
+    </string-array>
+    <string-array name="exo_controls_playback_speeds">
+    <item>x 0,25</item>
+    <item>x 0,5</item>
+    <item>x 0,75</item>
+    <item>Normal</item>
+    <item>x 1,25</item>
+    <item>x 1,5</item>
+    <item>x 2</item>
+  </string-array>
+    <plurals name="exo_controls_fastforward_by_amount_description">
+    <item quantity="one">Avancer de %d seconde</item>
+    <item quantity="other">Avancer de %d secondes</item>
+  </plurals>
+    <plurals name="exo_controls_rewind_by_amount_description">
+    <item quantity="one">Revenir en arrière de %d seconde</item>
+    <item quantity="other">Revenir en arrière de %d secondes</item>
+  </plurals>
+    <plurals name="mtrl_badge_content_description">
+    <item quantity="one">%d nouvelle notification</item>
+    <item quantity="other">%d nouvelles notifications</item>
+  </plurals>
+    <plurals name="swipe_more_reminders">
+        <item quantity="one">Encore %d rappel</item>
+        <item quantity="many">Encore %d rappels</item>
+        <item quantity="other">Encore %d rappels</item>
+    </plurals>
+    <string msgid="5976598919945601918" name="abc_action_bar_home_description">"Revenir à l\'accueil"</string>
+    <string msgid="8388173803310557296" name="abc_action_bar_up_description">"Revenir en haut de la page"</string>
+    <string msgid="3937310113216875497" name="abc_action_menu_overflow_description">"Autres options"</string>
+    <string msgid="4692188335987374352" name="abc_action_mode_done">"OK"</string>
+    <string msgid="1189761859438369441" name="abc_activity_chooser_view_see_all">"Tout afficher"</string>
+    <string msgid="2165779757652331008" name="abc_activitychooserview_choose_application">"Sélectionner une application"</string>
+    <string msgid="4215997306490295099" name="abc_capital_off">"NON"</string>
+    <string msgid="884982626291842264" name="abc_capital_on">"OUI"</string>
+    <string msgid="8833365367933412986" name="abc_menu_alt_shortcut_label">"Alt+"</string>
+    <string msgid="2223301931652355242" name="abc_menu_ctrl_shortcut_label">"Ctrl+"</string>
+    <string msgid="838001238306846836" name="abc_menu_delete_shortcut_label">"supprimer"</string>
+    <string msgid="7986526966204849475" name="abc_menu_enter_shortcut_label">"entrée"</string>
+    <string msgid="375214403600139847" name="abc_menu_function_shortcut_label">"Fonction+"</string>
+    <string msgid="4192209724446364286" name="abc_menu_meta_shortcut_label">"Méta+"</string>
+    <string msgid="4741552369836443843" name="abc_menu_shift_shortcut_label">"Maj+"</string>
+    <string msgid="5473865519181928982" name="abc_menu_space_shortcut_label">"espace"</string>
+    <string msgid="6180552449598693998" name="abc_menu_sym_shortcut_label">"Sym+"</string>
+    <string msgid="5520303668377388990" name="abc_prepend_shortcut_label">"Menu+"</string>
+    <string msgid="7208076849092622260" name="abc_search_hint">"Rechercher…"</string>
+    <string msgid="3741173234950517107" name="abc_searchview_description_clear">"Effacer la requête"</string>
+    <string msgid="693312494995508443" name="abc_searchview_description_query">"Requête de recherche"</string>
+    <string msgid="3417662926640357176" name="abc_searchview_description_search">"Rechercher"</string>
+    <string msgid="1486535517437947103" name="abc_searchview_description_submit">"Envoyer la requête"</string>
+    <string msgid="2293578557972875415" name="abc_searchview_description_voice">"Recherche vocale"</string>
+    <string msgid="8875138169939072951" name="abc_shareactionprovider_share_with">"Partager avec"</string>
+    <string msgid="9055268688411532828" name="abc_shareactionprovider_share_with_application">"Partager avec <xliff:g id="APPLICATION_NAME">%s</xliff:g>"</string>
+    <string msgid="1656852541809559762" name="abc_toolbar_collapse_description">"Réduire"</string>
+    <string name="action_fullscreen">Plein écran</string>
+    <string name="action_next">Passer au suivant</string>
+    <string name="action_pause">Pause</string>
+    <string name="action_play">Lecture</string>
+    <string name="action_previous">Passer au précédent</string>
+    <string name="action_replay">Rejouer</string>
+    <string name="action_search">Rechercher</string>
+    <string name="action_seek_back_10">Reculer de 10 secondes</string>
+    <string name="action_seek_forward_10">Avancer de 10 secondes</string>
+    <string name="active_label">Actif</string>
+    <string name="active_stream_audio">Flux: %1$s %2$s %3$s</string>
+    <string name="active_stream_video">Flux #%1$d [%2$s]: %3$s %4$s %5$s</string>
+    <string name="add_to_queue">Ajouter à la file</string>
+    <string name="app_icon_settings">Paramètres de TestTube</string>
+    <string name="app_name">TestTube</string>
+    <string name="application_not_found">Application non trouvée</string>
+    <string name="audio_format">Format audio</string>
+    <string name="audio_only">Audio</string>
+    <string name="audio_track">Piste audio</string>
+    <string name="bitrate">Débit binaire</string>
+    <string name="block">Bloquer</string>
+    <string name="block_channel">Bloquer la chaîne</string>
+    <string name="block_channel_confirm">Masquer toutes les vidéos de %1$s ?</string>
+    <string name="block_channel_named">Bloquer %1$s</string>
+    <string name="bottomsheet_action_collapse">Réduire</string>
+    <string name="bottomsheet_action_collapse_description">Réduire la bottom sheet</string>
+    <string name="bottomsheet_action_expand">Développer</string>
+    <string name="bottomsheet_action_expand_description">Développer la bottom sheet</string>
+    <string name="bottomsheet_action_expand_halfway">Développer en entier</string>
+    <string name="bottomsheet_action_half_expand_description">Développer la bottom sheet à moitié</string>
+    <string name="bottomsheet_drag_handle_content_description">Poignée de déplacement</string>
+    <string name="bottomsheet_state_collapsed">Réduite</string>
+    <string name="bottomsheet_state_expanded">Développée</string>
+    <string name="bottomsheet_state_half_expanded">Développée à moitié</string>
+    <string msgid="881409763997275156" name="call_notification_answer_action">"Répondre"</string>
+    <string msgid="8793775615905189152" name="call_notification_answer_video_action">"Vidéo"</string>
+    <string msgid="3229508546291798546" name="call_notification_decline_action">"Refuser"</string>
+    <string msgid="2659457946726154263" name="call_notification_hang_up_action">"Raccrocher"</string>
+    <string msgid="6107532579223922871" name="call_notification_incoming_text">"Appel entrant"</string>
+    <string msgid="8623827134497363134" name="call_notification_ongoing_text">"Appel en cours"</string>
+    <string msgid="59049573811482460" name="call_notification_screening_text">"Filtrage d\'un appel entrant"</string>
+    <string name="cancel">Annuler</string>
+    <string name="channel_blocked">%1$s bloquée</string>
+    <string name="channel_lookup_failed">Impossible de trouver la chaîne de cette vidéo</string>
+    <string name="channels">Canaux</string>
+    <string name="character_counter_content_description">Caractères saisis %1$d sur %2$d</string>
+    <string name="character_counter_overflowed_content_description">Nombre maximal de caractères dépassé : %1$d sur %2$d</string>
+    <string name="clear">Effacer</string>
+    <string name="clear_history">Effacer l\'historique</string>
+    <string name="clear_history_confirmation">Voulez-vous effacer tout l\'historique des téléchargements ?</string>
+    <string name="clear_queue">Vider la file</string>
+    <string name="clear_queue_confirmation">Vider tous les éléments de la file ?</string>
+    <string name="clear_text_end_icon_content_description">Effacer le texte</string>
+    <string name="close">Fermer</string>
+    <string name="comment_failed">Impossible de publier le commentaire</string>
+    <string name="comment_hint">Ajouter un commentaire…</string>
+    <string name="comment_just_now">à l\'instant</string>
+    <string name="comment_posted">Commentaire publié</string>
+    <string name="comment_send">Publier le commentaire</string>
+    <string name="comment_you">Vous</string>
+    <string name="confirm">Confirmer</string>
+    <string name="copy">Copier</string>
+    <string name="debug_info_copied">Infos de débogage copiées dans le presse-papiers</string>
+    <string name="delete_local_file">Supprimer aussi le fichier local</string>
+    <string name="delete_record">Supprimer</string>
+    <string name="download">Télécharger</string>
+    <string name="download_action_cancel">Annuler le téléchargement</string>
+    <string name="download_action_copy_video_id">Copier l’ID vidéo</string>
+    <string name="download_action_open_file">Ouvrir le fichier</string>
+    <string name="download_action_pause">Mettre le téléchargement en pause</string>
+    <string name="download_action_redownload">Télécharger à nouveau</string>
+    <string name="download_action_resume">Reprendre le téléchargement</string>
+    <string name="download_action_retry">Réessayer le téléchargement</string>
+    <string name="download_history">Historique de téléchargement</string>
+    <string name="download_playlist_summary">%1$d / %2$d éléments\n(%3$d%%)</string>
+    <string name="download_progress_simple">%1$sMB</string>
+    <string name="download_progress_with_total">%1$sMB/%2$sMB(%3$d%%)</string>
+    <string name="download_tasks_added">Tâches de téléchargement ajoutées</string>
+    <string name="download_tasks_added_count">%1$d tâches ajoutées à la file d\'attente</string>
+    <string name="downloading_file">Téléchargement : %1$s</string>
+    <string name="downloads_running">%1$d téléchargements en cours</string>
+    <string name="dropped_frames">Images perdues</string>
+    <string name="error_a11y_label">Erreur : Non valide</string>
+    <string name="error_icon_content_description">Erreur</string>
+    <string name="error_title">Erreur</string>
+    <string name="exo_controls_cc_disabled_description">Activer les sous-titres</string>
+    <string name="exo_controls_cc_enabled_description">Désactiver les sous-titres</string>
+    <string name="exo_controls_fastforward_description">Avance rapide</string>
+    <string name="exo_controls_fullscreen_enter_description">Activer le mode plein écran</string>
+    <string name="exo_controls_fullscreen_exit_description">Quitter le mode plein écran</string>
+    <string name="exo_controls_hide">Masquer les commandes du lecteur</string>
+    <string name="exo_controls_next_description">Suivant</string>
+    <string name="exo_controls_overflow_hide_description">Masquer les paramètres supplémentaires</string>
+    <string name="exo_controls_overflow_show_description">Afficher les paramètres supplémentaires</string>
+    <string name="exo_controls_pause_description">Pause</string>
+    <string name="exo_controls_play_description">Lecture</string>
+    <string name="exo_controls_playback_speed">Vitesse</string>
+    <string name="exo_controls_previous_description">Précédent</string>
+    <string name="exo_controls_repeat_all_description">Mode actuel : tout répéter. Changer le mode répétition.</string>
+    <string name="exo_controls_repeat_off_description">Mode actuel : sans répétition. Changer le mode répétition.</string>
+    <string name="exo_controls_repeat_one_description">Mode actuel : une répétition. Changer le mode répétition.</string>
+    <string name="exo_controls_rewind_description">Retour arrière</string>
+    <string name="exo_controls_seek_bar_description">Progression de la lecture</string>
+    <string name="exo_controls_settings_description">Paramètres</string>
+    <string name="exo_controls_show">Afficher les commandes du lecteur</string>
+    <string name="exo_controls_shuffle_off_description">Activer le mode aléatoire</string>
+    <string name="exo_controls_shuffle_on_description">Désactiver le mode aléatoire</string>
+    <string name="exo_controls_stop_description">Arrêter</string>
+    <string name="exo_controls_vr_description">Mode RV</string>
+    <string name="exo_download_completed">Téléchargement terminé</string>
+    <string name="exo_download_description">Télécharger</string>
+    <string name="exo_download_downloading">Téléchargement…</string>
+    <string name="exo_download_failed">Échec du téléchargement</string>
+    <string name="exo_download_notification_channel_name">Téléchargements</string>
+    <string name="exo_download_paused">Téléchargements mis en pause</string>
+    <string name="exo_download_paused_for_network">Téléchargements en attente de réseau</string>
+    <string name="exo_download_paused_for_wifi">Téléchargements en attente de Wi-Fi</string>
+    <string name="exo_download_removing">Suppression des téléchargements…</string>
+    <string name="exo_item_list">%1$s, %2$s</string>
+    <string name="exo_track_bitrate">%1$.2f Mbit/s</string>
+    <string name="exo_track_mono">Mono</string>
+    <string name="exo_track_resolution">%1$d × %2$d</string>
+    <string name="exo_track_role_alternate">Piste alternative</string>
+    <string name="exo_track_role_closed_captions">Sous-titres</string>
+    <string name="exo_track_role_commentary">Commentaires</string>
+    <string name="exo_track_role_supplementary">Piste supplémentaire</string>
+    <string name="exo_track_selection_auto">Automatique</string>
+    <string name="exo_track_selection_none">Aucun</string>
+    <string name="exo_track_selection_title_audio">Audio</string>
+    <string name="exo_track_stereo">Stéréo</string>
+    <string name="exo_track_surround">Son surround</string>
+    <string name="exo_track_surround_5_point_1">Son surround 5.1</string>
+    <string name="exo_track_surround_7_point_1">Son surround 7.1</string>
+    <string name="exo_track_unknown">Non précisé</string>
+    <string name="exo_track_unknown_name">Inconnu (%1$s)</string>
+    <string name="exposed_dropdown_menu_content_description">Afficher le menu déroulant</string>
+    <string name="failed_to_download">Échec du téléchargement</string>
+    <string name="failed_to_load_video_details">Échec du chargement des détails de la vidéo</string>
+    <string name="feed_channel">Chaîne</string>
+    <string name="feed_empty">Rien à afficher pour le moment</string>
+    <string name="feed_error">Échec du chargement. Tirez vers le bas pour réessayer.</string>
+    <string name="feed_live">EN DIRECT</string>
+    <string name="feed_shorts">SHORTS</string>
+    <string name="feed_sign_in">Connectez-vous pour voir vos abonnements</string>
+    <string name="feed_subscribers">%1$s abonnés</string>
+    <string name="feed_videos">%1$s vidéos</string>
+    <string name="feed_views">%1$s vues</string>
+    <string name="fetching_download_links">Récupération des liens de téléchargement…</string>
+    <string name="file_not_found">Fichier non trouvé</string>
+    <string name="filename">Nom du fichier</string>
+    <string name="fps">FPS</string>
+    <string name="icon_content_description">Icône de la boîte de dialogue</string>
+    <string name="info">Infos</string>
+    <string name="item_view_role_description">Onglet</string>
+    <string name="jump">Sauter</string>
+    <string name="jumped_to_segment">Sauté à : %1$s</string>
+    <string name="local_history">Historique local</string>
+    <string name="lock_screen">Verrouiller l\'écran</string>
+    <string name="login_subtitle">Connectez-vous avec votre compte Google</string>
+    <string name="looking_up_channel">Recherche de la chaîne…</string>
+    <string name="m3_loading_indicator_content_description">Chargement…</string>
+    <string name="m3_overflow_linear_layout_button_content_description">Menu à développer</string>
+    <string name="m3_overflow_linear_layout_button_tooltip_text">Autres options</string>
+    <string name="mark_as_unwatched">Marquer comme non vue</string>
+    <string name="mark_as_watched">Marquer comme vue</string>
+    <string name="marked_as_unwatched">Marquée comme non vue</string>
+    <string name="marked_as_watched">Marquée comme vue</string>
+    <string name="material_clock_toggle_content_description">Sélectionner le format AM ou PM</string>
+    <string name="material_hour_24h_suffix">%1$s heures</string>
+    <string name="material_hour_selection">Sélectionnez une heure</string>
+    <string name="material_hour_suffix">%1$s h</string>
+    <string name="material_minute_selection">Sélectionner des minutes</string>
+    <string name="material_minute_suffix">%1$s min</string>
+    <string name="material_slider_range_end">Fin de plage</string>
+    <string name="material_slider_range_start">Début de plage</string>
+    <string name="material_slider_value">Valeur</string>
+    <string name="material_timepicker_am">AM</string>
+    <string name="material_timepicker_clock_mode_description">Passer en mode horloge pour la saisie de l\'heure.</string>
+    <string name="material_timepicker_clock_mode_tooltip">Passer en mode horloge</string>
+    <string name="material_timepicker_hour">Heure</string>
+    <string name="material_timepicker_hour_error">Heure : entre 1 et 12</string>
+    <string name="material_timepicker_hour_error_24h">Heure : entre 0 et 23</string>
+    <string name="material_timepicker_minute">Minute</string>
+    <string name="material_timepicker_minute_error">Minute : entre 0 et 59</string>
+    <string name="material_timepicker_pm">PM</string>
+    <string name="material_timepicker_select_time">Sélectionner l\'heure</string>
+    <string name="material_timepicker_text_input_mode_description">Passer en mode saisie de texte pour la saisie de l\'heure.</string>
+    <string name="material_timepicker_text_input_mode_tooltip">Passer au mode de saisie de texte</string>
+    <string name="mini_bar_next">Vidéo suivante</string>
+    <string name="mini_bar_pause">Pause</string>
+    <string name="mini_bar_play">Lecture</string>
+    <string name="mini_bar_previous">Vidéo précédente</string>
+    <string name="mini_bar_restore">Ouvrir le lecteur</string>
+    <string name="more_options">Plus d\'options</string>
+    <string name="mtrl_badge_numberless_content_description">Nouvelle notification</string>
+    <string name="mtrl_button_collapsed_content_description">Réduit</string>
+    <string name="mtrl_button_expanded_content_description">Développé</string>
+    <string name="mtrl_button_overflow_icon_content_description">Menu à développer</string>
+    <string name="mtrl_button_snackbar_close_content_description">Fermer</string>
+    <string name="mtrl_checkbox_state_description_checked">Cochée</string>
+    <string name="mtrl_checkbox_state_description_indeterminate">Partiellement cochée</string>
+    <string name="mtrl_checkbox_state_description_unchecked">Non cochée</string>
+    <string name="mtrl_chip_close_icon_content_description">Supprimer %1$s</string>
+    <string name="mtrl_exceed_max_badge_number_content_description" ns1:ignore="PluralsCandidate">Plus de %1$d nouvelles notifications</string>
+    <string name="mtrl_picker_a11y_next_month">Passer au mois suivant</string>
+    <string name="mtrl_picker_a11y_prev_month">Passer au mois précédent</string>
+    <string name="mtrl_picker_announce_current_range_selection">Date de début sélectionnée : %1$s – Date de fin sélectionnée : %2$s</string>
+    <string name="mtrl_picker_announce_current_selection">Sélection actuelle : %1$s</string>
+    <string name="mtrl_picker_announce_current_selection_none">aucune</string>
+    <string name="mtrl_picker_cancel">Annuler</string>
+    <string name="mtrl_picker_confirm">OK</string>
+    <string name="mtrl_picker_date_header_selected">%1$s</string>
+    <string name="mtrl_picker_date_header_title">Sélectionnez une date</string>
+    <string name="mtrl_picker_date_header_unselected">Date sélectionnée</string>
+    <string name="mtrl_picker_day_of_week_column_header">%1$s</string>
+    <string name="mtrl_picker_end_date_description">Date de fin : %1$s</string>
+    <string name="mtrl_picker_invalid_format">Format incorrect.</string>
+    <string name="mtrl_picker_invalid_format_example">Exemple : %1$s</string>
+    <string name="mtrl_picker_invalid_format_use">Utiliser %1$s</string>
+    <string name="mtrl_picker_invalid_range">Plage non valide.</string>
+    <string name="mtrl_picker_navigate_to_current_year_description">Accéder à l\'année en cours : %1$d</string>
+    <string name="mtrl_picker_navigate_to_year_description">Accéder à l\'année %1$d</string>
+    <string name="mtrl_picker_next_month_tooltip">Mois suivant</string>
+    <string name="mtrl_picker_out_of_range">Hors limite : %1$s</string>
+    <string name="mtrl_picker_pane_title_calendar_view">Vue Calendrier</string>
+    <string name="mtrl_picker_pane_title_year_view">Vue Année</string>
+    <string name="mtrl_picker_prev_month_tooltip">Mois précédent</string>
+    <string name="mtrl_picker_range_header_only_end_selected">Date de début – %1$s</string>
+    <string name="mtrl_picker_range_header_only_start_selected">%1$s – Date de fin</string>
+    <string name="mtrl_picker_range_header_selected">%1$s - %2$s</string>
+    <string name="mtrl_picker_range_header_title">Sélectionnez une période</string>
+    <string name="mtrl_picker_range_header_unselected">Date de début – Date de fin</string>
+    <string name="mtrl_picker_save">Enregistrer</string>
+    <string name="mtrl_picker_start_date_description">Date de début : %1$s</string>
+    <string name="mtrl_picker_text_input_date_hint">Date</string>
+    <string name="mtrl_picker_text_input_date_range_end_hint">Date de fin</string>
+    <string name="mtrl_picker_text_input_date_range_start_hint">Date de début</string>
+    <string name="mtrl_picker_text_input_day_abbr">j</string>
+    <string name="mtrl_picker_text_input_month_abbr">m</string>
+    <string name="mtrl_picker_text_input_year_abbr">a</string>
+    <string name="mtrl_picker_today_description">Aujourd\'hui : %1$s</string>
+    <string name="mtrl_picker_toggle_to_calendar_input_mode">Passer au mode de saisie Agenda</string>
+    <string name="mtrl_picker_toggle_to_calendar_input_mode_tooltip">Passer à l\'agenda</string>
+    <string name="mtrl_picker_toggle_to_day_selection">Passer à la vue d\'agenda</string>
+    <string name="mtrl_picker_toggle_to_text_input_mode">Passer au mode de saisie Texte</string>
+    <string name="mtrl_picker_toggle_to_text_input_mode_tooltip">Passer à la saisie textuelle</string>
+    <string name="mtrl_picker_toggle_to_year_selection">Passer à la vue des années</string>
+    <string name="mtrl_timepicker_cancel">Annuler</string>
+    <string name="mtrl_timepicker_confirm">OK</string>
+    <string name="nav_home">Accueil</string>
+    <string name="nav_shorts">Shorts</string>
+    <string name="nav_subscriptions">Abonnements</string>
+    <string name="no_download_records">Aucun enregistrement de téléchargement</string>
+    <string name="no_queue_items">Aucun élément dans la file</string>
+    <string name="no_subtitles">Aucun sous-titre disponible</string>
+    <string name="no_suggestions">Aucune vidéo suggérée à lire ensuite</string>
+    <string name="page_play_all">Tout lire</string>
+    <string name="page_tab_courses">Cours</string>
+    <string name="page_tab_error">Échec du chargement. Touchez pour réessayer.</string>
+    <string name="page_tab_live">En direct</string>
+    <string name="page_tab_playlists">Playlists</string>
+    <string name="page_tab_podcasts">Podcasts</string>
+    <string name="page_tab_releases">Sorties</string>
+    <string name="page_tab_shorts">Shorts</string>
+    <string name="page_tab_videos">Vidéos</string>
+    <string name="page_verified">Validé</string>
+    <string name="password_toggle_content_description">Afficher le mot de passe</string>
+    <string name="pip">Image dans l\'image</string>
+    <string name="play_next">Lire ensuite</string>
+    <string name="playback_end_loop">Boucler la vidéo</string>
+    <string name="playback_end_next">Lire le suivant</string>
+    <string name="playback_end_pause">Pause à la fin</string>
+    <string name="playback_end_playlist_random">Lecture aléatoire de la liste</string>
+    <string name="player_brightness">Luminosité %1$d %%</string>
+    <string name="player_quality_auto">Auto</string>
+    <string name="player_volume">Volume %1$d %%</string>
+    <string name="playlist_download_batch_added">%1$d éléments ajoutés</string>
+    <string name="playlist_download_batch_added_before_cancel">%1$d éléments ajoutés avant l\'annulation du lot</string>
+    <string name="playlist_download_batch_segment_failed">%1$d échec(s)</string>
+    <string name="playlist_download_batch_segment_partial">%1$d partiel(s)</string>
+    <string name="playlist_download_empty">La liste de lecture est vide</string>
+    <string name="playlist_download_loading">Chargement de la liste de lecture…</string>
+    <string name="playlist_download_options">Options de téléchargement</string>
+    <string name="playlist_download_prepare_progress">Préparation %1$d / %2$d</string>
+    <string name="playlist_download_select_all">Tout sélectionner</string>
+    <string name="playlist_download_started">Téléchargement de la liste de lecture lancé</string>
+    <string name="playlist_download_status_canceled">Annulé</string>
+    <string name="playlist_download_status_failed">Échoué</string>
+    <string name="playlist_download_status_loading">Chargement</string>
+    <string name="playlist_download_status_partial">Partiel</string>
+    <string name="playlist_download_status_preparing">Préparation</string>
+    <string name="playlist_download_status_queued">En file</string>
+    <string name="playlist_download_status_ready">Prêt</string>
+    <string name="playlist_download_status_unavailable">Indisponible</string>
+    <string name="playlist_download_summary">%1$d sélectionnés / %2$d prêts / %3$d au total</string>
+    <string name="playlist_download_title_placeholder">Liste de lecture</string>
+    <string name="preparing_download">Préparation du téléchargement…</string>
+    <string name="press_back_again_to_exit">Appuyez à nouveau sur retour pour quitter</string>
+    <string name="queue">File d\'attente</string>
+    <string name="queue_download_unavailable">Aucun élément de file disponible à télécharger</string>
+    <string name="queue_item_added">Ajouté à la file</string>
+    <string name="queue_item_already_playing">Cette vidéo est déjà en cours de lecture</string>
+    <string name="queue_item_play_next">Sera lue ensuite</string>
+    <string name="queue_item_unavailable">Impossible d\'obtenir les infos de la vidéo actuelle. L\'élément n\'a pas été ajouté à la file.</string>
+    <string name="queue_now_playing">En cours de lecture</string>
+    <string name="queue_unknown_author">Auteur inconnu</string>
+    <string name="remove_queue_item">Supprimer l\'élément de la file</string>
+    <string name="remove_queue_item_confirmation">Supprimer cet élément de la file ?</string>
+    <string name="reset">Réinitialiser</string>
+    <string name="resolution">Résolution</string>
+    <string name="sample_rate">Taux d\'échantillonnage</string>
+    <string name="search_hint">Rechercher sur TestTube</string>
+    <string msgid="6264217191555673260" name="search_menu_title">"Rechercher"</string>
+    <string name="search_no_results">Aucun résultat</string>
+    <string name="searchview_clear_text_content_description">Effacer le texte</string>
+    <string name="searchview_navigation_content_description">Retour</string>
+    <string name="segments">Segments</string>
+    <string name="select_something_first">Sélectionnez d\'abord quelque chose</string>
+    <string name="setting_ai_filter">Masquer les vidéos IA (AiSList)</string>
+    <string name="setting_ai_filter_summary">Masque les chaînes d\'AiSList, une liste communautaire de chaînes qui publient des vidéos générées par IA. La liste (CC BY-NC 4.0) est téléchargée depuis GitHub une fois par jour.</string>
+    <string name="setting_channel_pages">Pages de chaîne complètes</string>
+    <string name="setting_channel_pages_summary">Bannière, @identifiant, bouton Suivre et onglets. Désactivé : uniquement les vidéos de la chaîne</string>
+    <string name="setting_commenting">Écrire des commentaires</string>
+    <string name="setting_commenting_summary">Un champ pour écrire un commentaire dans l\'onglet Commentaires, lorsque vous êtes connecté à YouTube</string>
+    <string name="setting_floating_player">Lecteur flottant</string>
+    <string name="setting_floating_player_summary">Quitter l\'appli pendant la lecture d\'une vidéo (accueil ou applis récentes) la garde dans une petite fenêtre au-dessus des autres applis. Désactivé : seul le son continue</string>
+    <string name="setting_grey_watched">Griser les vidéos vues</string>
+    <string name="setting_grey_watched_summary">Les vidéos vues sont atténuées et affichées en noir et blanc dans les listes</string>
+    <string name="setting_quality_mobile">Qualité vidéo en données mobiles</string>
+    <string name="setting_quality_summary">Change d\'elle-même quand le téléphone passe du Wi-Fi aux données mobiles ou inversement, même pendant une vidéo. La qualité choisie dans le lecteur est gardée pour le réseau utilisé</string>
+    <string name="setting_quality_wifi">Qualité vidéo en Wi-Fi</string>
+    <string name="setting_shorts">Afficher les Shorts</string>
+    <string name="setting_shorts_summary">Sur l\'accueil, dans les abonnements et la recherche, et en onglet sur les chaînes</string>
+    <string name="setting_subscriptions">Onglet Abonnements</string>
+    <string name="setting_subscriptions_summary">Affiche Abonnements dans la barre du bas</string>
+    <string name="setting_swipe_minimize">Glisser vers le bas pour réduire</string>
+    <string name="setting_swipe_minimize_summary">Désactivé : glissez vers le haut ou le bas à gauche pour la luminosité, à droite pour le volume</string>
+    <string formatted="true" name="setting_watched_dim">Assombrissement des vidéos vues : %1$d%%</string>
+    <string name="setting_watched_dim_description">Niveau d\'assombrissement des vidéos vues</string>
+    <string formatted="true" name="setting_watched_threshold">Considérée comme vue après %1$d%% de lecture</string>
+    <string name="setting_watched_threshold_description">Part lue à partir de laquelle une vidéo est considérée comme vue</string>
+    <string name="setting_watched_threshold_summary">Sert au grisage, et la lecture automatique privilégie les vidéos que vous n\'avez pas vues</string>
+    <string name="share">Partager</string>
+    <string name="shorts_empty">Aucun Short trouvé. Appuyez pour réessayer.</string>
+    <string name="shorts_error">Impossible de lire ce Short</string>
+    <string name="shorts_load_failed">Impossible de charger les Shorts. Appuyez pour réessayer.</string>
+    <string name="side_sheet_accessibility_pane_title">Feuille latérale</string>
+    <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
+    <string name="status_cancelled">Annulé</string>
+    <string name="status_completed">Terminé</string>
+    <string name="status_downloading_simple">Téléchargement</string>
+    <string name="status_failed">Échec</string>
+    <string name="status_merging">Fusion en cours…</string>
+    <string name="status_paused">En pause</string>
+    <string name="status_queued">En attente</string>
+    <string name="subs_add_failed">Chaîne introuvable</string>
+    <string name="subs_add_hint">Lien de la chaîne ou @identifiant</string>
+    <string name="subs_add_url">Ajouter une chaîne</string>
+    <string name="subs_export">Exporter les chaînes</string>
+    <string name="subs_export_done">Chaînes enregistrées</string>
+    <string name="subs_export_empty">Aucune chaîne à exporter pour l\'instant</string>
+    <string name="subs_export_failed">Impossible d\'enregistrer le fichier</string>
+    <string name="subs_followed">Chaîne suivie</string>
+    <string name="subs_import">Importer</string>
+    <string name="subs_import_done">%d chaînes importées</string>
+    <string name="subs_import_export">Importer / Exporter</string>
+    <string name="subs_import_failed">Impossible de lire ce fichier</string>
+    <string name="subs_local_empty">Aucune chaîne pour l\'instant. Touchez Gérer pour ajouter ou importer des chaînes, ou suivez-les depuis une vidéo.</string>
+    <string name="subs_logged_out">Déconnecté</string>
+    <string name="subs_logout">Se déconnecter</string>
+    <string name="subs_logout_confirm">Se déconnecter de votre compte YouTube ? Les chaînes que vous suivez sont conservées.</string>
+    <string name="subs_looking_up">Recherche de la chaîne…</string>
+    <string name="subs_manage">Gérer</string>
+    <string name="subs_manage_empty">Vous ne suivez encore aucune chaîne. Ajoutez-en une par lien ou @identifiant, ou importez une liste (Google Takeout, NewPipe ou OPML).</string>
+    <string name="subs_manage_title">Chaînes suivies (%d)</string>
+    <string name="subs_unfollow">Ne plus suivre</string>
+    <string name="subs_unfollow_confirm">Ne plus suivre %s ?</string>
+    <string name="subs_use_account">Utiliser mon compte YouTube</string>
+    <string name="subs_use_local">Utiliser mes chaînes suivies</string>
+    <string name="subtitles">Sous-titres</string>
+    <string name="subtitles_off">Sous-titres désactivés</string>
+    <string name="subtitles_on">Sous-titres activés</string>
+    <string name="swipe_added">Ajouté</string>
+    <string name="swipe_already_following">Déjà suivie</string>
+    <string name="swipe_follow">Suivre</string>
+    <string name="swipe_follow_title">Suivre %s ?</string>
+    <string name="swipe_last_reminder">Dernier rappel</string>
+    <string name="swipe_this_channel">cette chaîne</string>
+    <string name="threads">Threads</string>
+    <string name="thumbnail">Miniature</string>
+    <string name="type_audio">Audio</string>
+    <string name="type_playlist">Liste de lecture</string>
+    <string name="type_subtitle">Sous-titre</string>
+    <string name="type_thumbnail">Miniature</string>
+    <string name="type_video">Vidéo</string>
+    <string name="unable_to_get_stream_info">Impossible d\'obtenir les infos du flux</string>
+    <string name="unknown">Inconnu</string>
+    <string name="unknown_bitrate">Débit inconnu</string>
+    <string name="unlock_screen">Déverrouiller l\'écran</string>
+    <string name="up_next_cancel">Annuler</string>
+    <string name="up_next_title">À suivre : %s</string>
+    <string name="update_action">Mettre à jour</string>
+    <string name="update_allow_install">Autorisez TestTube à installer des applis, puis touchez à nouveau Mettre à jour</string>
+    <string name="update_auto">Rechercher les mises à jour automatiquement</string>
+    <string name="update_auto_summary">Cherche une nouvelle version 5 secondes après le lancement de l\'appli</string>
+    <string name="update_check_failed">Impossible de rechercher les mises à jour</string>
+    <string name="update_check_now">Rechercher les mises à jour</string>
+    <string name="update_checking">Recherche de mises à jour…</string>
+    <string name="update_close">Fermer</string>
+    <string name="update_downloading">Téléchargement de la mise à jour</string>
+    <string name="update_failed">Impossible de télécharger la mise à jour</string>
+    <string name="update_later">Plus tard</string>
+    <string name="update_message">TestTube %1$s est prêt. Vous avez la %2$s.</string>
+    <string name="update_none">TestTube est à jour (%1$s)</string>
+    <string name="update_progress">%1$s sur %2$s</string>
+    <string name="update_title">Mise à jour disponible</string>
+    <string name="vid_copied">ID de la vidéo copié</string>
+    <string name="video">Vidéo</string>
+    <string name="video_format">Format vidéo</string>
+    <string name="video_quality">Qualité vidéo</string>
+    <string name="video_unavailable_skipped">Vidéo indisponible, ignorée</string>
+    <string name="watch_chat_hint">Le chat en direct est actif pendant les directs et les premières.</string>
+    <string name="watch_comment_likes">%d j\'aime</string>
+    <string name="watch_comment_pinned">Épinglé</string>
+    <string name="watch_comments_disabled">Les commentaires sont désactivés pour cette vidéo</string>
+    <string name="watch_comments_empty">Aucun commentaire</string>
+    <string name="watch_follow">Suivre</string>
+    <string name="watch_following">Suivi</string>
+    <string name="watch_history_clear">Effacer l\'historique</string>
+    <string name="watch_history_clear_confirm">Retirer toutes les vidéos de l\'historique ?</string>
+    <string name="watch_history_empty">Aucune vidéo lue pour l\'instant.</string>
+    <string name="watch_history_remove">Retirer de l\'historique</string>
+    <string name="watch_likes">%1$s J\'aime</string>
+    <string name="watch_no_suggestions">Aucune suggestion</string>
+    <string name="watch_tab_chat">Chat</string>
+    <string name="watch_tab_comments">Commentaires</string>
+    <string name="watch_tab_description">Description</string>
+    <string name="watch_up_next">À suivre</string>
+    <string name="welcome_message">Choisissez ce que vous voulez voir. Vous pourrez le modifier plus tard en touchant le logo TestTube.</string>
+    <string name="welcome_start">Commencer</string>
+    <string name="welcome_title">Bienvenue dans TestTube</string>
+</resources>

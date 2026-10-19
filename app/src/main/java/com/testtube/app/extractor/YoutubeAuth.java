@@ -60,7 +60,7 @@ public final class YoutubeAuth {
 		return new Result(Map.copyOf(headers), null);
 	}
 
-	static boolean isWebApi(@NonNull String url) {
+	private static boolean isWebApi(@NonNull String url) {
 		try {
 			URI uri = URI.create(url);
 			String host = uri.getHost();
@@ -98,16 +98,6 @@ public final class YoutubeAuth {
 			return new Sync(first.isEmpty() ? null : first, second);
 		}
 		return new Sync(null, first.isEmpty() ? null : first);
-	}
-
-	@Nullable
-	static String pageId(@Nullable String dataSyncId) {
-		return sync(dataSyncId).pageId();
-	}
-
-	@Nullable
-	static String userId(@Nullable String dataSyncId) {
-		return sync(dataSyncId).userId();
 	}
 
 	@Nullable

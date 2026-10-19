@@ -1,0 +1,20 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.testtube.app-mergeReleaseResources-40:/values-hdpi-v4/values-hdpi-v4.xml",
+            "map": [
+                {
+                    "source": "/home/decoi/.gradle/caches/9.8.0/transforms/1b4930d06ce85ee0093bc5f5219f9639/transformed/appcompat-1.8.0/res/values-hdpi-v4/values-hdpi-v4.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endLines": "6",
+                        "endColumns": "13",
+                        "endOffsets": "327"
+                    }
+                }
+            ]
+        }
+    ]
+}

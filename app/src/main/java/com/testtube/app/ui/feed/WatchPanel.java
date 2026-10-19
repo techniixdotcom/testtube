@@ -10,6 +10,7 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.text.format.DateUtils;
 import android.text.method.LinkMovementMethod;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -535,6 +536,9 @@ public final class WatchPanel {
 			settings.setAllowContentAccess(false);
 			settings.setGeolocationEnabled(false);
 			settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
+			// The app is always dark: no white flash before the chat has loaded
+			int surface = themeColor(chatHost.getContext(), com.google.android.material.R.attr.colorSurface);
+			web.setBackgroundColor(surface);
 			// Stay on YouTube pages, ignore other links and schemes
 			web.setWebViewClient(new WebViewClient() {
 				@Override
@@ -545,13 +549,42 @@ public final class WatchPanel {
 									&& (host.equals("youtube.com") || host.endsWith(".youtube.com"));
 					return !youtube;
 				}
+
+				@Override
+				public void onPageFinished(WebView view, String url) {
+					view.evaluateJavascript(darkChatScript(surface), null);
+				}
 			});
 			chatHost.addView(web, new FrameLayout.LayoutParams(
 							ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 			chatWeb = web;
 		}
 		chatVideoId = id;
-		chatWeb.loadUrl("https://www.youtube.com/live_chat?is_popout=1&v=" + id);
+		chatWeb.loadUrl("https://www.youtube.com/live_chat?is_popout=1&dark_theme=1&v=" + id);
+	}
+
+	/**
+	 * YouTube's chat follows the browser's light theme unless told otherwise. Keeps its dark
+	 * attribute set (the page resets it while it loads) and paints the page in the app's colour.
+	 */
+	@NonNull
+	private static String darkChatScript(int surface) {
+		String color = String.format(Locale.ROOT, "#%06X", surface & 0xFFFFFF);
+		return "(function(){"
+						+ "var h=document.documentElement;"
+						+ "var keep=function(){if(!h.hasAttribute('dark'))h.setAttribute('dark','');};"
+						+ "keep();"
+						+ "new MutationObserver(keep).observe(h,{attributes:true,attributeFilter:['dark']});"
+						+ "var s=document.createElement('style');"
+						+ "s.textContent='html,body,yt-live-chat-app,yt-live-chat-renderer{background:" + color + " !important}';"
+						+ "document.head.appendChild(s);"
+						+ "})();";
+	}
+
+	private static int themeColor(@NonNull Context context, int attr) {
+		TypedValue value = new TypedValue();
+		context.getTheme().resolveAttribute(attr, value, true);
+		return value.data;
 	}
 
 	private void releaseChat() {

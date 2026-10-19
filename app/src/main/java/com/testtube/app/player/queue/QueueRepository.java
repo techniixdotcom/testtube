@@ -18,6 +18,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public final class QueueRepository {
 	static final String KEY_QUEUE_ITEMS = "local_queue_items";
+	/** The old on/off switch; the queue now always plays when it has videos. Removed on start. */
 	static final String KEY_QUEUE_ENABLED = "local_queue_enabled";
 	/** Pins of "Play next" items saved by older versions; removed on start. */
 	static final String KEY_PLAY_NEXT = "local_queue_play_next";
@@ -32,23 +33,16 @@ public final class QueueRepository {
 	private final List<QueueInvalidationListener> listeners = new ArrayList<>();
 	@NonNull
 	private final MutableLiveData<QueueState> state;
+	/** The stored queue, parsed once; this repository is its only writer. Guarded by {@code this}. */
+	@Nullable
+	private List<QueueItem> cache;
 
 	public QueueRepository(@NonNull MMKV mmkv, @NonNull Gson gson) {
 		this.mmkv = mmkv;
 		this.gson = gson;
 		mmkv.removeValueForKey(KEY_PLAY_NEXT);
+		mmkv.removeValueForKey(KEY_QUEUE_ENABLED);
 		this.state = new MutableLiveData<>(snapshotState());
-	}
-
-	public synchronized boolean isEnabled() {
-		return mmkv.decodeBool(KEY_QUEUE_ENABLED, false);
-	}
-
-	public void setEnabled(boolean enabled) {
-		synchronized (this) {
-			mmkv.encode(KEY_QUEUE_ENABLED, enabled);
-		}
-		notifyListeners();
 	}
 
 	public synchronized void addListener(@NonNull QueueInvalidationListener listener) {
@@ -164,6 +158,7 @@ public final class QueueRepository {
 
 	public void clear() {
 		synchronized (this) {
+			cache = new ArrayList<>();
 			mmkv.removeValueForKey(KEY_QUEUE_ITEMS);
 		}
 		notifyListeners();
@@ -214,12 +209,18 @@ public final class QueueRepository {
 
 	@NonNull
 	private List<QueueItem> readItems() {
+		if (cache == null) cache = loadItems();
+		return new ArrayList<>(cache);
+	}
+
+	@NonNull
+	private List<QueueItem> loadItems() {
 		String json = mmkv.decodeString(KEY_QUEUE_ITEMS, null);
 		if (json == null || json.isBlank()) return new ArrayList<>();
 		try {
-			List<QueueItem> items = gson.fromJson(json, LIST_TYPE);
-			return items != null ? items : new ArrayList<>();
-		} catch (Exception ignored) {
+			List<QueueItem> stored = gson.fromJson(json, LIST_TYPE);
+			return stored != null ? stored : new ArrayList<>();
+		} catch (RuntimeException ignored) {
 			return new ArrayList<>();
 		}
 	}
@@ -238,11 +239,12 @@ public final class QueueRepository {
 	}
 
 	private void writeItems(@NonNull List<QueueItem> items) {
+		cache = new ArrayList<>(items);
 		mmkv.encode(KEY_QUEUE_ITEMS, gson.toJson(items, LIST_TYPE));
 	}
 
 	@NonNull
 	private synchronized QueueState snapshotState() {
-		return new QueueState(isEnabled(), readItems());
+		return new QueueState(readItems());
 	}
 }

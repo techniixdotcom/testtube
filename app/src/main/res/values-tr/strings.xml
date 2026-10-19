@@ -9,8 +9,6 @@
     <string name="add_to_queue">Sıraya ekle</string>
     <string name="queue_item_added">Sıraya eklendi</string>
     <string name="queue_item_unavailable">Videonun bilgilerine ulaşılamadı. Listeye eklenmedi.</string>
-    <string name="queue_enabled_on">Sıradan oynatma açık</string>
-    <string name="queue_enabled_off">Sıradan oynatma kapalı</string>
     <string name="clear_queue">Sırayı temizle</string>
     <string name="clear_queue_confirmation">Sıradaki her şeyi silelim mi?</string>
     <string name="remove_queue_item">Sıradan çıkar</string>
@@ -150,6 +148,8 @@
     <string name="nav_home">Ana sayfa</string>
     <string name="nav_subscriptions">Abonelikler</string>
     <string name="nav_shorts">Shorts</string>
+    <string name="feed_shorts">SHORTS</string>
+    <string name="page_tab_shorts">Shorts</string>
     <string name="shorts_error">Bu Short oynatılamadı</string>
     <string name="shorts_load_failed">Shorts yüklenemedi. Tekrar denemek için dokunun.</string>
     <string name="shorts_empty">Shorts bulunamadı. Tekrar denemek için dokunun.</string>
@@ -189,6 +189,16 @@
     <string name="welcome_message">Ne görmek istediğinizi seçin. Bunu daha sonra TestTube logosuna dokunarak değiştirebilirsiniz.</string>
     <string name="setting_shorts">Shorts\'ları göster</string>
     <string name="setting_shorts_summary">Ana sayfada, aboneliklerde, aramada ve kanallarda sekme olarak</string>
+    <string name="setting_subscriptions">Abonelikler sekmesi</string>
+    <string name="setting_subscriptions_summary">Abonelikleri alt çubukta göster</string>
+    <string name="setting_grey_watched">İzlenen videoları soluklaştır</string>
+    <string name="setting_grey_watched_summary">İzlenen videolar listelerde soluk ve siyah beyaz gösterilir</string>
+    <string name="setting_watched_dim" formatted="true">İzlenen videoların koyuluğu: %%%1$d</string>
+    <string name="setting_watched_dim_description">İzlenen videoların ne kadar koyulaştırılacağı</string>
+    <string name="setting_watched_threshold" formatted="true">%%%1$d oynatılınca izlendi sayılır</string>
+    <string name="setting_watched_threshold_description">İzlendi sayılan oynatma oranı</string>
+    <string name="setting_watched_threshold_summary">Soluklaştırma için kullanılır; otomatik oynatma izlemediğiniz videoları tercih eder</string>
+    <string name="app_icon_settings">TestTube ayarları</string>
     <string name="setting_ai_filter">Yapay zekâ videolarını gizle (AiSList)</string>
     <string name="setting_ai_filter_summary">Yapay zekâ ile üretilmiş video yayınlayan kanalların topluluk listesi AiSList\'teki kanalları gizler. Liste (CC BY-NC 4.0) günde bir kez GitHub\'dan indirilir.</string>
     <string name="setting_channel_pages">Tam kanal sayfaları</string>

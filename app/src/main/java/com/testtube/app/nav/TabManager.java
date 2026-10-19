@@ -85,7 +85,7 @@ public class TabManager {
 		this.host = host;
 	}
 
-	static boolean isNativePage(@Nullable String pageClass) {
+	private static boolean isNativePage(@Nullable String pageClass) {
 		return Constant.PAGE_HOME.equals(pageClass) || Constant.PAGE_SUBSCRIPTIONS.equals(pageClass)
 						|| Constant.PAGE_LIBRARY.equals(pageClass) || "history".equals(pageClass);
 	}
@@ -121,7 +121,7 @@ public class TabManager {
 	}
 
 	@Nullable
-	static PageSource.Kind nativePageKind(@NonNull String url) {
+	private static PageSource.Kind nativePageKind(@NonNull String url) {
 		if (UrlUtils.isNativeChannelUrl(url)) return PageSource.Kind.CHANNEL;
 		if (UrlUtils.isNativePlaylistUrl(url)) return PageSource.Kind.PLAYLIST;
 		return null;
@@ -261,15 +261,19 @@ public class TabManager {
 		return true;
 	}
 
+	/** The watch screen is in front with a video that can move to the mini player. */
+	public boolean canMinimizeWatch() {
+		return watchVisible && testtubePlayer().canSuspendWatch();
+	}
+
 	/**
 	 * Moves the playing video to the mini player.
 	 *
 	 * @return false if the watch screen isn't in front or nothing can play
 	 */
 	public boolean minimizeWatch() {
-		if (!watchVisible) return false;
+		if (!canMinimizeWatch()) return false;
 		TestTubePlayer testtubePlayer = testtubePlayer();
-		if (!testtubePlayer.canSuspendWatch()) return false;
 		watchVisible = false;
 		testtubePlayer.setMiniPlayerCallbacks(this::restoreWatch, this::onMiniPlayerClosed);
 		testtubePlayer.enterInAppMiniPlayer();

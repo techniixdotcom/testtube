@@ -127,6 +127,9 @@ public final class NativeBrowser {
 	private final TextView title;
 	@NonNull
 	private final ImageView logo;
+	/** The app icon at the top right; opens the settings like the logo. */
+	@NonNull
+	private final View appIcon;
 	@NonNull
 	private final ImageButton searchButton;
 	@NonNull
@@ -183,6 +186,7 @@ public final class NativeBrowser {
 		for (Mode value : Mode.values()) states.put(value, new State());
 		title = root.findViewById(R.id.browser_title);
 		logo = root.findViewById(R.id.browser_logo);
+		appIcon = root.findViewById(R.id.browser_app_icon);
 		searchButton = root.findViewById(R.id.browser_search);
 		searchBack = root.findViewById(R.id.browser_search_back);
 		searchField = root.findViewById(R.id.browser_search_field);
@@ -591,6 +595,7 @@ public final class NativeBrowser {
 
 	private void applySearchUi(boolean searching) {
 		logo.setVisibility(searching ? View.GONE : View.VISIBLE);
+		appIcon.setVisibility(searching ? View.GONE : View.VISIBLE);
 		title.setVisibility(searching ? View.GONE : View.VISIBLE);
 		searchBack.setVisibility(searching ? View.VISIBLE : View.GONE);
 		searchField.setVisibility(searching ? View.VISIBLE : View.GONE);

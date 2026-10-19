@@ -1,0 +1,11 @@
+- Optional AI video block (AiSList)
+- Shorts tab with swipeable full-screen Shorts
+- Setup on first start, all changeable from the logo
+- Video quality for Wi-Fi and mobile data, switched live
+- Floating player when leaving the app
+- Drag the video down to minimize, drag the bar up to restore
+- Comment when signed in
+- Channel pages like YouTube's, with tabs
+- Next video preloaded for an instant start; queue fix
+- Slider for how dark watched videos look
+- Everything translated

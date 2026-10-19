@@ -4,7 +4,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import org.schabi.newpipe.extractor.stream.AudioStream;
-import org.schabi.newpipe.extractor.stream.StreamType;
 import org.schabi.newpipe.extractor.stream.VideoStream;
 
 import java.util.ArrayList;
@@ -15,8 +14,6 @@ import java.util.Map;
 public class Delivery {
 	@NonNull
 	private PlaybackMode mode = PlaybackMode.NONE;
-	@NonNull
-	private StreamType streamType = StreamType.VIDEO_STREAM;
 	@Nullable
 	private StreamCandidate manifest;
 	@NonNull
@@ -25,24 +22,10 @@ public class Delivery {
 	private List<StreamCandidate> audio = new ArrayList<>();
 	@NonNull
 	private List<StreamCandidate> muxed = new ArrayList<>();
-	private boolean abr;
-	private boolean trackLock;
-	private boolean cache;
 
 	@Nullable
 	public String getUrl() {
 		return manifest != null ? manifest.getUrl() : null;
-	}
-
-	@NonNull
-	public List<VideoStream> videoStreams() {
-		Map<String, VideoStream> streams = new LinkedHashMap<>();
-		for (StreamCandidate candidate : video) {
-			if (candidate.getVideoStream() != null) {
-				streams.putIfAbsent(candidate.getVideoStream().getContent(), candidate.getVideoStream());
-			}
-		}
-		return new ArrayList<>(streams.values());
 	}
 
 	@NonNull
@@ -76,15 +59,6 @@ public class Delivery {
 		this.mode = mode;
 	}
 
-	@NonNull
-	public StreamType getStreamType() {
-		return streamType;
-	}
-
-	public void setStreamType(@NonNull StreamType streamType) {
-		this.streamType = streamType;
-	}
-
 	public void setManifest(@Nullable StreamCandidate manifest) {
 		this.manifest = manifest;
 	}
@@ -114,21 +88,5 @@ public class Delivery {
 
 	public void setMuxed(@NonNull List<StreamCandidate> muxed) {
 		this.muxed = muxed;
-	}
-
-	public void setAbr(boolean abr) {
-		this.abr = abr;
-	}
-
-	public boolean isTrackLock() {
-		return trackLock;
-	}
-
-	public void setTrackLock(boolean trackLock) {
-		this.trackLock = trackLock;
-	}
-
-	public void setCache(boolean cache) {
-		this.cache = cache;
 	}
 }

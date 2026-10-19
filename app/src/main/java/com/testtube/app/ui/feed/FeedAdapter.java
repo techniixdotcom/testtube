@@ -17,6 +17,7 @@ import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.squareup.picasso.Picasso;
+import com.testtube.app.AppSettings;
 import com.testtube.app.R;
 import com.testtube.app.extractor.AvatarCache;
 import com.testtube.app.extractor.FeedItem;
@@ -33,7 +34,6 @@ import java.util.Objects;
 final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	private static final int TYPE_VIDEO = 0;
 	private static final int TYPE_ENTITY = 1;
-	private static final float WATCHED_ALPHA = 0.3f;
 	private static final ColorMatrixColorFilter GREY = greyFilter();
 	private static final String SEPARATOR = " • ";
 	/** Rebinds only the uploader image of a row. */
@@ -247,8 +247,8 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 		} else {
 			holder.duration.setVisibility(View.GONE);
 		}
-		boolean watched = filters.isWatched(item.videoId());
-		holder.itemView.setAlpha(watched ? WATCHED_ALPHA : 1f);
+		boolean watched = AppSettings.greyOutWatched() && filters.isWatched(item.videoId());
+		holder.itemView.setAlpha(watched ? 1f - AppSettings.watchedDimPercent() / 100f : 1f);
 		holder.thumbnail.setColorFilter(watched ? GREY : null);
 		holder.avatar.setColorFilter(watched ? GREY : null);
 		loadImage(holder.thumbnail, item.thumbnailUrl(), R.drawable.thumb_clear);

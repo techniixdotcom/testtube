@@ -84,7 +84,7 @@ public final class LocalHistoryController {
 	}
 
 	@NonNull
-	private static CharSequence dayLabel(@NonNull View view, @NonNull LocalDate day) {
+	private static CharSequence dayLabel(@NonNull LocalDate day) {
 		long millis = day.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
 		return DateUtils.getRelativeTimeSpanString(millis, System.currentTimeMillis(),
 				DateUtils.DAY_IN_MILLIS);
@@ -118,7 +118,7 @@ public final class LocalHistoryController {
 		public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
 			Object row = rows.get(position);
 			if (holder instanceof HeaderHolder headerHolder && row instanceof LocalDate day) {
-				headerHolder.header.setText(dayLabel(headerHolder.header, day));
+				headerHolder.header.setText(dayLabel(day));
 			} else if (holder instanceof VideoHolder videoHolder && row instanceof WatchHistory.Entry entry) {
 				videoHolder.bind(entry);
 			}

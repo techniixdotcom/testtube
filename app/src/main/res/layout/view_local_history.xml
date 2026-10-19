@@ -80,17 +80,6 @@
         android:orientation="vertical"
         android:visibility="gone">
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/panel_queue_enabled"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:text="@string/queue"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            app:thumbTint="@color/queue_switch_thumb_tint"
-            app:trackTint="@color/queue_switch_track_tint" />
-
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"

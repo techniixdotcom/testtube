@@ -34,7 +34,6 @@ import androidx.media3.ui.PlayerView;
 import androidx.media3.ui.SubtitleView;
 
 import com.testtube.app.R;
-import com.testtube.app.player.common.Constant;
 import com.testtube.app.player.controller.ControllerState;
 import com.testtube.app.player.sponsor.SponsorBlockManager;
 import com.testtube.app.player.sponsor.SponsorOverlayView;
@@ -59,8 +58,6 @@ public class TestTubePlayerView extends PlayerView {
 	@Nullable
 	private SubtitleView subtitleView;
 	private boolean isFs = false;
-	private int playerWidth = 0;
-	private int playerHeight = 0;
 	private int normalHeight = 0;
 	private boolean parentInsetsSuppressed;
 	private int parentPaddingLeft;
@@ -115,18 +112,11 @@ public class TestTubePlayerView extends PlayerView {
 		setClipToOutline(false);
 		setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
 		ConstraintLayout.LayoutParams params = (ConstraintLayout.LayoutParams) getLayoutParams();
-		params.topMargin = ViewUtils.dpToPx(activity, Constant.TOP_MARGIN_DP);
+		params.topMargin = 0;
 		params.width = ConstraintLayout.LayoutParams.MATCH_PARENT;
 		int screenWidth = ViewUtils.getScreenWidth(activity);
 		params.height = (int) (screenWidth * 9 / 16.0);
 		setLayoutParams(params);
-
-		addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
-			if (right - left != playerWidth || bottom - top != playerHeight) {
-				playerWidth = right - left;
-				playerHeight = bottom - top;
-			}
-		});
 	}
 
 	public void applyControllerState(@NonNull ControllerState.Mode previousState,
@@ -145,19 +135,13 @@ public class TestTubePlayerView extends PlayerView {
 		ViewGroup.LayoutParams layoutParams = getLayoutParams();
 		if (layoutParams instanceof ConstraintLayout.LayoutParams params) {
 			applyStandardPlayerAnchors(params);
-			if (fullscreen) {
-				params.width = ConstraintLayout.LayoutParams.MATCH_PARENT;
-				params.height = ConstraintLayout.LayoutParams.MATCH_PARENT;
-				params.topMargin = 0;
-				params.rightMargin = 0;
-				params.bottomMargin = 0;
-			} else {
-				params.width = ConstraintLayout.LayoutParams.MATCH_PARENT;
-				params.height = normalHeight > 0 ? normalHeight : (int) (ViewUtils.getScreenWidth(activity) * 9 / 16.0);
-				params.topMargin = ViewUtils.dpToPx(activity, Constant.TOP_MARGIN_DP);
-				params.rightMargin = 0;
-				params.bottomMargin = 0;
-			}
+			params.width = ConstraintLayout.LayoutParams.MATCH_PARENT;
+			params.height = fullscreen
+							? ConstraintLayout.LayoutParams.MATCH_PARENT
+							: normalHeight > 0 ? normalHeight : (int) (ViewUtils.getScreenWidth(activity) * 9 / 16.0);
+			params.topMargin = 0;
+			params.rightMargin = 0;
+			params.bottomMargin = 0;
 			setLayoutParams(params);
 		}
 	}
@@ -169,7 +153,7 @@ public class TestTubePlayerView extends PlayerView {
 		if (activity.isInPictureInPictureMode()) return true;
 		if (!activity.getPackageManager().hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return false;
 		int previousHeight = normalHeight;
-		if (!isFs) normalHeight = playerHeight;
+		if (!isFs) normalHeight = getHeight();
 		try {
 			if (activity.enterPictureInPictureMode(buildPiPParams(true))) return true;
 		} catch (IllegalStateException e) {
@@ -261,7 +245,7 @@ public class TestTubePlayerView extends PlayerView {
 		setBottomNavVisible(false);
 		isFs = true;
 		if (previousState == ControllerState.Mode.NORMAL && !activity.isInPictureInPictureMode()) {
-			normalHeight = playerHeight;
+			normalHeight = getHeight();
 		}
 		setParentInsetsSuppressed(true);
 		activity.setRequestedOrientation(fsOrientation);
@@ -277,7 +261,7 @@ public class TestTubePlayerView extends PlayerView {
 		isFs = false;
 		setParentInsetsSuppressed(false);
 		if (previousState == ControllerState.Mode.NORMAL) {
-			normalHeight = playerHeight;
+			normalHeight = getHeight();
 		}
 		updatePlayerLayout(true);
 	}

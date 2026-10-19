@@ -16,4 +16,7 @@
     <color name="queue_switch_red_track">#66FF0000</color>
     <color name="queue_switch_neutral_track">#52FFFFFF</color>
     <color name="queue_switch_thumb_off">#FFFFFF</color>
+    <!-- Launcher icon -->
+    <color name="ic_launcher_background">#000000</color>
+    <color name="ic_launcher_play">#E5251E</color>
 </resources>

@@ -23,8 +23,6 @@ public class StreamCatalog {
 	private List<StreamCandidate> audioCandidates = new ArrayList<>();
 	@NonNull
 	private List<StreamCandidate> muxedCandidates = new ArrayList<>();
-	@NonNull
-	private List<StreamCandidate> subtitleCandidates = new ArrayList<>();
 
 	@NonNull
 	public List<VideoStream> getVideoStreams() {
@@ -95,10 +93,5 @@ public class StreamCatalog {
 	@NonNull
 	public List<StreamCandidate> getMuxedCandidates() {
 		return muxedCandidates;
-	}
-
-	@NonNull
-	public List<StreamCandidate> getSubtitleCandidates() {
-		return subtitleCandidates;
 	}
 }

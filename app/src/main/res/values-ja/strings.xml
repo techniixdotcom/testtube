@@ -78,8 +78,6 @@
     <string name="add_to_queue">キューに追加</string>
     <string name="queue_item_added">キューに追加しました</string>
     <string name="queue_item_unavailable">現在の動画情報を取得できませんでした。キュー項目は追加されませんでした。</string>
-    <string name="queue_enabled_on">キュー再生を有効化</string>
-    <string name="queue_enabled_off">キュー再生を無効化</string>
     <string name="clear_queue">キューを消去</string>
     <string name="clear_queue_confirmation">キュー内の項目をすべて消去しますか？</string>
     <string name="remove_queue_item">キュー項目を削除</string>
@@ -187,6 +185,16 @@
     <string name="welcome_message">表示する内容を選んでください。あとで TestTube のロゴをタップして変更できます。</string>
     <string name="setting_shorts">ショートを表示</string>
     <string name="setting_shorts_summary">ホーム、登録チャンネル、検索、チャンネルのタブに表示</string>
+    <string name="setting_subscriptions">登録チャンネルタブ</string>
+    <string name="setting_subscriptions_summary">下部バーに登録チャンネルを表示</string>
+    <string name="setting_grey_watched">視聴済みの動画をグレー表示</string>
+    <string name="setting_grey_watched_summary">視聴済みの動画はリストで薄く白黒で表示されます</string>
+    <string name="setting_watched_dim" formatted="true">視聴済みの動画の暗さ: %1$d%%</string>
+    <string name="setting_watched_dim_description">視聴済みの動画を暗くする度合い</string>
+    <string name="setting_watched_threshold" formatted="true">%1$d%% 再生で視聴済みにする</string>
+    <string name="setting_watched_threshold_description">視聴済みとみなす再生割合</string>
+    <string name="setting_watched_threshold_summary">グレー表示に使われ、自動再生はまだ見ていない動画を優先します</string>
+    <string name="app_icon_settings">TestTube の設定</string>
     <string name="setting_ai_filter">AI 動画を非表示 (AiSList)</string>
     <string name="setting_ai_filter_summary">AI 生成動画を投稿するチャンネルのコミュニティ リスト AiSList に載っているチャンネルを非表示にします。リスト (CC BY-NC 4.0) は 1 日 1 回 GitHub からダウンロードされます。</string>
     <string name="setting_channel_pages">チャンネルページを詳しく表示</string>

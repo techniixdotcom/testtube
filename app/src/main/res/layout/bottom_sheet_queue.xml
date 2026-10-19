@@ -102,20 +102,6 @@
                 android:src="@drawable/ic_clear"
                 app:tint="?attr/colorOnSurface" />
         </LinearLayout>
-
-        <View
-            android:layout_width="0dp"
-            android:layout_height="1dp"
-            android:layout_weight="1" />
-
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/switch_queue_enabled"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:contentDescription="@string/queue"
-            android:text=""
-            app:thumbTint="@color/queue_switch_thumb_tint"
-            app:trackTint="@color/queue_switch_track_tint" />
     </LinearLayout>
 
     <View

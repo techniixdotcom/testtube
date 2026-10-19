@@ -122,6 +122,8 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	private boolean bootstrapped;
 	private boolean historyVisible;
 	private boolean watchVisible;
+	/** The video is being dragged to or from the bottom bar, so the screen below stays visible. */
+	private boolean revealBehind;
 	@Nullable
 	private View watchContainer;
 	@Nullable
@@ -163,18 +165,21 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		return graph;
 	}
 
-	/** Shorts were switched on or off: reload the lists so they show (or drop) them. */
 	/** Applies choices from the welcome dialog or the logo menu that affect what is open now. */
 	private void onSettingsSaved() {
 		if (isFinishing() || isDestroyed()) return;
 		player.updateFloatingPlayer();
 		player.applyPreferredQuality();
 		if (watchPanel != null) watchPanel.refreshCommentBox();
+		updateTabs();
+		// Greying and the watched threshold change how every list looks
+		onContentFiltersChanged();
 	}
 
+	/** Shorts were switched on or off: reload the lists so they show (or drop) them. */
 	private void onShortsSettingChanged() {
 		if (nativeBrowser != null) nativeBrowser.reloadAll();
-		updateShortsTab();
+		updateTabs();
 	}
 
 	/** Blocked or AI channels changed: filter the lists that are already loaded again. */
@@ -241,9 +246,10 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		aiChannels.setOnChanged(this::onContentFiltersChanged);
 		aiChannels.start();
 		View.OnClickListener aboutClick = v -> SettingsDialog.showSettings(this, updates, aiChannels,
-						app.playerPreferences(), this::onShortsSettingChanged, this::onSettingsSaved);
+						app.playerPreferences(), contentFilters, this::onShortsSettingChanged, this::onSettingsSaved);
 		browserView.findViewById(R.id.browser_logo).setOnClickListener(aboutClick);
 		browserView.findViewById(R.id.browser_title).setOnClickListener(aboutClick);
+		browserView.findViewById(R.id.browser_app_icon).setOnClickListener(aboutClick);
 		// On the very first start the update check waits until the welcome dialog is closed
 		if (AppSettings.welcomeShown()) updates.checkOnStart(this);
 		NativeBrowser.Host feedHost = new NativeBrowser.Host() {
@@ -307,7 +313,6 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 					ToastUtils.show(MainActivity.this, R.string.queue_item_unavailable);
 					return;
 				}
-				if (!queueRepository.isEnabled()) queueRepository.setEnabled(true);
 				queueRepository.add(queued);
 				player.refreshQueueNav();
 				ToastUtils.show(MainActivity.this, R.string.queue_item_added);
@@ -365,6 +370,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 							video.getId(), video.getTitle() == null ? "" : video.getTitle(), video.getAuthor(), video.getUploaderUrl(),
 							video.getThumbnailUrl(), -1, -1, null, false));
 		});
+		setupWatchDrag(mainView);
 		tabManager.setHost(new TabManager.Host() {
 			@Override
 			public void onWatchChanged(@Nullable String url, boolean visible) {
@@ -392,12 +398,13 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 					goTo(R.id.nav_history);
 					return;
 				}
-				goTo(Constant.PAGE_SUBSCRIPTIONS.equals(pageClass) ? R.id.nav_subscriptions : R.id.nav_home);
+				boolean subscriptions = Constant.PAGE_SUBSCRIPTIONS.equals(pageClass) && AppSettings.showSubscriptions();
+				goTo(subscriptions ? R.id.nav_subscriptions : R.id.nav_home);
 			}
 		});
 		shortsHost = feedHost;
 		setupBottomNav();
-		updateShortsTab();
+		updateTabs();
 		updateContainers();
 
 		View playerRoot = findViewById(R.id.playerView);
@@ -561,7 +568,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 			AppGraph app = AppGraph.of(this);
 			UpdateManager updates = app.updateManager();
 			SettingsDialog.showWelcome(this, updates, app.aiChannelList(), app.playerPreferences(),
-							this::onShortsSettingChanged, () -> {
+							app.contentFilters(), this::onShortsSettingChanged, () -> {
 								AppSettings.setWelcomeShown();
 								onSettingsSaved();
 								if (!isFinishing() && !isDestroyed()) updates.checkOnStart(this);
@@ -641,12 +648,19 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		});
 	}
 
-	/** The Shorts tab is only in the bottom bar while Shorts are switched on. */
-	private void updateShortsTab() {
+	/** Shows the Shorts and Subscriptions tabs as set in the settings; a hidden tab that is open goes Home. */
+	private void updateTabs() {
 		if (bottomNav == null) return;
-		MenuItem item = bottomNav.getMenu().findItem(R.id.nav_shorts);
-		if (item != null) item.setVisible(AppSettings.showShorts());
-		if (!AppSettings.showShorts() && shortsVisible) goTo(R.id.nav_home);
+		boolean shorts = AppSettings.showShorts();
+		boolean subscriptions = AppSettings.showSubscriptions();
+		MenuItem shortsItem = bottomNav.getMenu().findItem(R.id.nav_shorts);
+		if (shortsItem != null) shortsItem.setVisible(shorts);
+		MenuItem subscriptionsItem = bottomNav.getMenu().findItem(R.id.nav_subscriptions);
+		if (subscriptionsItem != null) subscriptionsItem.setVisible(subscriptions);
+		int selected = bottomNav.getSelectedItemId();
+		if ((!shorts && selected == R.id.nav_shorts) || (!subscriptions && selected == R.id.nav_subscriptions)) {
+			goTo(R.id.nav_home);
+		}
 	}
 
 	/** History and the queue panel are inflated on first use. */
@@ -660,9 +674,40 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		renderQueuePanel(uiState());
 	}
 
+	/** Dragging the video down to the bottom bar and the bar back up. */
+	private void setupWatchDrag(@NonNull View root) {
+		View playerView = findViewById(R.id.playerView);
+		View miniBar = findViewById(R.id.mini_bar);
+		if (playerView == null || miniBar == null || bottomNav == null || watchContainer == null) return;
+		WatchDragger.Host host = new WatchDragger.Host() {
+			@Override
+			public boolean canMinimize() {
+				return tabManager.canMinimizeWatch();
+			}
+
+			@Override
+			public void minimize() {
+				tabManager.minimizeWatch();
+			}
+
+			@Override
+			public void restore() {
+				player.restoreFromMiniPlayer();
+			}
+
+			@Override
+			public void setRevealed(boolean revealed) {
+				revealBehind = revealed;
+				updateContainers();
+			}
+		};
+		player.setWatchDrag(new WatchDragger(root, playerView, watchContainer, miniBar, bottomNav, host));
+	}
+
 	private void updateContainers() {
-		boolean pageVisible = pageScreen != null && pageScreen.isVisible() && !watchVisible;
-		boolean covered = watchVisible || pageVisible;
+		boolean watchCovers = watchVisible && !revealBehind;
+		boolean pageVisible = pageScreen != null && pageScreen.isVisible() && !watchCovers;
+		boolean covered = watchCovers || pageVisible;
 		if (watchContainer != null) watchContainer.setVisibility(watchVisible ? View.VISIBLE : View.GONE);
 		if (pageContainer != null) pageContainer.setVisibility(pageVisible ? View.VISIBLE : View.GONE);
 		if (nativeContainer != null) {
@@ -673,7 +718,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		}
 		boolean shortsOnScreen = !covered && shortsVisible;
 		if (shortsContainer != null) shortsContainer.setVisibility(shortsOnScreen ? View.VISIBLE : View.GONE);
-		if (shortsScreen != null) shortsScreen.setActive(shortsOnScreen && started);
+		if (shortsScreen != null) shortsScreen.setActive(shortsOnScreen && started && !revealBehind);
 	}
 
 	private void openVideo(@NonNull String url) {
@@ -753,7 +798,6 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		dialog.setContentView(sheetView);
 
 		ImageButton closeButton = sheetView.findViewById(R.id.btn_queue_close);
-		SwitchMaterial enabledSwitch = sheetView.findViewById(R.id.switch_queue_enabled);
 		ImageButton downloadButton = sheetView.findViewById(R.id.btn_queue_download);
 		ImageButton orderButton = sheetView.findViewById(R.id.btn_queue_order);
 		ImageButton clearButton = sheetView.findViewById(R.id.btn_queue_clear);
@@ -781,7 +825,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 								.show();
 			}
 		});
-		QueueSheet sheet = new QueueSheet(enabledSwitch, orderButton, emptyView, recyclerView, adapter);
+		QueueSheet sheet = new QueueSheet(orderButton, emptyView, recyclerView, adapter);
 		queueSheet = sheet;
 		recyclerView.setLayoutManager(new LinearLayoutManager(this));
 		recyclerView.setAdapter(adapter);
@@ -801,11 +845,6 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		})).attachToRecyclerView(recyclerView);
 
 		closeButton.setOnClickListener(v -> dialog.dismiss());
-		enabledSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-			if (!buttonView.isPressed()) return;
-			viewModel.setQueueEnabled(isChecked);
-			ToastUtils.show(this, isChecked ? R.string.queue_enabled_on : R.string.queue_enabled_off);
-		});
 		downloadButton.setOnClickListener(v -> {
 			dialog.dismiss();
 			List<QueueItem> items = uiState().items();
@@ -925,7 +964,6 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		final MainActivityViewModel.UiState state = viewModel.getState().getValue();
 		if (state != null) return state;
 		return new MainActivityViewModel.UiState(
-						queueRepository.isEnabled(),
 						queueRepository.getItems(),
 						player.getVideoId(),
 						player.getLoopMode(),
@@ -934,7 +972,6 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 
 	/** Queue page of the History tab. */
 	private void setupQueuePanel(@NonNull View root) {
-		SwitchMaterial enabledSwitch = root.findViewById(R.id.panel_queue_enabled);
 		ImageButton clearButton = root.findViewById(R.id.panel_queue_clear);
 		TextView emptyView = root.findViewById(R.id.panel_queue_empty);
 		RecyclerView recyclerView = root.findViewById(R.id.panel_queue_list);
@@ -963,16 +1000,12 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 				viewModel.moveQueue(adapter.snapshotItems());
 			}
 		})).attachToRecyclerView(recyclerView);
-		enabledSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-			if (!buttonView.isPressed()) return;
-			viewModel.setQueueEnabled(isChecked);
-		});
 		clearButton.setOnClickListener(v -> new MaterialAlertDialogBuilder(this)
 						.setMessage(R.string.clear_queue_confirmation)
 						.setPositiveButton(R.string.confirm, (d, which) -> viewModel.clearQueue())
 						.setNegativeButton(R.string.cancel, null)
 						.show());
-		queuePanel = new QueueSheet(enabledSwitch, clearButton, emptyView, recyclerView, adapter);
+		queuePanel = new QueueSheet(clearButton, emptyView, recyclerView, adapter);
 	}
 
 	/**
@@ -1003,9 +1036,6 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	private void renderQueuePanel(@NonNull MainActivityViewModel.UiState state) {
 		QueueSheet panel = queuePanel;
 		if (panel == null) return;
-		if (panel.enabledSwitch.isChecked() != state.queueEnabled()) {
-			panel.enabledSwitch.setChecked(state.queueEnabled());
-		}
 		panel.adapter.replaceItems(state.items(), state.videoId());
 		boolean empty = state.items().isEmpty();
 		panel.emptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
@@ -1015,9 +1045,6 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	private void renderQueueSheet(@NonNull MainActivityViewModel.UiState state) {
 		QueueSheet sheet = queueSheet;
 		if (sheet == null) return;
-		if (sheet.enabledSwitch.isChecked() != state.queueEnabled()) {
-			sheet.enabledSwitch.setChecked(state.queueEnabled());
-		}
 		renderLoop(sheet.orderButton, state.loopMode());
 		sheet.adapter.replaceItems(state.items(), state.videoId());
 		boolean empty = state.items().isEmpty();
@@ -1218,8 +1245,6 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 
 	private static final class QueueSheet {
 		@NonNull
-		private final SwitchMaterial enabledSwitch;
-		@NonNull
 		private final ImageButton orderButton;
 		@NonNull
 		private final TextView emptyView;
@@ -1231,12 +1256,10 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		private BottomSheetBehavior<FrameLayout> behavior;
 		private boolean scrollPending;
 
-		private QueueSheet(@NonNull SwitchMaterial enabledSwitch,
-		                   @NonNull ImageButton orderButton,
+		private QueueSheet(@NonNull ImageButton orderButton,
 		                   @NonNull TextView emptyView,
 		                   @NonNull RecyclerView recyclerView,
 		                   @NonNull QueueAdapter adapter) {
-			this.enabledSwitch = enabledSwitch;
 			this.orderButton = orderButton;
 			this.emptyView = emptyView;
 			this.recyclerView = recyclerView;

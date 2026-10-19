@@ -38,6 +38,7 @@ import com.testtube.app.extractor.exception.LoginRequiredExtractionException;
 import com.testtube.app.player.common.PlayerLoopMode;
 import com.testtube.app.player.common.PlayerPreferences;
 import com.testtube.app.player.controller.Controller;
+import com.testtube.app.player.controller.gesture.WatchDrag;
 import com.testtube.app.player.engine.Engine;
 import com.testtube.app.player.queue.QueueInvalidationListener;
 import com.testtube.app.player.queue.QueueNav;
@@ -143,7 +144,7 @@ public class TestTubePlayer {
 	@Nullable
 	private NetworkWatcher network;
 	@NonNull
-	private final NetworkWatcher.Listener networkListener = this::onNetworkTypeChanged;
+	private final NetworkWatcher.Listener networkListener = mobile -> applyPreferredQuality();
 	/** Registered while the floating window is open. */
 	@Nullable
 	private BroadcastReceiver floatingControls;
@@ -180,10 +181,6 @@ public class TestTubePlayer {
 		if (network != null) network.removeListener(networkListener);
 		network = watcher;
 		watcher.addListener(networkListener);
-	}
-
-	private void onNetworkTypeChanged(boolean mobile) {
-		applyPreferredQuality();
 	}
 
 	/** Plays the open video in the quality set for the network the phone is on now. */
@@ -456,7 +453,7 @@ public class TestTubePlayer {
 	}
 
 	@NonNull
-	static ExtractionException classifyExtractionException(@NonNull Exception exception) {
+	private static ExtractionException classifyExtractionException(@NonNull Exception exception) {
 		if (containsException(exception, SignInConfirmNotBotException.class)) {
 			return new LoginRequiredExtractionException(exception);
 		}
@@ -711,10 +708,7 @@ public class TestTubePlayer {
 		if (bar == null) {
 			bar = new MiniBar(activity);
 			bar.setActions(
-							() -> {
-								Runnable restore = onRestore;
-								if (restore != null) restore.run();
-							},
+							this::restoreFromMiniPlayer,
 							engine::skipToPrevious,
 							() -> {
 								if (engine.isPlaying()) {
@@ -747,9 +741,6 @@ public class TestTubePlayer {
 	}
 
 	/**
-	 * Receives the details of each video once it starts, on the main thread.
-	 */
-	/**
 	 * Details of the video that is playing, or null before one has loaded.
 	 */
 	@Nullable
@@ -761,11 +752,22 @@ public class TestTubePlayer {
 		controller.setLongPressAction(action);
 	}
 
+	public void setWatchDrag(@Nullable WatchDrag drag) {
+		controller.setWatchDrag(drag);
+	}
+
+	/** Brings the video back from the bottom bar, as tapping the bar does. */
+	public void restoreFromMiniPlayer() {
+		Runnable restore = onRestore;
+		if (inMiniPlayer && restore != null) restore.run();
+	}
+
 	/** Runs every time playback starts or resumes. */
 	public void setOnStartedPlaying(@Nullable Runnable listener) {
 		onStartedPlaying = listener;
 	}
 
+	/** Receives the details of each video once it starts, on the main thread. */
 	public void setDetailsListener(@Nullable Consumer<VideoDetails> listener) {
 		this.detailsListener = listener;
 	}

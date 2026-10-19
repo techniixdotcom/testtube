@@ -78,8 +78,6 @@
     <string name="add_to_queue">Ajouter à la file</string>
     <string name="queue_item_added">Ajouté à la file</string>
     <string name="queue_item_unavailable">Impossible d\'obtenir les infos de la vidéo actuelle. L\'élément n\'a pas été ajouté à la file.</string>
-    <string name="queue_enabled_on">Lecture par file activée</string>
-    <string name="queue_enabled_off">Lecture par file désactivée</string>
     <string name="clear_queue">Vider la file</string>
     <string name="clear_queue_confirmation">Vider tous les éléments de la file ?</string>
     <string name="remove_queue_item">Supprimer l\'élément de la file</string>
@@ -148,6 +146,8 @@
     <string name="nav_home">Accueil</string>
     <string name="nav_subscriptions">Abonnements</string>
     <string name="nav_shorts">Shorts</string>
+    <string name="feed_shorts">SHORTS</string>
+    <string name="page_tab_shorts">Shorts</string>
     <string name="shorts_error">Impossible de lire ce Short</string>
     <string name="shorts_load_failed">Impossible de charger les Shorts. Appuyez pour réessayer.</string>
     <string name="shorts_empty">Aucun Short trouvé. Appuyez pour réessayer.</string>
@@ -187,6 +187,16 @@
     <string name="welcome_message">Choisissez ce que vous voulez voir. Vous pourrez le modifier plus tard en touchant le logo TestTube.</string>
     <string name="setting_shorts">Afficher les Shorts</string>
     <string name="setting_shorts_summary">Sur l\'accueil, dans les abonnements et la recherche, et en onglet sur les chaînes</string>
+    <string name="setting_subscriptions">Onglet Abonnements</string>
+    <string name="setting_subscriptions_summary">Affiche Abonnements dans la barre du bas</string>
+    <string name="setting_grey_watched">Griser les vidéos vues</string>
+    <string name="setting_grey_watched_summary">Les vidéos vues sont atténuées et affichées en noir et blanc dans les listes</string>
+    <string name="setting_watched_dim" formatted="true">Assombrissement des vidéos vues : %1$d%%</string>
+    <string name="setting_watched_dim_description">Niveau d\'assombrissement des vidéos vues</string>
+    <string name="setting_watched_threshold" formatted="true">Considérée comme vue après %1$d%% de lecture</string>
+    <string name="setting_watched_threshold_description">Part lue à partir de laquelle une vidéo est considérée comme vue</string>
+    <string name="setting_watched_threshold_summary">Sert au grisage, et la lecture automatique privilégie les vidéos que vous n\'avez pas vues</string>
+    <string name="app_icon_settings">Paramètres de TestTube</string>
     <string name="setting_ai_filter">Masquer les vidéos IA (AiSList)</string>
     <string name="setting_ai_filter_summary">Masque les chaînes d\'AiSList, une liste communautaire de chaînes qui publient des vidéos générées par IA. La liste (CC BY-NC 4.0) est téléchargée depuis GitHub une fois par jour.</string>
     <string name="setting_channel_pages">Pages de chaîne complètes</string>

@@ -24,7 +24,7 @@ public final class MainActivityViewModel extends ViewModel {
 	@NonNull
 	private final MediatorLiveData<UiState> state = new MediatorLiveData<>();
 	@NonNull
-	private QueueState queue = new QueueState(false, List.of());
+	private QueueState queue = new QueueState(List.of());
 	@NonNull
 	private PlayerState player = new PlayerState(null, false);
 	@NonNull
@@ -36,7 +36,7 @@ public final class MainActivityViewModel extends ViewModel {
 		this.queueRepository = queueRepository;
 		this.loopMode = prefs.getLoopMode();
 		state.addSource(queueRepository.getState(), value -> {
-			queue = value != null ? value : new QueueState(false, List.of());
+			queue = value != null ? value : new QueueState(List.of());
 			publish();
 		});
 		state.addSource(playerStateStore.getState(), value -> {
@@ -53,10 +53,6 @@ public final class MainActivityViewModel extends ViewModel {
 	@NonNull
 	public LiveData<UiState> getState() {
 		return state;
-	}
-
-	public void setQueueEnabled(boolean enabled) {
-		queueRepository.setEnabled(enabled);
 	}
 
 	public void removeQueueItem(@NonNull String videoId) {
@@ -89,15 +85,13 @@ public final class MainActivityViewModel extends ViewModel {
 
 	private void publish() {
 		state.setValue(new UiState(
-						queue.enabled(),
 						queue.items(),
 						player.videoId(),
 						loopMode,
 						player.miniPlayer()));
 	}
 
-	public record UiState(boolean queueEnabled,
-	                      @NonNull List<QueueItem> items,
+	public record UiState(@NonNull List<QueueItem> items,
 	                      @Nullable String videoId,
 	                      @NonNull PlayerLoopMode loopMode,
 	                      boolean miniPlayer) {

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status bar icon for playback and downloads: the app icon in one tone, filling the 24dp box. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.92"
+        android:scaleY="0.92">
+        <!-- The whole tile minus a gap around the play (opposite winding makes the hole) -->
+        <clip-path android:pathData="M0,0 H108 V108 H0 Z M37,27.2 L37,82.8 L83.8,55 Z" />
+        <group
+            android:rotation="45"
+            android:translateX="54"
+            android:translateY="54">
+            <clip-path android:pathData="M-14,-38 V32 A14,14 0 0,0 14,32 V-38 Z" />
+            <group android:rotation="-45">
+                <path
+                    android:fillColor="#FFFFFF"
+                    android:pathData="M-60,10 H60 V60 H-60 Z" />
+            </group>
+        </group>
+        <group
+            android:rotation="45"
+            android:translateX="54"
+            android:translateY="54">
+            <path
+                android:pathData="M-14,-38 V32 A14,14 0 0,0 14,32 V-38"
+                android:strokeWidth="5"
+                android:strokeColor="#FFFFFF"
+                android:strokeLineCap="round"
+                android:strokeLineJoin="round" />
+            <path
+                android:pathData="M-12,-48 H12 A5,5 0 0,1 12,-38 H-12 A5,5 0 0,1 -12,-48 Z"
+                android:strokeWidth="5"
+                android:strokeColor="#FFFFFF"
+                android:strokeLineJoin="round" />
+        </group>
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M54.6,10 a3.4,3.4 0 1,0 6.8,0 a3.4,3.4 0 1,0 -6.8,0 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M47.5,18 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M43.1,9 a1.9,1.9 0 1,0 3.8,0 a1.9,1.9 0 1,0 -3.8,0 Z" />
+    </group>
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.92"
+        android:scaleY="0.92">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M42,36 V74 L74,55 Z"
+            android:strokeWidth="4"
+            android:strokeColor="#FFFFFF"
+            android:strokeLineJoin="round" />
+    </group>
+</vector>

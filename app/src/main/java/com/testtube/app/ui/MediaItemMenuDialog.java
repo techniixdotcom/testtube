@@ -188,9 +188,6 @@ public final class MediaItemMenuDialog {
 			ToastUtils.show(context, R.string.queue_item_unavailable);
 			return;
 		}
-		if (!queue.isEnabled()) {
-			queue.setEnabled(true);
-		}
 		if (!queue.addNext(queueItem, player.getVideoId())) {
 			ToastUtils.show(context, R.string.queue_item_already_playing);
 			return;
@@ -207,9 +204,6 @@ public final class MediaItemMenuDialog {
 						|| queueItem.getTitle() == null || queueItem.getTitle().isBlank()) {
 			ToastUtils.show(context, R.string.queue_item_unavailable);
 			return;
-		}
-		if (!queue.isEnabled()) {
-			queue.setEnabled(true);
 		}
 		queue.add(queueItem);
 		player.refreshQueueNav();

@@ -36,7 +36,6 @@ import androidx.media3.exoplayer.DecoderCounters;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.testtube.app.Constant;
 import com.testtube.app.R;
 import com.testtube.app.extractor.StreamCatalog;
 import com.testtube.app.nav.TabManager;
@@ -45,6 +44,7 @@ import com.testtube.app.player.common.PlayerLoopMode;
 import com.testtube.app.player.common.PlayerPreferences;
 import com.testtube.app.player.common.PlayerUtils;
 import com.testtube.app.player.controller.gesture.PlayerGestureListener;
+import com.testtube.app.player.controller.gesture.WatchDrag;
 import com.testtube.app.player.controller.gesture.ZoomTouchListener;
 import com.testtube.app.player.engine.Engine;
 import com.testtube.app.player.queue.QueueNav;
@@ -116,6 +116,7 @@ enum PlaybackPrimaryAction {
 @UnstableApi
 public class Controller {
 	private static final long SEEK_STEP_MS = 10_000L;
+	private static final long HINT_HIDE_DELAY_MS = 3_000L;
 	static final float DISABLED_BUTTON_ALPHA = 0.38f;
 	@NonNull
 	private final Activity activity;
@@ -132,6 +133,8 @@ public class Controller {
 	private final TabManager tabManager;
 	@NonNull
 	private final Handler handler = new Handler(Looper.getMainLooper());
+	// Kept as one instance so a newer hint can cancel the pending hide of the previous one
+	private final Runnable hideHintRunnable = this::hideHint;
 	@Nullable
 	private TextView hintText;
 	@NonNull
@@ -170,11 +173,11 @@ public class Controller {
 		return availability.isNextActionEnabled();
 	}
 
-	static float previousButtonAlpha(@NonNull QueueNav availability) {
+	private static float previousButtonAlpha(@NonNull QueueNav availability) {
 		return shouldEnablePrevious(availability) ? 1.0f : DISABLED_BUTTON_ALPHA;
 	}
 
-	static float nextButtonAlpha(@NonNull QueueNav availability) {
+	private static float nextButtonAlpha(@NonNull QueueNav availability) {
 		return shouldEnableNext(availability) ? 1.0f : DISABLED_BUTTON_ALPHA;
 	}
 
@@ -184,7 +187,7 @@ public class Controller {
 						: ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
 	}
 
-	static boolean shouldAutoHideControls(boolean isPlaying, boolean isInPictureInPicture) {
+	private static boolean shouldAutoHideControls(boolean isPlaying, boolean isInPictureInPicture) {
 		return isPlaying && !isInPictureInPicture;
 	}
 
@@ -240,12 +243,28 @@ public class Controller {
 		gestureListener.setLongPressAction(action);
 	}
 
+	/** Lets a downward swipe on the video drag it to the bottom bar. */
+	public void setWatchDrag(@Nullable WatchDrag drag) {
+		gestureListener.setWatchDrag(drag);
+	}
+
 	@SuppressLint("ClickableViewAccessibility")
 	private void setupListeners() {
 		GestureDetector detector = new GestureDetector(activity, gestureListener);
 		playerView.setOnTouchListener((v, ev) -> {
 			if (state.isInMiniPlayer()) {
 				return false;
+			}
+			if (gestureListener.isDragging()) {
+				gestureListener.onDragTouch(ev);
+				if (!gestureListener.isDragging()) {
+					// The detector still thinks the finger is down; let it forget this gesture
+					MotionEvent cancel = MotionEvent.obtain(ev);
+					cancel.setAction(MotionEvent.ACTION_CANCEL);
+					detector.onTouchEvent(cancel);
+					cancel.recycle();
+				}
+				return true;
 			}
 			int action = ev.getAction();
 			if (action == MotionEvent.ACTION_DOWN && isControlsVisible()) {
@@ -346,7 +365,7 @@ public class Controller {
 			lockBtn.setOnClickListener(v -> {
 				toggleLockState();
 				showHint(activity.getString(state.isLocked() ? R.string.lock_screen : R.string.unlock_screen),
-								com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+								HINT_HIDE_DELAY_MS);
 			});
 		}
 
@@ -367,7 +386,7 @@ public class Controller {
 			loopBtn.setOnClickListener(v -> {
 				PlayerLoopMode newMode = getLoopMode().next();
 				setLoopMode(newMode);
-				showHint(activity.getString(getLoopModeLabelRes(newMode)), com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+				showHint(activity.getString(getLoopModeLabelRes(newMode)), HINT_HIDE_DELAY_MS);
 				setControlsVisible(true);
 			});
 		}
@@ -457,7 +476,7 @@ public class Controller {
 			subBtn.setOnClickListener(v -> {
 				List<String> available = engine.getSubtitles();
 				if (available.isEmpty()) {
-					showHint(activity.getString(R.string.no_subtitles), com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+					showHint(activity.getString(R.string.no_subtitles), HINT_HIDE_DELAY_MS);
 					hideControlsAutomatically();
 					return;
 				}
@@ -467,11 +486,11 @@ public class Controller {
 				showSelectionPopup(subBtn, options, checked, (index, label) -> {
 					if (index == checked) {
 						engine.setSubtitlesEnabled(false);
-						showHint(activity.getString(R.string.subtitles_off), com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+						showHint(activity.getString(R.string.subtitles_off), HINT_HIDE_DELAY_MS);
 					} else {
 						engine.setSubtitlesEnabled(true);
 						engine.setSubtitleLanguage(label);
-						showHint(activity.getString(R.string.subtitles_on) + ": " + label, com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+						showHint(activity.getString(R.string.subtitles_on) + ": " + label, HINT_HIDE_DELAY_MS);
 					}
 					updateSubtitleButtonState();
 				});
@@ -492,7 +511,7 @@ public class Controller {
 				public void onSelected(int index, String label) {
 					StreamSegment segment = segments.get(index);
 					engine.seekTo(segment.getStartTimeSeconds() * 1000L);
-					showHint(activity.getString(R.string.jumped_to_segment, segment.getTitle()), com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+					showHint(activity.getString(R.string.jumped_to_segment, segment.getTitle()), HINT_HIDE_DELAY_MS);
 				}
 
 				@Override
@@ -506,7 +525,7 @@ public class Controller {
 									segment.getPreviewUrl() != null ? segment.getPreviewUrl() : engine.getThumbnailUrl());
 					b.setView(v).setPositiveButton(R.string.jump, (d, w) -> {
 						engine.seekTo(segment.getStartTimeSeconds() * 1000L);
-						showHint(activity.getString(R.string.jumped_to_segment, segment.getTitle()), com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+						showHint(activity.getString(R.string.jumped_to_segment, segment.getTitle()), HINT_HIDE_DELAY_MS);
 						hideControlsAutomatically();
 					}).setNegativeButton(R.string.close, null).show();
 				}
@@ -588,7 +607,7 @@ public class Controller {
 		}
 		new MaterialAlertDialogBuilder(activity).setTitle(R.string.audio_track).setAdapter(getAdapter(checked, options), (dialog, which) -> {
 			engine.setAudioTrack(audioTracks.get(which));
-			showHint(options[which], com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+			showHint(options[which], HINT_HIDE_DELAY_MS);
 			hideControlsAutomatically();
 		}).setNegativeButton(R.string.cancel, null).show();
 	}
@@ -624,7 +643,7 @@ public class Controller {
 	private void showVideoDetails() {
 		StreamCatalog details = engine.getStreamCatalog();
 		if (details == null) {
-			showHint(activity.getString(R.string.unable_to_get_stream_info), com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+			showHint(activity.getString(R.string.unable_to_get_stream_info), HINT_HIDE_DELAY_MS);
 			hideControlsAutomatically();
 			return;
 		}
@@ -633,7 +652,7 @@ public class Controller {
 		String[] info = {getVideoDetailsText(details)};
 		builder.setMessage(info[0]).setNeutralButton(R.string.copy, (dialog, which) -> {
 			DeviceUtils.copyToClipboard(activity, "Video Details", info[0]);
-			showHint(activity.getString(R.string.debug_info_copied), com.testtube.app.player.common.Constant.HINT_HIDE_DELAY_MS);
+			showHint(activity.getString(R.string.debug_info_copied), HINT_HIDE_DELAY_MS);
 		});
 		AlertDialog dialog = builder.show();
 		hideControlsAutomatically();
@@ -738,11 +757,6 @@ public class Controller {
 		applyControllerState(previousState, !isInPiP);
 	}
 
-	/** Swipe down: the video moves to the bottom bar. */
-	public boolean minimize() {
-		return tabManager.minimizeWatch();
-	}
-
 	public void resetBrightness() {
 		gestureListener.resetBrightness();
 	}
@@ -798,8 +812,8 @@ public class Controller {
 			return;
 		hintText.setText(text);
 		ViewUtils.animateViewAlpha(hintText, 1.0f, View.GONE);
-		handler.removeCallbacks(this::hideHint);
-		if (durationMs > 0) handler.postDelayed(this::hideHint, durationMs);
+		handler.removeCallbacks(hideHintRunnable);
+		if (durationMs > 0) handler.postDelayed(hideHintRunnable, durationMs);
 	}
 
 	public boolean isFullscreen() {

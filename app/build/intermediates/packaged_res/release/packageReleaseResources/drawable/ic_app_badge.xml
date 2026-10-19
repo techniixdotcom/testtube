@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The app icon as shown in the top bar: launcher artwork on a black rounded tile. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/ic_launcher_background"
+        android:pathData="M24,0 H84 A24,24 0 0,1 108,24 V84 A24,24 0 0,1 84,108 H24 A24,24 0 0,1 0,84 V24 A24,24 0 0,1 24,0 Z" />
+    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.8"
+        android:scaleY="0.8">
+        <group
+            android:rotation="45"
+            android:translateX="54"
+            android:translateY="54">
+            <clip-path android:pathData="M-14,-38 V32 A14,14 0 0,0 14,32 V-38 Z" />
+            <!-- Undo the tilt so the liquid's surface stays level -->
+            <group android:rotation="-45">
+                <path
+                    android:fillColor="#FFFFFF"
+                    android:pathData="M-60,10 H60 V60 H-60 Z" />
+            </group>
+        </group>
+        <group
+            android:rotation="45"
+            android:translateX="54"
+            android:translateY="54">
+            <path
+                android:pathData="M-14,-38 V32 A14,14 0 0,0 14,32 V-38"
+                android:strokeWidth="5"
+                android:strokeColor="#FFFFFF"
+                android:strokeLineCap="round"
+                android:strokeLineJoin="round" />
+            <path
+                android:fillColor="#000000"
+                android:pathData="M-12,-48 H12 A5,5 0 0,1 12,-38 H-12 A5,5 0 0,1 -12,-48 Z"
+                android:strokeWidth="5"
+                android:strokeColor="#FFFFFF"
+                android:strokeLineJoin="round" />
+        </group>
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M54.6,10 a3.4,3.4 0 1,0 6.8,0 a3.4,3.4 0 1,0 -6.8,0 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M47.5,18 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M43.1,9 a1.9,1.9 0 1,0 3.8,0 a1.9,1.9 0 1,0 -3.8,0 Z" />
+        <!-- A black edge keeps the play apart from the tube's lines -->
+        <path
+            android:fillColor="#000000"
+            android:pathData="M42,36 V74 L74,55 Z"
+            android:strokeWidth="10"
+            android:strokeColor="#000000"
+            android:strokeLineJoin="round" />
+        <path
+            android:fillColor="@color/ic_launcher_play"
+            android:pathData="M42,36 V74 L74,55 Z"
+            android:strokeWidth="4"
+            android:strokeColor="@color/ic_launcher_play"
+            android:strokeLineJoin="round" />
+    </group>
+</vector>
