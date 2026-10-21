@@ -48,10 +48,10 @@ Subscriptions come from one of two places. By default the app shows the latest v
 </p>
 
 <p align="center">
-<img src="screens/1.jpeg" alt="" width="200">
+<img src="screens/1.png" alt="" width="200">
 <img src="screens/2.png" alt="" width="200">
-<img src="screens/3.jpeg" alt="" width="200">
-<img src="screens/4.jpeg" alt="" width="200">
+<img src="screens/3.png" alt="" width="200">
+<img src="screens/4.png" alt="" width="200">
 </p>
 
 
