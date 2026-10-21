@@ -37,9 +37,9 @@ Subscriptions come from one of two places. By default the app shows the latest v
 
 * No analytics, crash reporting or ads in the app. History, queue and followed channels stay on the phone, and backups are off.
 * YouTube and Google still see your IP address and the videos you watch, as with any YouTube client.
-* The only other service the app contacts is Sponsor-block, which sends the first 4 characters of a hash of the video ID to sponsor.ajay.app. There are no dislike-count lookups.
-* Update checks ask GitHub (api.github.com) for the latest release 5 seconds after the app starts. Nothing about you is sent, and you can switch it off by tapping the TestTube logo on Home and unticking "Check automatically".
-
+* SponsorBlock: the app sends the first 4 characters of a hash of the video ID to sponsor.ajay.app. There are no dislike-count lookups.
+* Hide AI videos (off by default): when switched on, the app downloads the community AiSList from raw.githubusercontent.com once a day. Nothing about you is sent.
+* Update checks ask GitHub (api.github.com) for new releases 5 seconds after the app starts, including test versions if “Pre-releases” is on. Updates are downloaded from github.com. Nothing about you is sent, and you can switch checks off by tapping the TestTube logo on Home and turning off “Check for updates automatically” under Updates.
 
 ## Screenshots
 
