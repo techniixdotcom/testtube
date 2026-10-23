@@ -1,5 +1,5 @@
 <p align="center">
-<img src="screens/header.png" alt="" width="400">
+<img src="testtube.png" alt="" width="200">
 </p>
 
 in a world full of excess we give you 5 mb of simplicity 
@@ -42,10 +42,6 @@ Subscriptions come from one of two places. By default the app shows the latest v
 * Update checks ask GitHub (api.github.com) for new releases 5 seconds after the app starts, including test versions if “Pre-releases” is on. Updates are downloaded from github.com. Nothing about you is sent, and you can switch checks off by tapping the TestTube logo on Home and turning off “Check for updates automatically” under Updates.
 
 ## Screenshots
-
-<p align="center">
-<img src="testtube.png" alt="" width="200">
-</p>
 
 <p align="center">
 <img src="screens/1.png" alt="" width="200">
