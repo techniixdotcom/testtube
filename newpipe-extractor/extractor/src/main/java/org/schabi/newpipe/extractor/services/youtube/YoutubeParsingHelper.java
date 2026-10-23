@@ -480,15 +480,26 @@ public final class YoutubeParsingHelper {
         if (clientVersionExtracted) {
             return;
         }
-        final String url = "https://www.youtube.com/sw.js";
+        final String url = "https://www.youtube.com/sw.js_data";
         final var headers = getOriginReferrerHeaders("https://www.youtube.com");
-        final String response = getDownloader().get(url, headers).responseBody();
+        String response = getDownloader().get(url, headers).responseBody();
+        if (response.startsWith(")]}'")) {
+            response = response.substring(4);
+        }
+
         try {
-            clientVersion = getStringResultFromRegexArray(response,
-                    INNERTUBE_CONTEXT_CLIENT_VERSION_REGEXES, 1);
-        } catch (final Parser.RegexException e) {
+            final JsonArray data = JsonParser.array().from(response);
+            final String version = data.getArray(0).getArray(2).getArray(0).getArray(0)
+                    .getString(16);
+            // TestTube: a changed layout gives no version rather than an exception; treat it as
+            // a failure so the HTML page and the hardcoded version are tried next
+            if (isNullOrEmpty(version) || !Character.isDigit(version.charAt(0))) {
+                throw new ParsingException("No WEB InnerTube client version in sw.js_data");
+            }
+            clientVersion = version;
+        } catch (final JsonParserException | RuntimeException e) {
             throw new ParsingException("Could not extract YouTube WEB InnerTube client version "
-                    + "from sw.js", e);
+                + "from sw.js", e);
         }
         clientVersionExtracted = true;
     }

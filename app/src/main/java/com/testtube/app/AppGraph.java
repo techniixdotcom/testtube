@@ -1,11 +1,12 @@
 package com.testtube.app;
 
 import android.content.Context;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.WorkerThread;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.database.StandaloneDatabaseProvider;
-import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor;
 import androidx.media3.datasource.cache.SimpleCache;
 
 import com.google.gson.Gson;
@@ -35,6 +36,7 @@ import com.testtube.app.filter.ContentFilters;
 import com.testtube.app.history.WatchHistory;
 import com.testtube.app.player.PlayerStateStore;
 import com.testtube.app.player.common.PlayerPreferences;
+import com.testtube.app.player.engine.VideoCacheEvictor;
 import com.testtube.app.player.queue.QueueRepository;
 import com.testtube.app.player.sponsor.SponsorBlockManager;
 import com.testtube.app.update.UpdateManager;
@@ -46,10 +48,12 @@ import okhttp3.Dispatcher;
 import okhttp3.OkHttpClient;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -59,7 +63,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 @UnstableApi
 public final class AppGraph {
 	private static final long HTTP_CACHE_BYTES = 64L * 1024L * 1024L;
-	private static final long PLAYER_CACHE_BYTES = 128L * 1024L * 1024L;
 
 	@NonNull
 	private final Context context;
@@ -68,6 +71,7 @@ public final class AppGraph {
 	private Gson gson;
 	private MMKV mmkv;
 	private SimpleCache simpleCache;
+	private VideoCacheEvictor cacheEvictor;
 	private WatchHistory watchHistory;
 	private DownloadHistoryRepository downloadHistory;
 	private StreamDownloader streamDownloader;
@@ -160,11 +164,106 @@ public final class AppGraph {
 	@NonNull
 	public synchronized SimpleCache simpleCache() {
 		if (simpleCache == null) {
-			simpleCache = new SimpleCache(new File(context.getCacheDir(), "player"),
-							new LeastRecentlyUsedCacheEvictor(PLAYER_CACHE_BYTES),
+			cacheEvictor = new VideoCacheEvictor(playerCacheBytes());
+			simpleCache = new SimpleCache(new File(context.getCacheDir(), "player"), cacheEvictor,
 							new StandaloneDatabaseProvider(context));
 		}
 		return simpleCache;
+	}
+
+	private static long playerCacheBytes() {
+		return AppSettings.videoCache().maxBytes;
+	}
+
+	/** Folders in the cache directory that "Clear cache" must leave alone. */
+	private static final Set<String> KEPT_CACHE_FILES = Set.of("updates");
+	/** Cache folders emptied through their owners' APIs rather than by deleting files. */
+	private static final Set<String> SELF_MANAGED_CACHES = Set.of("player", "okhttp", "WebView");
+
+	/**
+	 * Bytes of cache the app holds: saved video, pictures and web data. Half-finished downloads
+	 * and downloaded updates aren't counted, as "Clear cache" keeps them. Reads the disk.
+	 */
+	@WorkerThread
+	public long cacheSize() {
+		long total = 0;
+		File[] files = context.getCacheDir().listFiles();
+		if (files == null) return 0;
+		for (File file : files) {
+			if (isKeptCacheFile(file)) continue;
+			total += sizeOf(file);
+		}
+		return total;
+	}
+
+	/**
+	 * Empties the video cache and the HTTP cache (also pictures) through their own APIs, so this is
+	 * safe while something plays, and deletes other leftovers in the cache directory. Downloads in
+	 * progress, downloaded updates, cookies, history, the queue and settings stay. Reads and writes
+	 * the disk; the WebView's own cache has to be cleared on the main thread by the caller.
+	 */
+	@WorkerThread
+	public void clearCaches() {
+		SimpleCache video = simpleCache();
+		for (String key : video.getKeys()) {
+			try {
+				video.removeResource(key);
+			} catch (RuntimeException e) {
+				Log.w("AppGraph", "could not remove cached video " + key, e);
+			}
+		}
+		Cache http = okHttpClient().cache();
+		if (http != null) {
+			try {
+				http.evictAll();
+			} catch (IOException e) {
+				Log.w("AppGraph", "could not clear the HTTP cache", e);
+			}
+		}
+		File[] files = context.getCacheDir().listFiles();
+		if (files == null) return;
+		for (File file : files) {
+			String name = file.getName();
+			// The two caches above and the WebView (cleared by the caller) manage their own folders
+			if (isKeptCacheFile(file) || SELF_MANAGED_CACHES.contains(name)) continue;
+			deleteRecursively(file);
+		}
+	}
+
+	private static boolean isKeptCacheFile(@NonNull File file) {
+		// Downloads write *.tmp files here until they are finished
+		return KEPT_CACHE_FILES.contains(file.getName()) || (file.isFile() && file.getName().endsWith(".tmp"));
+	}
+
+	private static long sizeOf(@NonNull File file) {
+		if (file.isFile()) return file.length();
+		long total = 0;
+		File[] children = file.listFiles();
+		if (children != null) {
+			for (File child : children) total += sizeOf(child);
+		}
+		return total;
+	}
+
+	private static void deleteRecursively(@NonNull File file) {
+		File[] children = file.isDirectory() ? file.listFiles() : null;
+		if (children != null) {
+			for (File child : children) deleteRecursively(child);
+		}
+		if (!file.delete() && file.exists()) Log.w("AppGraph", "could not delete " + file);
+	}
+
+	/** The "Video cache" setting changed: a smaller limit frees space right away. */
+	public void applyVideoCacheSize() {
+		SimpleCache cache;
+		VideoCacheEvictor evictor;
+		synchronized (this) {
+			cache = simpleCache;
+			evictor = cacheEvictor;
+		}
+		if (cache == null || evictor == null) return;
+		long limit = playerCacheBytes();
+		executor().execute(() -> evictor.setMaxBytes(cache, limit));
 	}
 
 	/** A few random videos and titles from recent history, used to seed Home. */

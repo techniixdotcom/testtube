@@ -10,8 +10,10 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -30,6 +32,9 @@ public final class ContentFilters {
 	private static final int PERCENT_BITS = 7;
 	private static final long PERCENT_MASK = (1L << PERCENT_BITS) - 1L;
 	private static final Pattern VIDEO_ID = Pattern.compile("[A-Za-z0-9_-]{11}");
+	/** Separators YouTube puts between a channel name and extra text ("Name • 1M views"). */
+	private static final Pattern NAME_SEPARATOR = Pattern.compile("[•·|]");
+	private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
 	@NonNull
 	private final MMKV watchStore;
@@ -41,6 +46,9 @@ public final class ContentFilters {
 	private final AiChannelList aiChannels;
 	/** Read once from storage; -1 until then. Every list row asks for it. */
 	private volatile int threshold = -1;
+	/** Blocked channels prepared for lookups; rebuilt after the list changes. Every list row asks. */
+	@Nullable
+	private volatile BlockedIndex blockedIndex;
 
 	public ContentFilters(@NonNull MMKV mmkv, @NonNull Gson gson, @NonNull AiChannelList aiChannels) {
 		this.mmkv = mmkv;
@@ -165,8 +173,8 @@ public final class ContentFilters {
 	@NonNull
 	public static String normalizeName(@Nullable String name) {
 		if (name == null) return "";
-		String first = name.split("[•·|]", 2)[0];
-		return first.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+		String first = NAME_SEPARATOR.split(name, 2)[0];
+		return WHITESPACE.matcher(first.trim()).replaceAll(" ").toLowerCase(Locale.ROOT);
 	}
 
 	@NonNull
@@ -190,13 +198,14 @@ public final class ContentFilters {
 
 	private void writeBlocked(@NonNull List<BlockedChannel> items) {
 		mmkv.encode(KEY_BLOCKED_CHANNELS, gson.toJson(items.toArray(new BlockedChannel[0])));
+		blockedIndex = null;
 	}
 
 	/**
 	 * Blocks a channel. Returns false when the name is unusable.
 	 */
 	public synchronized boolean blockChannel(@Nullable String name, @Nullable String url, @Nullable String altUrl) {
-		String display = name == null ? "" : name.split("[•·|]", 2)[0].trim();
+		String display = name == null ? "" : NAME_SEPARATOR.split(name, 2)[0].trim();
 		if (display.isEmpty()) return false;
 		String path = channelPath(url);
 		String altPath = channelPath(altUrl);
@@ -226,9 +235,33 @@ public final class ContentFilters {
 	public boolean isChannelBlocked(@Nullable String name, @Nullable String url) {
 		String path = channelPath(url);
 		if (aiChannels.matches(path)) return true;
-		for (BlockedChannel item : blockedChannels()) {
-			if (matches(item, name, path)) return true;
+		BlockedIndex index = blockedIndex();
+		if (path != null && index.paths().contains(path)) return true;
+		String normalized = normalizeName(name);
+		return !normalized.isEmpty() && index.names().contains(normalized);
+	}
+
+	@NonNull
+	private BlockedIndex blockedIndex() {
+		BlockedIndex index = blockedIndex;
+		if (index != null) return index;
+		synchronized (this) {
+			if (blockedIndex != null) return blockedIndex;
+			Set<String> paths = new HashSet<>();
+			Set<String> names = new HashSet<>();
+			for (BlockedChannel item : blockedChannels()) {
+				if (item.path() != null) paths.add(item.path());
+				if (item.altPath() != null) paths.add(item.altPath());
+				String normalized = normalizeName(item.name());
+				if (!normalized.isEmpty()) names.add(normalized);
+			}
+			index = new BlockedIndex(Set.copyOf(paths), Set.copyOf(names));
+			blockedIndex = index;
+			return index;
 		}
-		return false;
+	}
+
+	/** Channel paths and normalized names of the blocked channels. */
+	private record BlockedIndex(@NonNull Set<String> paths, @NonNull Set<String> names) {
 	}
 }

@@ -5,8 +5,8 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
-val appVersionName = "v2.0.2"
-val appVersionCode = 20002
+val appVersionName = "v2.1.2"
+val appVersionCode = 20102
 val apkBaseName = "testtube" + appVersionName.removePrefix("v")
 
 base {
@@ -116,7 +116,6 @@ dependencies {
     implementation(libs.media3.ui)
     implementation(libs.mmkv)
     implementation(libs.okhttp)
-    implementation(libs.okio)
     implementation(libs.picasso)
     implementation(libs.profileinstaller)
     implementation(libs.recyclerview)

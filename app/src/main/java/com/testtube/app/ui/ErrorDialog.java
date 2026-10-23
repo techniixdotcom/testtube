@@ -24,7 +24,6 @@ import java.util.Set;
 
 public final class ErrorDialog {
 	private static final String TAG = "ErrorDialog";
-	private static final String DEBUG_INFO_LABEL = "Debug Info";
 
 	private ErrorDialog() {
 	}
@@ -110,7 +109,7 @@ public final class ErrorDialog {
 
 			String sb = "App Version: " + version + "\n" + "Date: " + date + "\n" + "Error Message: " + title + "\n" + "Stack Trace:\n" + stack;
 
-			DeviceUtils.copyToClipboard(context, DEBUG_INFO_LABEL, sb);
+			DeviceUtils.copyToClipboard(context, context.getString(R.string.error_title), sb);
 			ToastUtils.show(context, R.string.debug_info_copied);
 		} catch (Exception e) {
 			Log.e(TAG, "Failed to copy debug info", e);

@@ -191,7 +191,7 @@ public final class YoutubeExtractor {
 			if (!refresh && active != null && !active.base.isDone() && !active.root.isCancelled()) {
 				return active;
 			}
-			return new Task(videoId, refresh);
+			return new Task(videoId, refresh, session != null && session.isBackground());
 		});
 		return task.attach(session);
 	}
@@ -591,8 +591,8 @@ public final class YoutubeExtractor {
 		@NonNull
 		private final AtomicInteger refs = new AtomicInteger();
 
-		private Task(@NonNull String videoId, boolean refresh) {
-			this.root = new ExtractionSession(auth.create(WATCH_URL + videoId));
+		private Task(@NonNull String videoId, boolean refresh, boolean background) {
+			this.root = new ExtractionSession(auth.create(WATCH_URL + videoId)).setBackground(background);
 			this.base = CompletableFuture.supplyAsync(() -> {
 				try {
 					return load(videoId, root, refresh);
@@ -610,6 +610,8 @@ public final class YoutubeExtractor {
 		@NonNull
 		private CompletableFuture<PlaybackDetails> attach(@Nullable ExtractionSession session) {
 			refs.incrementAndGet();
+			// Someone is waiting for it now (e.g. the prefetched Short was swiped to): full speed
+			if (session == null || !session.isBackground()) root.setBackground(false);
 			AtomicBoolean done = new AtomicBoolean();
 			CompletableFuture<PlaybackDetails> future = new CompletableFuture<>();
 			future.whenComplete((ignored, error) -> release(done));

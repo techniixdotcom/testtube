@@ -28,7 +28,7 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <FrameLayout
-        android:id="@+id/history_container"
+        android:id="@+id/library_container"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:visibility="gone"
@@ -59,6 +59,7 @@
 
     <com.testtube.app.player.TestTubePlayerView
         android:id="@+id/playerView"
+        android:theme="@style/ThemeOverlay.TestTube.OnVideo"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:background="@android:color/black"
@@ -71,6 +72,70 @@
         app:show_timeout="0"
         app:surface_type="texture_view"
         app:use_controller="true" />
+
+    <!--
+        Touch layer and buttons of the floating window. The video itself is the player above,
+        scaled into the same spot (see FloatingWindow); size and position are set in code.
+    -->
+    <FrameLayout
+        android:id="@+id/floating_overlay"
+        android:theme="@style/ThemeOverlay.TestTube.OnVideo"
+        android:layout_width="160dp"
+        android:layout_height="90dp"
+        android:background="@drawable/bg_floating_window"
+        android:clickable="true"
+        android:contentDescription="@string/floating_window"
+        android:elevation="14dp"
+        android:focusable="true"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <FrameLayout
+            android:id="@+id/floating_controls"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="0"
+            android:background="@color/scrim_soft"
+            android:visibility="gone">
+
+            <ImageButton
+                android:id="@+id/floating_expand"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_gravity="top|start"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/floating_expand"
+                android:padding="7dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_fullscreen"
+                app:tint="@android:color/white" />
+
+            <ImageButton
+                android:id="@+id/floating_close"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_gravity="top|end"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/close"
+                android:padding="8dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_close"
+                app:tint="@android:color/white" />
+
+            <ImageButton
+                android:id="@+id/floating_play_pause"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_gravity="center"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/mini_bar_pause"
+                android:padding="8dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_pause"
+                app:tint="@android:color/white" />
+        </FrameLayout>
+    </FrameLayout>
 
     <LinearLayout
         android:id="@+id/mini_bar"

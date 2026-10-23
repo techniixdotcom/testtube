@@ -2,7 +2,6 @@ package com.testtube.app.ui.feed;
 
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
@@ -61,11 +60,17 @@ final class QueueSwipe extends ItemTouchHelper.SimpleCallback {
 		super(0, ItemTouchHelper.RIGHT | ItemTouchHelper.LEFT);
 		this.target = target;
 		this.density = context.getResources().getDisplayMetrics().density;
-		background = new ColorDrawable(Color.BLACK);
-		logo = ContextCompat.getDrawable(context, R.drawable.ic_testtube_logo);
+		background = new ColorDrawable(ContextCompat.getColor(context, R.color.swipe_background));
+		int content = ContextCompat.getColor(context, R.color.swipe_content);
+		Drawable icon = ContextCompat.getDrawable(context, R.drawable.ic_testtube_logo);
+		if (icon != null) {
+			icon = icon.mutate();
+			icon.setTint(content);
+		}
+		logo = icon;
 		addedLabel = context.getString(R.string.swipe_added);
 		followLabel = context.getString(R.string.swipe_follow);
-		labelPaint.setColor(Color.WHITE);
+		labelPaint.setColor(content);
 		labelPaint.setTextAlign(Paint.Align.CENTER);
 		labelPaint.setTextSize(14 * density);
 		labelPaint.setTypeface(Typeface.DEFAULT_BOLD);

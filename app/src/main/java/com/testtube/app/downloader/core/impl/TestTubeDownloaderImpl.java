@@ -4,9 +4,9 @@ import android.content.Context;
 
 import androidx.annotation.NonNull;
 
+import com.testtube.app.downloader.core.DownloadListener;
 import com.testtube.app.downloader.core.MediaMuxer;
 import com.testtube.app.downloader.core.ProgressCallback;
-import com.testtube.app.downloader.core.ProgressCallback2;
 import com.testtube.app.downloader.core.StreamDownloader;
 import com.testtube.app.downloader.core.Task;
 import com.testtube.app.downloader.core.TestTubeDownloader;
@@ -37,7 +37,7 @@ public class TestTubeDownloaderImpl implements TestTubeDownloader {
 	});
 	private final Map<String, Future<?>> sideTasks = new ConcurrentHashMap<>();
 	private final Map<String, Task> tasks = new ConcurrentHashMap<>();
-	private final Map<String, ProgressCallback2> callbacks = new ConcurrentHashMap<>();
+	private final Map<String, DownloadListener> callbacks = new ConcurrentHashMap<>();
 
 	public TestTubeDownloaderImpl(Context ctx,
 	                          StreamDownloader streamDL) {
@@ -53,7 +53,7 @@ public class TestTubeDownloaderImpl implements TestTubeDownloader {
 	}
 
 	@Override
-	public void setCallback(@NonNull String videoId, ProgressCallback2 callback) {
+	public void setCallback(@NonNull String videoId, DownloadListener callback) {
 		if (callback != null) callbacks.put(videoId, callback);
 		else callbacks.remove(videoId);
 	}
@@ -111,7 +111,7 @@ public class TestTubeDownloaderImpl implements TestTubeDownloader {
 			try {
 				if (!tasks.containsKey(task.videoId())) return;
 				if (vFut != null && aFut != null) {
-					notify(task.videoId(), ProgressCallback2::onMerge);
+					notify(task.videoId(), DownloadListener::onMerge);
 					File mF = tmp(task, "_m");
 					try {
 						mediaMerger.merge(vF, aF, mF);
@@ -158,7 +158,7 @@ public class TestTubeDownloaderImpl implements TestTubeDownloader {
 			if (t.audio() != null) streamDL.cancel(t.audio().getContent());
 			Future<?> side = sideTasks.remove(videoId);
 			if (side != null) side.cancel(true);
-			notify(videoId, ProgressCallback2::onCancel);
+			notify(videoId, DownloadListener::onCancel);
 			clean(t);
 		} finally {
 			clearCallback(videoId);
@@ -212,7 +212,7 @@ public class TestTubeDownloaderImpl implements TestTubeDownloader {
 	}
 
 	private void notify(String videoId, CallbackAction action) {
-		ProgressCallback2 callback = callbacks.get(videoId);
+		DownloadListener callback = callbacks.get(videoId);
 		if (callback != null) action.run(callback);
 	}
 
@@ -263,7 +263,7 @@ public class TestTubeDownloaderImpl implements TestTubeDownloader {
 	}
 
 	interface CallbackAction {
-		void run(ProgressCallback2 cb);
+		void run(DownloadListener cb);
 	}
 
 	interface ProgressUpdateListener {

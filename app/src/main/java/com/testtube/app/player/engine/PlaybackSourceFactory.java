@@ -156,7 +156,9 @@ class PlaybackSourceFactory {
 								new ByteArrayInputStream(manifest.getBytes(StandardCharsets.UTF_8)));
 				return sources.youtubeProgressiveDashFactory(live).createMediaSource(parsed);
 			}
-		} catch (Exception ignored) {
+		} catch (Exception e) {
+			// The generated manifest is only a nicer way to seek; plain progressive still plays
+			Log.w(TAG, "progressive DASH manifest failed, using the plain stream", e);
 		}
 		final MediaItem.Builder builder = MediaItem.fromUri(url).buildUpon();
 		if (stream.getFormat() != null) {

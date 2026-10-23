@@ -1,0 +1,4 @@
+- New light theme: Settings → Appearance → Theme
+- Choose Dark (default), Light or System default
+- Applies right away; the video and Shorts stay dark
+- Update check: fixed missing pre-releases

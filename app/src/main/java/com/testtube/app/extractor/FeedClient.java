@@ -8,12 +8,14 @@ import android.util.Xml;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.google.gson.Gson;
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonWriter;
 import com.tencent.mmkv.MMKV;
 import com.testtube.app.AppSettings;
 import com.testtube.app.Constant;
+import com.testtube.app.net.RequestPacer;
 
 import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.InfoItem;
@@ -50,9 +52,8 @@ import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.io.Reader;
+import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -489,14 +490,22 @@ public final class FeedClient {
 	/** Max wait for the extractor fallback of failed channel feeds. */
 	private static final long FALLBACK_WAIT_MS = 8_000L;
 	private static final int MAX_FALLBACK_CHANNELS = 6;
-	private static final long CHANNEL_CACHE_MS = 3 * 60_000L;
+	/**
+	 * How long a followed channel's videos count as fresh, like a feed reader's polling interval.
+	 * Kept across restarts, so opening Subscriptions doesn't fetch every channel again.
+	 */
+	private static final long CHANNEL_CACHE_MS = 15 * 60_000L;
+	/** Older entries are still shown while the fresh list loads, or when it can't. */
+	private static final long CHANNEL_CACHE_KEEP_MS = 7L * 24 * 60 * 60_000L;
+	private static final String CHANNEL_STORE_ID = "testtube_channel_feeds";
 	private static final long OLDER_BUDGET_MS = 25_000L;
 	private static final int MAX_LOCAL_VIDEOS = 120;
 	private static final int SHORTS_CHANNELS_PER_PAGE = 4;
 	private static final int SHORTS_QUERIES_PER_PAGE = 2;
 	private static final int SHORTS_PER_CHANNEL = 6;
 	private static final long SHORTS_WAIT_MS = 10_000L;
-	private static final ExecutorService FEED_POOL = Executors.newFixedThreadPool(12, task -> {
+	/** Few channels at a time; the requests are background requests for the pacer as well. */
+	private static final ExecutorService FEED_POOL = Executors.newFixedThreadPool(4, task -> {
 		Thread thread = new Thread(task, "channel-feed");
 		thread.setDaemon(true);
 		return thread;
@@ -621,13 +630,42 @@ public final class FeedClient {
 
 	/** Recent results per channel, so reopening Subscriptions doesn't refetch everything. */
 	private static final Map<String, CachedChannel> CHANNEL_CACHE = new ConcurrentHashMap<>();
+	private static final Gson CACHE_GSON = new Gson();
+
+	/** A channel's last videos from memory or, after a restart, from storage. */
+	@Nullable
+	private static CachedChannel cachedChannel(@NonNull String channelId) {
+		CachedChannel cached = CHANNEL_CACHE.get(channelId);
+		if (cached != null) return cached;
+		try {
+			String json = MMKV.mmkvWithID(CHANNEL_STORE_ID).decodeString(channelId, null);
+			if (json == null) return null;
+			cached = CACHE_GSON.fromJson(json, CachedChannel.class);
+		} catch (RuntimeException e) {
+			return null;
+		}
+		if (cached == null || cached.videos() == null
+						|| System.currentTimeMillis() - cached.loadedAt() > CHANNEL_CACHE_KEEP_MS) {
+			return null;
+		}
+		CHANNEL_CACHE.put(channelId, cached);
+		return cached;
+	}
 
 	/** Fetches and caches a channel feed, even if the caller stopped waiting. */
 	@NonNull
 	private static List<RssVideo> channelVideos(@NonNull LocalSubscriptions.Channel channel)
-					throws IOException, XmlPullParserException {
+					throws IOException, XmlPullParserException, ExtractionException {
 		List<RssVideo> videos = fetchChannelFeed(channel);
-		if (!videos.isEmpty()) CHANNEL_CACHE.put(channel.id(), new CachedChannel(System.currentTimeMillis(), videos));
+		if (!videos.isEmpty()) {
+			CachedChannel cached = new CachedChannel(System.currentTimeMillis(), videos);
+			CHANNEL_CACHE.put(channel.id(), cached);
+			try {
+				MMKV.mmkvWithID(CHANNEL_STORE_ID).encode(channel.id(), CACHE_GSON.toJson(cached));
+			} catch (RuntimeException ignored) {
+				// Only a cache
+			}
+		}
 		return videos;
 	}
 
@@ -639,10 +677,15 @@ public final class FeedClient {
 		List<RssVideo> cachedNow = new ArrayList<>();
 		ExecutorCompletionService<List<RssVideo>> done = new ExecutorCompletionService<>(FEED_POOL);
 		Map<Future<List<RssVideo>>, LocalSubscriptions.Channel> pending = new HashMap<>();
+		List<RssVideo> stale = new ArrayList<>();
 		for (LocalSubscriptions.Channel channel : channels) {
-			CachedChannel cached = CHANNEL_CACHE.get(channel.id());
-			if (cached != null && start - cached.loadedAt() < CHANNEL_CACHE_MS) cachedNow.addAll(cached.videos());
-			else pending.put(done.submit(() -> channelVideos(channel)), channel);
+			CachedChannel cached = cachedChannel(channel.id());
+			if (cached != null && start - cached.loadedAt() < CHANNEL_CACHE_MS) {
+				cachedNow.addAll(cached.videos());
+			} else {
+				if (cached != null) stale.addAll(cached.videos());
+				pending.put(done.submit(RequestPacer.inBackground(() -> channelVideos(channel))), channel);
+			}
 		}
 		all.addAll(cachedNow);
 		if (partial != null && !cachedNow.isEmpty()) partial.accept(toFeedItems(cachedNow, Integer.MAX_VALUE));
@@ -678,7 +721,7 @@ public final class FeedClient {
 		if (!failed.isEmpty()) {
 			List<Future<List<RssVideo>>> fallbacks = new ArrayList<>();
 			for (LocalSubscriptions.Channel channel : failed.subList(0, Math.min(failed.size(), MAX_FALLBACK_CHANNELS))) {
-				fallbacks.add(FEED_POOL.submit(() -> videosFromExtractor(channel)));
+				fallbacks.add(FEED_POOL.submit(RequestPacer.inBackground(() -> videosFromExtractor(channel))));
 			}
 			long until = System.currentTimeMillis() + FALLBACK_WAIT_MS;
 			for (Future<List<RssVideo>> fallback : fallbacks) {
@@ -687,6 +730,15 @@ public final class FeedClient {
 				} catch (InterruptedException | ExecutionException | TimeoutException e) {
 					Log.w(TAG, "extractor fallback failed", e);
 				}
+			}
+		}
+		// Channels that didn't answer in time (or while YouTube asked for a pause) show their last
+		// known videos rather than none
+		if (!stale.isEmpty()) {
+			Set<String> answered = new HashSet<>();
+			for (RssVideo video : all) answered.add(video.channelId());
+			for (RssVideo video : stale) {
+				if (!answered.contains(video.channelId())) all.add(video);
 			}
 		}
 		// Nothing loaded at all: report an error rather than an empty list
@@ -727,7 +779,8 @@ public final class FeedClient {
 	private static FeedPage olderLocalVideos(@NonNull LocalCursor cursor) {
 		Map<String, Future<OlderRound>> pending = new LinkedHashMap<>();
 		for (Map.Entry<String, ChannelCursor> entry : cursor.channels().entrySet()) {
-			pending.put(entry.getKey(), FEED_POOL.submit(() -> olderRound(entry.getKey(), entry.getValue())));
+			pending.put(entry.getKey(), FEED_POOL.submit(RequestPacer.inBackground(
+							() -> olderRound(entry.getKey(), entry.getValue()))));
 		}
 		long deadline = System.currentTimeMillis() + OLDER_BUDGET_MS;
 		Map<String, ChannelCursor> next = new LinkedHashMap<>();
@@ -818,27 +871,27 @@ public final class FeedClient {
 		return out;
 	}
 
+	/**
+	 * A channel's RSS feed, through the same client, cookies, identity and pacing as every other
+	 * YouTube request (it used to be a separate connection with its own headers).
+	 */
 	@NonNull
 	private static List<RssVideo> fetchChannelFeed(@NonNull LocalSubscriptions.Channel channel)
-					throws IOException, XmlPullParserException {
-		URL url = new URL("https://www.youtube.com/feeds/videos.xml?channel_id=" + channel.id());
-		HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-		connection.setConnectTimeout(5_000);
-		connection.setReadTimeout(7_000);
-		connection.setRequestProperty("User-Agent", Constant.USER_AGENT);
-		try (InputStream stream = connection.getInputStream()) {
-			return parseChannelFeed(stream, channel);
-		} finally {
-			connection.disconnect();
+					throws IOException, XmlPullParserException, ExtractionException {
+		org.schabi.newpipe.extractor.downloader.Response response = NewPipe.getDownloader()
+						.get("https://www.youtube.com/feeds/videos.xml?channel_id=" + channel.id());
+		if (response.responseCode() != 200) {
+			throw new IOException("channel feed answered HTTP " + response.responseCode());
 		}
+		return parseChannelFeed(new StringReader(response.responseBody()), channel);
 	}
 
 	@NonNull
-	private static List<RssVideo> parseChannelFeed(@NonNull InputStream stream,
+	private static List<RssVideo> parseChannelFeed(@NonNull Reader reader,
 	                                               @NonNull LocalSubscriptions.Channel channel)
 					throws IOException, XmlPullParserException {
 		XmlPullParser parser = Xml.newPullParser();
-		parser.setInput(stream, null);
+		parser.setInput(reader);
 		List<RssVideo> out = new ArrayList<>();
 		String feedAuthor = channel.name();
 		boolean inEntry = false;

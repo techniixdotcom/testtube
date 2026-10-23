@@ -11,6 +11,6 @@
         android:gravity="center">
         <bitmap
             android:src="@drawable/ic_testtube_logo"
-            android:tint="@color/yt_red" />
+            android:tint="@color/brand_red" />
     </item>
 </layer-list>

@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Library: Queue, History and Downloads as browser-style tabs across the top. The bin at the
+    end of the tab row clears whichever tab is open.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:gravity="bottom"
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingTop="8dp"
+        android:paddingEnd="4dp">
+
+        <TextView
+            android:id="@+id/library_tab_queue"
+            style="@style/Widget.TestTube.LibraryTab"
+            android:drawableStart="@drawable/ic_queue"
+            android:text="@string/queue" />
+
+        <TextView
+            android:id="@+id/library_tab_history"
+            style="@style/Widget.TestTube.LibraryTab"
+            android:drawableStart="@drawable/ic_history"
+            android:text="@string/library_history" />
+
+        <TextView
+            android:id="@+id/library_tab_downloads"
+            style="@style/Widget.TestTube.LibraryTab"
+            android:drawableStart="@drawable/ic_download"
+            android:text="@string/library_downloads" />
+
+        <ImageButton
+            android:id="@+id/library_clear"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/clear_queue"
+            android:padding="10dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_delete"
+            app:tint="?attr/colorOnSurfaceVariant" />
+    </LinearLayout>
+
+    <!-- The page shares the selected tab's colour, so the two read as one piece -->
+    <FrameLayout
+        android:id="@+id/library_pages"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="?attr/colorSurfaceContainer">
+
+        <FrameLayout
+            android:id="@+id/library_page_queue"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/panel_queue_list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:overScrollMode="never"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="6dp" />
+
+            <TextView
+                android:id="@+id/panel_queue_empty"
+                style="@style/Widget.TestTube.EmptyState"
+                android:drawableTop="@drawable/ic_queue"
+                android:text="@string/no_queue_items" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/library_page_history"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/history_list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingHorizontal="8dp"
+                android:paddingBottom="6dp" />
+
+            <TextView
+                android:id="@+id/history_empty"
+                style="@style/Widget.TestTube.EmptyState"
+                android:drawableTop="@drawable/ic_history"
+                android:text="@string/watch_history_empty" />
+        </FrameLayout>
+
+        <include
+            android:id="@+id/library_page_downloads"
+            layout="@layout/view_download_list"
+            android:visibility="gone" />
+    </FrameLayout>
+</LinearLayout>

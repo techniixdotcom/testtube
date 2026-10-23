@@ -4,7 +4,6 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.media3.common.util.UnstableApi;
 
-import com.google.android.material.snackbar.Snackbar;
 import com.testtube.app.AppGraph;
 import com.testtube.app.R;
 import com.testtube.app.nav.TabManager;
@@ -36,14 +35,6 @@ public final class ActivityGraph {
 						tabManager, app.sponsorBlockManager(), app.queueRepository(), app.youtubeExtractor(),
 						app.contentFilters(), app.watchHistory());
 		engine.setFeedClient(app.feedClient());
-		engine.setUpNextListener((title, delayMs, onCancel) -> activity.runOnUiThread(() -> {
-			if (activity.isFinishing() || activity.isDestroyed()) return;
-			Snackbar
-							.make(activity.findViewById(android.R.id.content),
-											activity.getString(R.string.up_next_title, title), (int) delayMs)
-							.setAction(R.string.up_next_cancel, v -> onCancel.run())
-							.show();
-		}));
 		Controller controller = new Controller(activity, playerView, engine, app.playerPreferences(),
 						new ZoomTouchListener(activity, playerView), tabManager);
 		player = new TestTubePlayer(activity, app.youtubeExtractor(), playerView, controller, engine,

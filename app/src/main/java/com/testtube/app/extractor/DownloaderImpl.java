@@ -5,7 +5,9 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.testtube.app.Constant;
+import com.testtube.app.net.ClientIdentity;
+import com.testtube.app.net.RequestPacer;
+import com.testtube.app.net.YoutubeCookies;
 
 import okhttp3.Call;
 import okhttp3.OkHttpClient;
@@ -20,17 +22,12 @@ import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
 
 import java.io.IOException;
 import java.io.InterruptedIOException;
-import java.net.URI;
-import java.util.Arrays;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public final class DownloaderImpl extends Downloader {
 	private static final String YOUTUBE_RESTRICTED_MODE_COOKIE = "PREF=f2=8000000";
@@ -74,27 +71,34 @@ public final class DownloaderImpl extends Downloader {
 		String url = request.url();
 		final Map<String, List<String>> headers = request.headers();
 		byte[] dataToSend = request.dataToSend();
+		String host = YoutubeCookies.hostOf(url);
+		boolean youtube = ClientIdentity.isYoutubeApiOrSite(host);
+		// The app clients (VISIONOS) bring their own identity: no browser cookies, no browser agent
+		boolean appClient = isAppClientRequest(headers);
 
 		RequestBody requestBody = null;
 		if (dataToSend != null) requestBody = RequestBody.create(dataToSend);
 
-		final Request.Builder builder = new Request.Builder().url(url).method(httpMethod, requestBody).header("User-Agent", Constant.USER_AGENT);
+		final Request.Builder builder = new Request.Builder().url(url).method(httpMethod, requestBody)
+						.header("User-Agent", ClientIdentity.userAgentFor(host));
+		if (youtube && !appClient && !hasHeader(headers, "Accept-Language")) {
+			builder.header("Accept-Language", ClientIdentity.acceptLanguage());
+		}
 		ExtractionSession session = scope.get();
 		// VISIONOS is an anonymous client. With account cookies or authorization YouTube
 		// rejects or binds the stream URLs.
-		AuthContext auth = session != null && !isAppClientRequest(headers) ? session.getAuth() : null;
-		String mergedCookies = mergeCookiesForUrl(
-						url,
-						auth != null ? auth.cookies() : null);
+		AuthContext auth = session != null && !appClient ? session.getAuth() : null;
+		String storedCookies = auth != null && auth.cookies() != null ? auth.cookies()
+						: appClient ? null : YoutubeCookies.forUrl(url);
+		String mergedCookies = mergeCookies(isYoutubeHost(host) ? storedCookies : null, null);
 
 		// Override with headers from request
 		if (headers != null) {
 			for (final Map.Entry<String, List<String>> entry : headers.entrySet()) {
 				String headerName = entry.getKey();
 				if ("cookie".equalsIgnoreCase(headerName)) {
-					mergedCookies = mergeCookieHeaders(
-									mergedCookies,
-									String.join("; ", entry.getValue()));
+					// The request's own cookies (e.g. consent) win over stored ones of the same name
+					mergedCookies = mergeCookies(mergedCookies, String.join("; ", entry.getValue()));
 					continue;
 				}
 				builder.removeHeader(headerName);
@@ -103,6 +107,8 @@ public final class DownloaderImpl extends Downloader {
 				}
 			}
 		}
+		String restricted = getRestrictedModeCookie(url, mergedCookies);
+		if (restricted != null) mergedCookies = mergeCookies(mergedCookies, restricted);
 		YoutubeAuth.Result authHeaders = YoutubeAuth.headers(url, auth, System.currentTimeMillis());
 		for (Map.Entry<String, String> entry : authHeaders.headers().entrySet()) {
 			if (hasHeader(headers, entry.getKey())) {
@@ -114,13 +120,19 @@ public final class DownloaderImpl extends Downloader {
 			builder.header("Cookie", mergedCookies);
 		}
 
+		BooleanSupplier cancelled = session != null ? session::isCancelled : null;
+		RequestPacer.Slot slot = youtube
+						? RequestPacer.acquire(cancelled, session != null && session.isBackground())
+						: null;
 		Call call = client.newCall(builder.build());
 		if (session != null) {
 			session.register(call::cancel);
 		}
 
 		try (Response response = call.execute()) {
+			if (youtube && !appClient) YoutubeCookies.store(url, response.headers("Set-Cookie"));
 			if (response.code() == 429) {
+				RequestPacer.onSlowDown(retryAfterMs(response.header("Retry-After")));
 				throw new ReCaptchaException("ReCaptcha Challenge requested", url);
 			}
 
@@ -147,59 +159,52 @@ public final class DownloaderImpl extends Downloader {
 				throw interrupted;
 			}
 			throw e;
+		} finally {
+			if (slot != null) slot.close();
 		}
 	}
 
-	@NonNull
-	private String mergeCookiesForUrl(@NonNull String url,
-	                          @Nullable String cookies) {
-		// Account cookies must never leave the YouTube domain.
-		String scopedCookies = isYoutubeHost(getHost(url)) ? cookies : null;
-		String restrictedModeCookie = getRestrictedModeCookie(url, scopedCookies);
-		return Stream.of(scopedCookies, restrictedModeCookie)
-						.filter(Objects::nonNull)
-						.flatMap(value -> Arrays.stream(value.split("; *")))
-						.filter(s -> !s.isEmpty())
-						.collect(Collectors.collectingAndThen(
-										Collectors.toCollection(LinkedHashSet::new),
-										set -> String.join("; ", set)));
+	/** Retry-After in seconds (the form YouTube uses), as milliseconds; 0 when absent. */
+	private static long retryAfterMs(@Nullable String retryAfter) {
+		if (retryAfter == null) return 0L;
+		try {
+			return Math.min(10L * 60L, Math.max(0L, Long.parseLong(retryAfter.trim()))) * 1000L;
+		} catch (NumberFormatException e) {
+			return 0L;
+		}
 	}
 
+	/**
+	 * Joins two cookie headers. A cookie in {@code overrides} replaces one of the same name in
+	 * {@code base}; the order is kept otherwise.
+	 */
 	@NonNull
-	private String mergeCookieHeaders(@Nullable String first,
-	                                  @Nullable String second) {
-		return Stream.of(first, second)
-						.filter(Objects::nonNull)
-						.flatMap(value -> Arrays.stream(value.split("; *")))
-						.filter(s -> !s.isEmpty())
-						.collect(Collectors.collectingAndThen(
-										Collectors.toCollection(LinkedHashSet::new),
-										set -> String.join("; ", set)));
+	static String mergeCookies(@Nullable String base, @Nullable String overrides) {
+		Map<String, String> byName = new LinkedHashMap<>();
+		for (String header : new String[]{base, overrides}) {
+			if (header == null) continue;
+			for (String part : header.split(";")) {
+				String cookie = part.trim();
+				if (cookie.isEmpty()) continue;
+				int equals = cookie.indexOf('=');
+				String name = equals < 0 ? cookie : cookie.substring(0, equals).trim();
+				byName.remove(name);
+				byName.put(name, cookie);
+			}
+		}
+		return String.join("; ", byName.values());
 	}
 
 	@Nullable
 	private String getRestrictedModeCookie(@NonNull String url,
 	                                       @Nullable String cookies) {
-		if (!isYoutubeHost(getHost(url))) return null;
+		if (!isYoutubeHost(YoutubeCookies.hostOf(url))) return null;
 		if (cookies != null && cookies.contains("PREF=")) return null;
 		return YOUTUBE_RESTRICTED_MODE_COOKIE;
 	}
 
-	@Nullable
-	private String getHost(@NonNull String url) {
-		try {
-			return URI.create(url).getHost();
-		} catch (IllegalArgumentException ignored) {
-			return null;
-		}
-	}
-
-	private boolean isYoutubeHost(@Nullable String host) {
-		if (host == null) return false;
-		String lowerHost = host.toLowerCase(Locale.US);
-		return lowerHost.equals("youtu.be")
-						|| lowerHost.equals(Constant.YOUTUBE_DOMAIN)
-						|| lowerHost.endsWith("." + Constant.YOUTUBE_DOMAIN);
+	private static boolean isYoutubeHost(@Nullable String host) {
+		return YoutubeCookies.isYoutubeHost(host);
 	}
 
 	private boolean isAppClientRequest(@Nullable Map<String, List<String>> headers) {

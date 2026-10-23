@@ -4,6 +4,7 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
+import android.graphics.RectF;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
 import android.view.View;
@@ -17,8 +18,11 @@ import com.testtube.app.player.controller.gesture.WatchDrag;
 
 /**
  * Drags the open video down into the bottom bar, and the bottom bar back up into the video, with the
- * finger. The video shrinks towards the bar's thumbnail on the way, the screen below shows through,
- * and on release it settles at whichever end is closer, or where it was flicked.
+ * finger. Only the video moves: it stays centred, shrinks to half its size and fades into the bar at
+ * the end, while the description and comments fade out where they are and the screen below shows
+ * through. With the floating window chosen instead, the video shrinks straight into the window's
+ * corner and stays visible. On release it settles at whichever end is closer, or where it was
+ * flicked.
  */
 final class WatchDragger implements WatchDrag {
 	interface Host {
@@ -30,12 +34,20 @@ final class WatchDragger implements WatchDrag {
 
 		/** Keeps the screen under the video visible (and Shorts paused) while the video moves. */
 		void setRevealed(boolean revealed);
+
+		/** Where the floating window is, when minimizing goes there; null for the bottom bar. */
+		@Nullable
+		RectF floatingTarget();
 	}
 
 	private static final long SETTLE_MS = 280L;
 	private static final long MIN_SETTLE_MS = 120L;
 	/** A flick this fast (dp per second) decides the direction, however far the video got. */
 	private static final float FLING_DP_PER_SECOND = 900f;
+	/** Size of the video, compared to its normal size, when it reaches the bar. */
+	private static final float END_SCALE = 0.5f;
+	/** The last part of the way, where the video fades into the bar. */
+	private static final float FADE_FROM = 0.7f;
 
 	@NonNull
 	private final View root;
@@ -60,6 +72,9 @@ final class WatchDragger implements WatchDrag {
 	private boolean active;
 	@Nullable
 	private ValueAnimator settle;
+	/** The floating window this drag moves into or out of; null for the bottom bar. */
+	@Nullable
+	private RectF floating;
 
 	private float barDownY;
 	private float barDragStartY;
@@ -86,6 +101,7 @@ final class WatchDragger implements WatchDrag {
 	public boolean begin() {
 		if (active || !host.canMinimize()) return false;
 		active = true;
+		floating = host.floatingTarget();
 		startProgress = 0f;
 		host.setRevealed(true);
 		apply(0f);
@@ -111,15 +127,19 @@ final class WatchDragger implements WatchDrag {
 		settleTo(target);
 	}
 
-	/** Tapping the bar: the video grows back from the bar instead of jumping up. */
-	private void expand() {
-		if (!startFromBar()) return;
+	/** Tapping the bar or the floating window: the video grows back instead of jumping up. */
+	@Override
+	public boolean expand() {
+		if (!startFromBar()) return false;
 		settleTo(0f);
+		return true;
 	}
 
 	private boolean startFromBar() {
 		if (active) return false;
 		active = true;
+		// Read before restoring, while the window still knows where it is
+		floating = host.floatingTarget();
 		startProgress = 1f;
 		host.setRevealed(true);
 		host.restore();
@@ -147,38 +167,57 @@ final class WatchDragger implements WatchDrag {
 
 	private void finish(boolean minimized) {
 		if (minimized) host.minimize();
-		apply(0f);
+		if (minimized && floating != null) {
+			// The floating window now holds the video where the drag left it
+			details.setAlpha(1f);
+		} else {
+			apply(0f);
+		}
 		active = false;
+		floating = null;
 		host.setRevealed(false);
 	}
 
 	private void apply(float value) {
 		progress = Math.max(0f, Math.min(1f, value));
-		float height = playerHeight();
-		float offset = range() * progress;
-		float smallest = height > 0f ? Math.min(1f, miniBarHeight() / height) : 1f;
-		float scale = 1f - (1f - smallest) * progress;
+		RectF target = floating;
+		if (target != null) {
+			applyFloating(target);
+			return;
+		}
+		float scale = 1f - (1f - END_SCALE) * progress;
+		player.setPivotX((player.getWidth() > 0 ? player.getWidth() : root.getWidth()) / 2f);
+		player.setPivotY(0f);
+		player.setScaleX(scale);
+		player.setScaleY(scale);
+		player.setTranslationX(0f);
+		player.setTranslationY(range() * progress);
+		player.setAlpha(progress <= FADE_FROM ? 1f : (1f - progress) / (1f - FADE_FROM));
+		// The details stay where they are and fade out twice as fast as the video moves
+		details.setAlpha(Math.max(0f, 1f - progress * 2f));
+	}
+
+	/** Shrinks the video from its place on top straight into the floating window. */
+	private void applyFloating(@NonNull RectF target) {
+		float width = player.getWidth() > 0 ? player.getWidth() : root.getWidth();
+		float endScale = width > 0f ? target.width() / width : END_SCALE;
+		float scale = 1f - (1f - endScale) * progress;
 		player.setPivotX(0f);
 		player.setPivotY(0f);
 		player.setScaleX(scale);
 		player.setScaleY(scale);
-		player.setTranslationY(offset);
-		// The details stay glued under the shrinking video and fade out
-		details.setTranslationY(offset - height * (1f - scale));
-		details.setAlpha(1f - progress);
+		player.setTranslationX((target.left - player.getLeft()) * progress);
+		player.setTranslationY((target.top - player.getTop()) * progress);
+		player.setAlpha(1f);
+		details.setAlpha(Math.max(0f, 1f - progress * 2f));
 	}
 
-	/** How far the top of the video travels to reach the top of the bottom bar. */
+	/** How far the top of the video travels until its bottom, at its end size, meets the bar's. */
 	private float range() {
 		int bottom = bottomNav.getVisibility() == View.VISIBLE
 						? bottomNav.getTop()
 						: root.getHeight() - root.getPaddingBottom();
-		return Math.max(1f, bottom - miniBarHeight() - root.getPaddingTop());
-	}
-
-	private float miniBarHeight() {
-		int height = miniBar.getLayoutParams().height;
-		return height > 0 ? height : miniBar.getHeight();
+		return Math.max(1f, bottom - root.getPaddingTop() - playerHeight() * END_SCALE);
 	}
 
 	/** The player's normal height, also while it is hidden in the bar and not laid out. */

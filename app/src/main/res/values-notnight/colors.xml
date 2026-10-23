@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Light theme. Same names as values/colors.xml (the dark default); only what differs is
+        here. Brand red, the overlays on video and the launcher icon are the same in both.
+    -->
+
+    <!-- A deeper red, so text and switches in the accent stay readable on white -->
+    <color name="accent">#D3132F</color>
+    <color name="on_accent">#FFFFFF</color>
+    <color name="accent_container">#FFDADC</color>
+    <color name="on_accent_container">#410008</color>
+    <color name="logo_watermark">#F3C9CD</color>
+
+    <color name="neutral">#5F5F5F</color>
+    <color name="on_neutral">#FFFFFF</color>
+    <color name="neutral_container">#E5E5E5</color>
+    <color name="on_neutral_container">#0F0F0F</color>
+
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_container_lowest">#FFFFFF</color>
+    <color name="surface_container_low">#F7F7F7</color>
+    <color name="surface_container">#F2F2F2</color>
+    <color name="surface_container_high">#ECECEC</color>
+    <color name="surface_container_highest">#E3E3E3</color>
+    <color name="on_surface">#0F0F0F</color>
+    <color name="on_surface_variant">#606060</color>
+    <color name="outline">#9E9E9E</color>
+    <color name="outline_variant">#DEDEDE</color>
+
+    <color name="settings_group">#FFFFFF</color>
+
+    <color name="swipe_background">#E3E3E3</color>
+    <color name="swipe_content">#0F0F0F</color>
+
+    <color name="inverse_surface">#0F0F0F</color>
+    <color name="inverse_on_surface">#FFFFFF</color>
+
+    <color name="error">#BA1A1A</color>
+    <color name="on_error">#FFFFFF</color>
+    <color name="error_container">#FFDAD6</color>
+    <color name="on_error_container">#410002</color>
+</resources>

@@ -14,8 +14,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.imageview.ShapeableImageView;
-import com.squareup.picasso.Picasso;
 import com.testtube.app.R;
+import com.testtube.app.util.ImageUtils;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -23,7 +23,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Watch history grouped by day, shown inside MainActivity. */
+/** The Library's History tab: watched videos grouped by day. */
 public final class LocalHistoryController {
 	private static final int TYPE_HEADER = 0;
 	private static final int TYPE_VIDEO = 1;
@@ -37,37 +37,52 @@ public final class LocalHistoryController {
 	@NonNull
 	private final Listener listener;
 	@NonNull
-	private final Adapter adapter;
+	private final Runnable onChanged;
+	@NonNull
+	private final Adapter adapter = new Adapter();
+	@NonNull
+	private final RecyclerView list;
 	@NonNull
 	private final TextView empty;
 
+	/**
+	 * @param root      a view holding {@code history_list} and {@code history_empty}
+	 * @param onChanged runs after every reload, so the host can update its clear button
+	 */
 	public LocalHistoryController(@NonNull View root,
 	                              @NonNull WatchHistory history,
-	                              @NonNull Listener listener) {
+	                              @NonNull Listener listener,
+	                              @NonNull Runnable onChanged) {
 		this.history = history;
 		this.listener = listener;
+		this.onChanged = onChanged;
 		this.empty = root.findViewById(R.id.history_empty);
-		this.adapter = new Adapter();
-
-		RecyclerView list = root.findViewById(R.id.history_list);
+		this.list = root.findViewById(R.id.history_list);
 		list.setLayoutManager(new LinearLayoutManager(root.getContext()));
 		list.setAdapter(adapter);
-
-		ImageButton clear = root.findViewById(R.id.history_clear);
-		clear.setOnClickListener(v -> new MaterialAlertDialogBuilder(root.getContext())
-				.setMessage(R.string.watch_history_clear_confirm)
-				.setNegativeButton(R.string.cancel, null)
-				.setPositiveButton(R.string.watch_history_clear, (dialog, which) -> {
-					history.clear();
-					reload();
-				})
-				.show());
 	}
 
-	/** Reloads from the store; call whenever the view becomes visible. */
+	public boolean isEmpty() {
+		return adapter.rows.isEmpty();
+	}
+
+	/** Asks, then removes every video from the history. */
+	public void confirmClear() {
+		new MaterialAlertDialogBuilder(list.getContext())
+						.setTitle(R.string.watch_history_clear)
+						.setMessage(R.string.watch_history_clear_confirm)
+						.setNegativeButton(R.string.cancel, null)
+						.setPositiveButton(R.string.clear, (dialog, which) -> {
+							history.clear();
+							reload();
+						})
+						.show();
+	}
+
+	/** Reloads from the store; call whenever the tab becomes visible. */
 	public void reload() {
 		List<WatchHistory.Entry> entries = history.entries();
-		List<Object> rows = new ArrayList<>();
+		List<Object> rows = new ArrayList<>(entries.size() + 8);
 		LocalDate lastDay = null;
 		ZoneId zone = ZoneId.systemDefault();
 		for (WatchHistory.Entry entry : entries) {
@@ -80,14 +95,16 @@ public final class LocalHistoryController {
 		}
 		adapter.rows = rows;
 		adapter.notifyDataSetChanged();
-		empty.setVisibility(rows.isEmpty() ? View.VISIBLE : View.GONE);
+		boolean none = rows.isEmpty();
+		empty.setVisibility(none ? View.VISIBLE : View.GONE);
+		list.setVisibility(none ? View.GONE : View.VISIBLE);
+		onChanged.run();
 	}
 
 	@NonNull
 	private static CharSequence dayLabel(@NonNull LocalDate day) {
 		long millis = day.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli();
-		return DateUtils.getRelativeTimeSpanString(millis, System.currentTimeMillis(),
-				DateUtils.DAY_IN_MILLIS);
+		return DateUtils.getRelativeTimeSpanString(millis, System.currentTimeMillis(), DateUtils.DAY_IN_MILLIS);
 	}
 
 	private final class Adapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
@@ -131,7 +148,7 @@ public final class LocalHistoryController {
 
 		HeaderHolder(@NonNull View itemView) {
 			super(itemView);
-			header = itemView.findViewById(R.id.header);
+			header = (TextView) itemView;
 		}
 	}
 
@@ -161,12 +178,9 @@ public final class LocalHistoryController {
 			author.setText(entry.author());
 			author.setVisibility(entry.author() != null ? View.VISIBLE : View.GONE);
 			when.setText(DateUtils.getRelativeTimeSpanString(entry.watchedAt(),
-					System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS));
-			String thumbnailUrl = entry.thumbnailUrl() != null ? entry.thumbnailUrl()
-					: "https://i.ytimg.com/vi/" + entry.videoId() + "/mqdefault.jpg";
-			Picasso.get().load(thumbnailUrl)
-					.placeholder(R.drawable.bg_thumbnail_placeholder)
-					.into(thumbnail);
+							System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS));
+			ImageUtils.loadThumb(thumbnail, entry.thumbnailUrl() != null ? entry.thumbnailUrl()
+							: "https://i.ytimg.com/vi/" + entry.videoId() + "/mqdefault.jpg");
 			itemView.setOnClickListener(v -> listener.onPlay(entry.videoId()));
 			more.setOnClickListener(v -> {
 				PopupMenu menu = new PopupMenu(v.getContext(), v);

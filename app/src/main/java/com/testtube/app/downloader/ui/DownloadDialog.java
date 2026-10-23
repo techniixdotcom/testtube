@@ -7,7 +7,6 @@ import android.content.ServiceConnection;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
@@ -43,6 +42,7 @@ import com.testtube.app.util.ImageUtils;
 import com.testtube.app.util.PermissionUtils;
 import com.testtube.app.util.StringUtils;
 import com.testtube.app.util.ToastUtils;
+import com.testtube.app.util.ViewUtils;
 
 import org.schabi.newpipe.extractor.MediaFormat;
 import org.schabi.newpipe.extractor.stream.AudioStream;
@@ -154,10 +154,8 @@ public class DownloadDialog {
 		threadsSeekBar.setProgress(threadCount - 1);
 		threadsCountText.setText(String.valueOf(threadCount));
 
-		TypedValue value = new TypedValue();
-		context.getTheme().resolveAttribute(attr.colorPrimary, value, true);
-		primaryColor = value.data;
-		grayColor = context.getColor(android.R.color.darker_gray);
+		primaryColor = ViewUtils.themeColor(context, attr.colorPrimary);
+		grayColor = ViewUtils.themeColor(context, com.google.android.material.R.attr.colorSurfaceContainerHighest);
 
 		// Keep options gray until saved state is restored.
 		videoButton.setBackgroundColor(grayColor);
@@ -173,7 +171,9 @@ public class DownloadDialog {
 					restoreStreamSelections();
 					updateSelectionColors(videoButton, audioButton, thumbnailButton, subtitleButton);
 				});
-			} catch (InterruptedException ignored) {
+			} catch (InterruptedException e) {
+				// Dialog closed while waiting; nothing left to update
+				Thread.currentThread().interrupt();
 			}
 		});
 
@@ -187,7 +187,9 @@ public class DownloadDialog {
 						editText.setText(String.format("%s-%s", videoDetails.getTitle(), videoDetails.getAuthor()));
 					}
 				});
-			} catch (InterruptedException ignored) {
+			} catch (InterruptedException e) {
+				// Dialog closed while waiting; nothing left to update
+				Thread.currentThread().interrupt();
 			}
 		});
 
@@ -314,7 +316,9 @@ public class DownloadDialog {
 					loading.setVisibility(View.GONE);
 					setupVideoContainer(v, container, d, btn);
 				});
-			} catch (InterruptedException ignored) {
+			} catch (InterruptedException e) {
+				// Dialog closed while waiting; nothing left to update
+				Thread.currentThread().interrupt();
 			}
 		});
 		d.show();
@@ -430,7 +434,9 @@ public class DownloadDialog {
 					loading.setVisibility(View.GONE);
 					setupAudioContainer(v, container, d, btn);
 				});
-			} catch (InterruptedException ignored) {
+			} catch (InterruptedException e) {
+				// Dialog closed while waiting; nothing left to update
+				Thread.currentThread().interrupt();
 			}
 		});
 		d.show();
@@ -504,7 +510,9 @@ public class DownloadDialog {
 						}
 					}
 				});
-			} catch (InterruptedException ignored) {
+			} catch (InterruptedException e) {
+				// Dialog closed while waiting; nothing left to update
+				Thread.currentThread().interrupt();
 			}
 		});
 		v.findViewById(R.id.button_confirm).setOnClickListener(v1 -> {

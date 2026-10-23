@@ -12,6 +12,8 @@ public final class ExtractionSession {
 	@NonNull
 	private final AuthContext auth;
 	private boolean cancelled = false;
+	/** Prefetching or batch work: its requests yield to what the person is doing (see RequestPacer). */
+	private volatile boolean background;
 
 	public ExtractionSession() {
 		this(new AuthContext("none", null, null, null, null, null, false, false, 0L));
@@ -24,6 +26,16 @@ public final class ExtractionSession {
 	@NonNull
 	public AuthContext getAuth() {
 		return auth;
+	}
+
+	public boolean isBackground() {
+		return background;
+	}
+
+	@NonNull
+	public ExtractionSession setBackground(boolean background) {
+		this.background = background;
+		return this;
 	}
 
 	public boolean isCancelled() {

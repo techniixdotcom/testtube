@@ -1,0 +1,10 @@
+- Library tab: Queue, History and Downloads as tabs
+- Settings sorted into groups; one colour scheme and smooth transitions
+- Floating window in the app, or minimize to the bottom bar
+- Custom gestures; brightness and volume in fullscreen
+- Video cache: Large, Medium or Small, plus Clear cache
+- Optional pre-release updates from GitHub
+- Tap "Up next" to play it now
+- Newest NewPipe Extractor, steadier connection to YouTube
+- Clear error messages that retry by themselves
+- Everything translated

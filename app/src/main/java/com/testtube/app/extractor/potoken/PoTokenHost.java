@@ -19,7 +19,6 @@ import androidx.webkit.WebViewFeature;
 
 import com.testtube.app.Constant;
 import com.testtube.app.util.StreamIOUtils;
-import com.testtube.app.util.UserAgents;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -161,7 +160,7 @@ public final class PoTokenHost {
 		settings.setDomStorageEnabled(false);
 		settings.setDatabaseEnabled(false);
 		// BotGuard runs as the desktop web client, with the same Chrome version as everything else.
-		settings.setUserAgentString(UserAgents.desktop(Constant.CHROME_MAJOR));
+		settings.setUserAgentString(Constant.DESKTOP_USER_AGENT);
 		settings.setBlockNetworkLoads(true);
 		if (WebViewFeature.isFeatureSupported(WebViewFeature.SAFE_BROWSING_ENABLE)) {
 			WebSettingsCompat.setSafeBrowsingEnabled(settings, false);

@@ -10,4 +10,11 @@ public interface WatchDrag {
 
 	/** @param velocityY pixels per second, positive downwards */
 	void release(float velocityY);
+
+	/**
+	 * Grows the minimized video back into the watch screen with the same animation.
+	 *
+	 * @return false when that isn't possible right now (the caller then restores without it)
+	 */
+	boolean expand();
 }

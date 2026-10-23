@@ -5,8 +5,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
-import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.RectF;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -42,14 +42,13 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.tencent.mmkv.MMKV;
 import com.testtube.app.AppGraph;
 import com.testtube.app.AppSettings;
 import com.testtube.app.Constant;
 import com.testtube.app.PlaybackService;
 import com.testtube.app.R;
-import com.testtube.app.downloader.ui.DownloadActivity;
+import com.testtube.app.downloader.service.DownloadService;
 import com.testtube.app.downloader.ui.DownloadDialog;
 import com.testtube.app.downloader.ui.DownloadPermissionHost;
 import com.testtube.app.downloader.ui.PlaylistDownloadDialog;
@@ -61,7 +60,6 @@ import com.testtube.app.extractor.VideoDetails;
 import com.testtube.app.extractor.YoutubeExtractor;
 import com.testtube.app.filter.AiChannelList;
 import com.testtube.app.filter.ContentFilters;
-import com.testtube.app.history.LocalHistoryController;
 import com.testtube.app.history.WatchHistory;
 import com.testtube.app.nav.MediaItemMenuPayload;
 import com.testtube.app.nav.TabManager;
@@ -74,6 +72,7 @@ import com.testtube.app.ui.feed.NativeBrowser;
 import com.testtube.app.ui.feed.PageScreen;
 import com.testtube.app.ui.feed.ShortsScreen;
 import com.testtube.app.ui.feed.WatchPanel;
+import com.testtube.app.ui.library.LibraryScreen;
 import com.testtube.app.ui.queue.QueueAdapter;
 import com.testtube.app.ui.queue.QueueTouch;
 import com.testtube.app.update.UpdateManager;
@@ -96,6 +95,8 @@ import java.util.regex.Pattern;
 @UnstableApi
 public final class MainActivity extends AppCompatActivity implements DownloadPermissionHost {
 	private static final String STATE_LAST_URL = "main.last_url";
+	/** The first web link in text shared from another app. */
+	private static final Pattern SHARED_URL = Pattern.compile("https?://[\\w./?=&%#-]+", Pattern.CASE_INSENSITIVE);
 	private final Handler handler = new Handler(Looper.getMainLooper());
 	private ActivityGraph graph;
 	private TabManager tabManager;
@@ -115,12 +116,10 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	@Nullable
 	private QueueSheet queueSheet;
 	@Nullable
-	private QueueSheet queuePanel;
-	@Nullable
 	private OnBackPressedCallback appBackCallback;
 	private long lastBackTime;
 	private boolean bootstrapped;
-	private boolean historyVisible;
+	private boolean libraryVisible;
 	private boolean watchVisible;
 	/** The video is being dragged to or from the bottom bar, so the screen below stays visible. */
 	private boolean revealBehind;
@@ -133,6 +132,8 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	@Nullable
 	private PageScreen pageScreen;
 	private boolean navGuard;
+	/** The bottom tab whose screen is showing, to fade only when it changes. */
+	private int rootNavId = View.NO_ID;
 	@Nullable
 	private NativeBrowser nativeBrowser;
 	@Nullable
@@ -141,11 +142,11 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	@Nullable
 	private LoginController loginController;
 	@Nullable
-	private LocalHistoryController historyController;
+	private LibraryScreen libraryScreen;
 	@Nullable
 	private BottomNavigationView bottomNav;
 	@Nullable
-	private ViewGroup historyContainer;
+	private ViewGroup libraryContainer;
 	@Nullable
 	private ViewGroup shortsContainer;
 	@Nullable
@@ -159,6 +160,8 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	private Runnable pendingPermissionAction;
 	@Nullable
 	private String restoredUrl;
+	/** The screen is being built again for a new theme; the new one makes its own player. */
+	private boolean recreatingForTheme;
 
 	@NonNull
 	public ActivityGraph graph() {
@@ -169,6 +172,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	private void onSettingsSaved() {
 		if (isFinishing() || isDestroyed()) return;
 		player.updateFloatingPlayer();
+		player.applyMinimizeMode();
 		player.applyPreferredQuality();
 		if (watchPanel != null) watchPanel.refreshCommentBox();
 		updateTabs();
@@ -213,7 +217,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		}).get(MainActivityViewModel.class);
 		viewModel.getState().observe(this, state -> {
 			renderQueueSheet(state);
-			renderQueuePanel(state);
+			if (libraryScreen != null) libraryScreen.renderQueue(state.items(), state.videoId());
 		});
 
 		setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
@@ -235,7 +239,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		bottomNav = findViewById(R.id.bottom_nav);
 		// The activity already pads for the system bars; don't let the nav bar add the inset again.
 		if (bottomNav != null) bottomNav.setOnApplyWindowInsetsListener(null);
-		historyContainer = findViewById(R.id.history_container);
+		libraryContainer = findViewById(R.id.library_container);
 		shortsContainer = findViewById(R.id.shorts_container);
 		nativeContainer = findViewById(R.id.native_container);
 		View browserView = getLayoutInflater().inflate(R.layout.view_native_browser,
@@ -249,7 +253,6 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 						app.playerPreferences(), contentFilters, this::onShortsSettingChanged, this::onSettingsSaved);
 		browserView.findViewById(R.id.browser_logo).setOnClickListener(aboutClick);
 		browserView.findViewById(R.id.browser_title).setOnClickListener(aboutClick);
-		browserView.findViewById(R.id.browser_app_icon).setOnClickListener(aboutClick);
 		// On the very first start the update check waits until the welcome dialog is closed
 		if (AppSettings.welcomeShown()) updates.checkOnStart(this);
 		NativeBrowser.Host feedHost = new NativeBrowser.Host() {
@@ -395,7 +398,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 					return;
 				}
 				if (Constant.PAGE_LIBRARY.equals(pageClass) || "history".equals(pageClass)) {
-					goTo(R.id.nav_history);
+					showLibrary("history".equals(pageClass) ? LibraryScreen.Page.HISTORY : null);
 					return;
 				}
 				boolean subscriptions = Constant.PAGE_SUBSCRIPTIONS.equals(pageClass) && AppSettings.showSubscriptions();
@@ -510,16 +513,24 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	private final ActivityResultLauncher<String> exportPicker =
 					registerForActivityResult(new ActivityResultContracts.CreateDocument("text/csv"), uri -> {
 						if (uri == null) return;
-						boolean saved = false;
-						try (OutputStream stream = getContentResolver().openOutputStream(uri)) {
-							if (stream != null) {
-								stream.write(LocalSubscriptions.get().exportCsv().getBytes(StandardCharsets.UTF_8));
-								saved = true;
+						String csv = LocalSubscriptions.get().exportCsv();
+						// Off the main thread: the file can live on a slow provider like Drive
+						AppGraph.of(this).executor().execute(() -> {
+							boolean saved = false;
+							try (OutputStream stream = getContentResolver().openOutputStream(uri)) {
+								if (stream != null) {
+									stream.write(csv.getBytes(StandardCharsets.UTF_8));
+									saved = true;
+								}
+							} catch (IOException | RuntimeException e) {
+								Log.w("MainActivity", "channel export failed", e);
 							}
-						} catch (IOException | RuntimeException e) {
-							Log.w("MainActivity", "channel export failed", e);
-						}
-						ToastUtils.show(this, saved ? R.string.subs_export_done : R.string.subs_export_failed);
+							boolean done = saved;
+							runOnUiThread(() -> {
+								if (isDestroyed()) return;
+								ToastUtils.show(this, done ? R.string.subs_export_done : R.string.subs_export_failed);
+							});
+						});
 					});
 
 	/**
@@ -528,7 +539,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	private final ActivityResultLauncher<String[]> importPicker =
 					registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
 						if (uri == null) return;
-						new Thread(() -> {
+						AppGraph.of(this).executor().execute(() -> {
 							int added = -1;
 							try (InputStream stream = getContentResolver().openInputStream(uri)) {
 								if (stream != null) {
@@ -538,7 +549,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 									while ((read = stream.read(chunk)) != -1 && buffer.size() < MAX_IMPORT_BYTES) {
 										buffer.write(chunk, 0, read);
 									}
-									String text = new String(buffer.toByteArray(), StandardCharsets.UTF_8);
+									String text = buffer.toString(StandardCharsets.UTF_8.name());
 									added = LocalSubscriptions.get().addAll(LocalSubscriptions.parseImport(text));
 								}
 							} catch (IOException | RuntimeException e) {
@@ -546,6 +557,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 							}
 							int count = added;
 							runOnUiThread(() -> {
+								if (isDestroyed()) return;
 								if (count < 0) {
 									ToastUtils.show(this, R.string.subs_import_failed);
 									return;
@@ -553,7 +565,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 								ToastUtils.show(this, getString(R.string.subs_import_done, count));
 								onFollowedChannelsChanged();
 							});
-						}, "channel-import").start();
+						});
 					});
 
 	private void setSubscriptionsAccount(boolean enabled) {
@@ -594,10 +606,10 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 				return;
 			}
 			boolean onScreen = !watchVisible && (pageScreen == null || !pageScreen.isVisible())
-							&& (id == R.id.nav_history) == historyVisible
-							&& (id == R.id.nav_history || nativeBrowser == null
+							&& (id == R.id.nav_library) == libraryVisible
+							&& (id == R.id.nav_library || nativeBrowser == null
 							|| nativeBrowser.mode() != NativeBrowser.Mode.SEARCH);
-			if (onScreen && id != R.id.nav_history && nativeBrowser != null) {
+			if (onScreen && id != R.id.nav_library && nativeBrowser != null) {
 				nativeBrowser.reselect();
 			} else if (!onScreen) {
 				showRoot(id);
@@ -618,20 +630,31 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	}
 
 	private void showRoot(int navId) {
-		historyVisible = navId == R.id.nav_history;
+		boolean changed = navId != rootNavId;
+		rootNavId = navId;
+		libraryVisible = navId == R.id.nav_library;
 		shortsVisible = navId == R.id.nav_shorts;
 		tabManager.showNative();
 		if (pageScreen != null) pageScreen.clear();
-		if (historyVisible) {
-			buildHistory();
-			if (historyController != null) historyController.reload();
+		if (libraryVisible) {
+			buildLibrary();
 		} else if (shortsVisible) {
 			buildShorts();
 		} else if (nativeBrowser != null) {
 			nativeBrowser.show(navId == R.id.nav_subscriptions
 							? NativeBrowser.Mode.SUBSCRIPTIONS : NativeBrowser.Mode.HOME);
 		}
+		if (libraryScreen != null) libraryScreen.setVisible(libraryVisible && started);
 		updateContainers();
+		// A short fade when the bottom tab changes, so screens don't pop in
+		View shown = libraryVisible ? libraryContainer : shortsVisible ? shortsContainer : nativeContainer;
+		if (changed && shown != null && shown.getVisibility() == View.VISIBLE) ViewUtils.fadeIn(shown);
+	}
+
+	/** Opens the Library tab, on a given page when there is one. */
+	private void showLibrary(@Nullable LibraryScreen.Page page) {
+		goTo(R.id.nav_library);
+		if (page != null && libraryScreen != null) libraryScreen.select(page);
 	}
 
 	/** The Shorts tab and its player are made on first use. */
@@ -663,15 +686,33 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		}
 	}
 
-	/** History and the queue panel are inflated on first use. */
-	private void buildHistory() {
-		if (historyController != null || historyContainer == null) return;
-		getLayoutInflater().inflate(R.layout.view_local_history, historyContainer, true);
-		historyController = new LocalHistoryController(historyContainer, watchHistory,
-						videoId -> openVideo(Constant.HOME_URL + "/watch?v=" + videoId));
-		setupQueuePanel(historyContainer);
-		setupPageSwitch(historyContainer);
-		renderQueuePanel(uiState());
+	/** The Library (Queue, History, Downloads) is inflated on first use. */
+	private void buildLibrary() {
+		if (libraryScreen != null || libraryContainer == null) return;
+		View view = getLayoutInflater().inflate(R.layout.view_library, libraryContainer, true);
+		libraryScreen = new LibraryScreen(this, view, watchHistory, new LibraryScreen.Host() {
+			@Override
+			public void openVideo(@NonNull String url) {
+				MainActivity.this.openVideo(url);
+			}
+
+			@Override
+			public void removeQueueItem(@NonNull String videoId) {
+				viewModel.removeQueueItem(videoId);
+			}
+
+			@Override
+			public void moveQueue(@NonNull List<QueueItem> order) {
+				viewModel.moveQueue(order);
+			}
+
+			@Override
+			public void clearQueue() {
+				viewModel.clearQueue();
+			}
+		});
+		MainActivityViewModel.UiState state = uiState();
+		libraryScreen.renderQueue(state.items(), state.videoId());
 	}
 
 	/** Dragging the video down to the bottom bar and the bar back up. */
@@ -700,6 +741,12 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 				revealBehind = revealed;
 				updateContainers();
 			}
+
+			@Nullable
+			@Override
+			public RectF floatingTarget() {
+				return player.floatingTarget();
+			}
 		};
 		player.setWatchDrag(new WatchDragger(root, playerView, watchContainer, miniBar, bottomNav, host));
 	}
@@ -711,10 +758,10 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		if (watchContainer != null) watchContainer.setVisibility(watchVisible ? View.VISIBLE : View.GONE);
 		if (pageContainer != null) pageContainer.setVisibility(pageVisible ? View.VISIBLE : View.GONE);
 		if (nativeContainer != null) {
-			nativeContainer.setVisibility(!covered && !historyVisible && !shortsVisible ? View.VISIBLE : View.GONE);
+			nativeContainer.setVisibility(!covered && !libraryVisible && !shortsVisible ? View.VISIBLE : View.GONE);
 		}
-		if (historyContainer != null) {
-			historyContainer.setVisibility(!covered && historyVisible ? View.VISIBLE : View.GONE);
+		if (libraryContainer != null) {
+			libraryContainer.setVisibility(!covered && libraryVisible ? View.VISIBLE : View.GONE);
 		}
 		boolean shortsOnScreen = !covered && shortsVisible;
 		if (shortsContainer != null) shortsContainer.setVisibility(shortsOnScreen ? View.VISIBLE : View.GONE);
@@ -753,8 +800,8 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		String action = intent.getAction();
 		boolean isDownloadAction = "TRIGGER_DOWNLOAD_FROM_SHARE".equals(action);
 
-		if ("OPEN_DOWNLOADS".equals(action)) {
-			startActivity(new Intent(this, DownloadActivity.class));
+		if (DownloadService.ACTION_OPEN_DOWNLOADS.equals(action)) {
+			showLibrary(LibraryScreen.Page.DOWNLOADS);
 			return;
 		}
 
@@ -765,8 +812,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 			// Extract a shared YouTube URL from the incoming text.
 			String text = intent.getStringExtra(Intent.EXTRA_TEXT);
 			if (text != null) {
-				Pattern pat = Pattern.compile("https?://[\\w./?=&%#-]+", Pattern.CASE_INSENSITIVE);
-				Matcher m = pat.matcher(text);
+				Matcher m = SHARED_URL.matcher(text);
 				url = m.find() ? m.group() : null;
 			}
 		}
@@ -970,78 +1016,6 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 						player.isInMiniPlayer());
 	}
 
-	/** Queue page of the History tab. */
-	private void setupQueuePanel(@NonNull View root) {
-		ImageButton clearButton = root.findViewById(R.id.panel_queue_clear);
-		TextView emptyView = root.findViewById(R.id.panel_queue_empty);
-		RecyclerView recyclerView = root.findViewById(R.id.panel_queue_list);
-		QueueAdapter adapter = new QueueAdapter(new QueueAdapter.Actions() {
-			@Override
-			public void onPlayRequested(@NonNull QueueItem item) {
-				if (item.getVideoUrl() == null) return;
-				openVideo(item.getVideoUrl());
-			}
-
-			@Override
-			public void onDeleteRequested(@NonNull QueueItem item) {
-				String videoId = item.getVideoId();
-				if (videoId != null) viewModel.removeQueueItem(videoId);
-			}
-		});
-		recyclerView.setLayoutManager(new LinearLayoutManager(this));
-		recyclerView.setAdapter(adapter);
-		new ItemTouchHelper(new QueueTouch(adapter::moveItem, new QueueTouch.DragStateCallback() {
-			@Override
-			public void onDragStateChanged(boolean dragging) {
-			}
-
-			@Override
-			public void onDragFinished() {
-				viewModel.moveQueue(adapter.snapshotItems());
-			}
-		})).attachToRecyclerView(recyclerView);
-		clearButton.setOnClickListener(v -> new MaterialAlertDialogBuilder(this)
-						.setMessage(R.string.clear_queue_confirmation)
-						.setPositiveButton(R.string.confirm, (d, which) -> viewModel.clearQueue())
-						.setNegativeButton(R.string.cancel, null)
-						.show());
-		queuePanel = new QueueSheet(clearButton, emptyView, recyclerView, adapter);
-	}
-
-	/**
-	 * Queue (left) and History (right) pages. The header switch flips between them and the clear
-	 * button acts on the visible one.
-	 */
-	private void setupPageSwitch(@NonNull View root) {
-		SwitchMaterial pageSwitch = root.findViewById(R.id.panel_page_switch);
-		TextView queueTitle = root.findViewById(R.id.panel_queue_title);
-		TextView historyTitle = root.findViewById(R.id.panel_history_title);
-		View queuePage = root.findViewById(R.id.panel_queue_page);
-		View historyPage = root.findViewById(R.id.panel_history_page);
-		View queueClear = root.findViewById(R.id.panel_queue_clear);
-		View historyClear = root.findViewById(R.id.history_clear);
-		pageSwitch.setOnCheckedChangeListener((button, showHistory) -> {
-			queuePage.setVisibility(showHistory ? View.GONE : View.VISIBLE);
-			historyPage.setVisibility(showHistory ? View.VISIBLE : View.GONE);
-			queueClear.setVisibility(showHistory ? View.GONE : View.VISIBLE);
-			historyClear.setVisibility(showHistory ? View.VISIBLE : View.GONE);
-			queueTitle.setAlpha(showHistory ? 0.5f : 1f);
-			historyTitle.setAlpha(showHistory ? 1f : 0.5f);
-		});
-		queueTitle.setOnClickListener(v -> pageSwitch.setChecked(false));
-		historyTitle.setOnClickListener(v -> pageSwitch.setChecked(true));
-		queueTitle.setAlpha(0.5f);
-	}
-
-	private void renderQueuePanel(@NonNull MainActivityViewModel.UiState state) {
-		QueueSheet panel = queuePanel;
-		if (panel == null) return;
-		panel.adapter.replaceItems(state.items(), state.videoId());
-		boolean empty = state.items().isEmpty();
-		panel.emptyView.setVisibility(empty ? View.VISIBLE : View.GONE);
-		panel.recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
-	}
-
 	private void renderQueueSheet(@NonNull MainActivityViewModel.UiState state) {
 		QueueSheet sheet = queueSheet;
 		if (sheet == null) return;
@@ -1129,7 +1103,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 			updateContainers();
 			return;
 		}
-		if (historyVisible || shortsVisible) {
+		if (libraryVisible || shortsVisible) {
 			goTo(R.id.nav_home);
 			return;
 		}
@@ -1174,6 +1148,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		super.onStart();
 		started = true;
 		if (player != null) player.setVideoEnabled(true);
+		if (libraryScreen != null) libraryScreen.setVisible(libraryVisible);
 		updateContainers();
 	}
 
@@ -1183,6 +1158,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		super.onStop();
 		started = false;
 		if (shortsScreen != null) shortsScreen.setActive(false);
+		if (libraryScreen != null) libraryScreen.setVisible(false);
 		if (player != null && !isChangingConfigurations() && !DeviceUtils.isInPictureInPictureMode(this)) {
 			player.setVideoEnabled(false);
 		}
@@ -1201,8 +1177,9 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		super.onDestroy();
 		if (nativeBrowser != null) nativeBrowser.release();
 		if (shortsScreen != null) shortsScreen.release();
+		if (libraryScreen != null) libraryScreen.release();
 		if (serviceConnection != null) unbindService(serviceConnection);
-		if (!isChangingConfigurations() && player != null) player.release();
+		if ((!isChangingConfigurations() || recreatingForTheme) && player != null) player.release();
 	}
 
 	@Override
@@ -1213,17 +1190,20 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		if (requestCode != PermissionUtils.REQUEST_STORAGE_PERMISSION) return;
 		Runnable action = pendingPermissionAction;
 		pendingPermissionAction = null;
-		if (grantResults.length == 0) return;
-		for (int result : grantResults) {
-			if (result != PackageManager.PERMISSION_GRANTED) return;
-		}
-		if (action != null) action.run();
+		if (action != null && PermissionUtils.allGranted(grantResults)) action.run();
+	}
+
+	/** Builds the screen again in the newly chosen colours. The open video stops and reopens. */
+	void recreateForTheme() {
+		recreatingForTheme = true;
+		recreate();
 	}
 
 	@Override
 	protected void onSaveInstanceState(@NonNull Bundle outState) {
 		super.onSaveInstanceState(outState);
-		String url = watchVisible ? tabManager.getWatchUrl() : null;
+		// Rebuilt for a new theme: the video comes back also when it was minimized
+		String url = watchVisible || recreatingForTheme ? tabManager.getWatchUrl() : null;
 		if (url != null) {
 			outState.putString(STATE_LAST_URL, url);
 		}

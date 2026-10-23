@@ -36,6 +36,7 @@ import com.testtube.app.extractor.FeedItem;
 import com.testtube.app.extractor.LocalSubscriptions;
 import com.testtube.app.extractor.PageSource;
 import com.testtube.app.filter.ContentFilters;
+import com.testtube.app.net.Failure;
 import com.testtube.app.util.ToastUtils;
 
 import org.schabi.newpipe.extractor.channel.tabs.ChannelTabs;
@@ -192,7 +193,8 @@ public final class PageScreen {
 			}
 		});
 		back.setOnClickListener(v -> back());
-		refresh.setColorSchemeResources(R.color.yt_red);
+		refresh.setColorSchemeResources(R.color.accent);
+		refresh.setProgressBackgroundColorSchemeResource(R.color.surface_container_high);
 		refresh.setOnRefreshListener(() -> {
 			Entry entry = stack.peekLast();
 			if (entry != null) loadPage(entry);
@@ -284,7 +286,7 @@ public final class PageScreen {
 			entry.scroll = null;
 		}
 		if (entry.header == null && entry.pageError && entry.pageCall == null) {
-			message.setText(R.string.feed_error);
+			message.setText(entry.pageFailure.feedMessage);
 			message.setVisibility(View.VISIBLE);
 		} else {
 			message.setVisibility(View.GONE);
@@ -328,11 +330,12 @@ public final class PageScreen {
 			if (entry.pageCall != call) return;
 			entry.pageCall = null;
 			if (error != null || result == null || result.header() == null) {
-				if (!call.isCancelled()) {
+				if (!call.isCancelled() && !Failure.isCancellation(error)) {
 					entry.pageError = true;
+					entry.pageFailure = Failure.report(error);
 					// Refresh failed, the old content stays on screen
 					if (entry.header != null && entry == stack.peekLast()) {
-						ToastUtils.show(list.getContext(), R.string.feed_error);
+						ToastUtils.show(list.getContext(), entry.pageFailure.feedMessage);
 					}
 				}
 			} else {
@@ -518,6 +521,9 @@ public final class PageScreen {
 		@Nullable
 		Parcelable scroll;
 		boolean pageError;
+		/** Why the page failed to load, for the message. */
+		@NonNull
+		Failure pageFailure = Failure.OTHER;
 		boolean expanded;
 
 		Entry(@NonNull PageSource.Kind kind, @NonNull String url) {
@@ -851,13 +857,13 @@ public final class PageScreen {
 			});
 		}
 
-		/** White pill to follow, grey one once followed (like YouTube's subscribe button). */
+		/** Light pill to follow, grey one once followed (like YouTube's subscribe button). */
 		private void styleFollow(@NonNull MaterialButton button, boolean following) {
 			Context context = button.getContext();
 			button.setText(following ? R.string.watch_following : R.string.watch_follow);
 			button.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(context,
-							following ? R.color.surface_variant : R.color.primary)));
-			button.setTextColor(ContextCompat.getColor(context, following ? R.color.on_surface : R.color.on_primary));
+							following ? R.color.surface_container_highest : R.color.inverse_surface)));
+			button.setTextColor(ContextCompat.getColor(context, following ? R.color.on_surface : R.color.inverse_on_surface));
 		}
 
 		private void bindPlayAll(@NonNull Entry entry, @NonNull PageSource.Header h) {

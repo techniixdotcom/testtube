@@ -109,8 +109,9 @@ public class PlaybackService extends Service {
 		super.onCreate();
 		destroyed = false;
 		notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-		NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Player Controls", NotificationManager.IMPORTANCE_LOW);
-		channel.setDescription("Media playback controls");
+		NotificationChannel channel = new NotificationChannel(CHANNEL_ID, getString(R.string.notification_channel_player),
+						NotificationManager.IMPORTANCE_LOW);
+		channel.setDescription(getString(R.string.notification_channel_player_description));
 		channel.setShowBadge(false);
 		channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
 		if (notificationManager != null) notificationManager.createNotificationChannel(channel);

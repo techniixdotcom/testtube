@@ -50,6 +50,8 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * In-app updates from GitHub releases: checks, downloads the APK with progress and hands it to
@@ -58,9 +60,17 @@ import java.util.concurrent.Executors;
 public final class UpdateManager {
 	private static final String LATEST_URL =
 					"https://api.github.com/repos/techniixdotcom/testtube/releases/latest";
+	/** Newest releases first, pre-releases included ("latest" leaves them out). */
+	private static final String RELEASES_URL =
+					"https://api.github.com/repos/techniixdotcom/testtube/releases?per_page=20";
+	/** "v2.1.1" and an optional pre-release part such as "-beta2". */
+	/** A letter prefix is allowed, with or without a separator: "2.1.1", "v2.1.1", "v.2.1.1", "V 2.1.1". */
+	private static final Pattern VERSION = Pattern.compile("(?i)[a-z]*[ ._-]?(\\d+(?:\\.\\d+)*)(.*)");
+	private static final Pattern TRAILING_NUMBER = Pattern.compile("(\\d+)\\D*$");
 	private static final String DOWNLOAD_PREFIX =
 					"https://github.com/techniixdotcom/testtube/releases/download/";
 	private static final String KEY_AUTO = "update_auto_check";
+	private static final String KEY_PRERELEASES = "update_prereleases";
 	private static final String KEY_SNOOZED_TAG = "update_snoozed_tag";
 	private static final String KEY_SNOOZED_UNTIL = "update_snoozed_until";
 	private static final long START_DELAY_MS = 5_000L;
@@ -68,7 +78,8 @@ public final class UpdateManager {
 	private static final int NOTES_LIMIT = 600;
 	private static final String UPDATE_DIR = "updates";
 
-	private record Release(String tag, String notes, String apkUrl, long size, @Nullable String sha256) {
+	private record Release(String tag, String notes, String apkUrl, long size, @Nullable String sha256,
+	                       boolean prerelease) {
 	}
 
 	private final OkHttpClient client;
@@ -89,6 +100,15 @@ public final class UpdateManager {
 
 	public void setAutoCheck(boolean enabled) {
 		store.encode(KEY_AUTO, enabled);
+	}
+
+	/** Pre-releases (test versions) are offered too. Off by default. */
+	public boolean prereleasesEnabled() {
+		return store.decodeBool(KEY_PRERELEASES, false);
+	}
+
+	public void setPrereleases(boolean enabled) {
+		store.encode(KEY_PRERELEASES, enabled);
 	}
 
 	/** Quiet check 5 s after startup; only shows up when there is an update. */
@@ -130,33 +150,56 @@ public final class UpdateManager {
 						&& System.currentTimeMillis() < store.decodeLong(KEY_SNOOZED_UNTIL, 0L);
 	}
 
+	/** The newest release to offer: the latest stable one, or with pre-releases on, the newest of all. */
 	@Nullable
 	private Release fetchLatest() throws IOException {
-		Request request = new Request.Builder().url(LATEST_URL)
+		if (!prereleasesEnabled()) {
+			JsonElement json = get(LATEST_URL);
+			return json.isJsonObject() ? parseRelease(json.getAsJsonObject()) : null;
+		}
+		JsonElement json = get(RELEASES_URL);
+		if (!json.isJsonArray()) return null;
+		Release newest = null;
+		for (JsonElement element : json.getAsJsonArray()) {
+			if (!element.isJsonObject()) continue;
+			Release release = parseRelease(element.getAsJsonObject());
+			if (release != null && (newest == null || isNewer(release.tag(), newest.tag()))) newest = release;
+		}
+		return newest;
+	}
+
+	@NonNull
+	private JsonElement get(@NonNull String url) throws IOException {
+		Request request = new Request.Builder().url(url)
 						.header("Accept", "application/vnd.github+json")
 						.header("User-Agent", "TestTube")
 						.build();
 		try (Response response = client.newCall(request).execute()) {
 			ResponseBody body = response.body();
 			if (!response.isSuccessful() || body == null) throw new IOException("HTTP " + response.code());
-			JsonObject json = JsonParser.parseReader(
-							new InputStreamReader(body.byteStream(), StandardCharsets.UTF_8)).getAsJsonObject();
-			if (json.has("draft") && json.get("draft").getAsBoolean()) return null;
-			String tag = string(json, "tag_name");
-			JsonArray assets = json.has("assets") && json.get("assets").isJsonArray()
-							? json.getAsJsonArray("assets") : new JsonArray();
-			for (JsonElement element : assets) {
-				JsonObject asset = element.getAsJsonObject();
-				String name = string(asset, "name");
-				String url = string(asset, "browser_download_url");
-				if (tag.isEmpty() || !name.endsWith(".apk") || !url.startsWith(DOWNLOAD_PREFIX)) continue;
-				String digest = string(asset, "digest");
-				String sha = digest.startsWith("sha256:") ? digest.substring(7).toLowerCase(Locale.ROOT) : null;
-				long size = asset.has("size") ? asset.get("size").getAsLong() : -1L;
-				return new Release(tag, string(json, "body").trim(), url, size, sha);
-			}
-			return null;
+			return JsonParser.parseReader(new InputStreamReader(body.byteStream(), StandardCharsets.UTF_8));
 		}
+	}
+
+	/** A published release with an APK from this project, or null. */
+	@Nullable
+	private static Release parseRelease(@NonNull JsonObject json) {
+		if (json.has("draft") && json.get("draft").getAsBoolean()) return null;
+		boolean prerelease = json.has("prerelease") && json.get("prerelease").getAsBoolean();
+		String tag = string(json, "tag_name");
+		JsonArray assets = json.has("assets") && json.get("assets").isJsonArray()
+						? json.getAsJsonArray("assets") : new JsonArray();
+		for (JsonElement element : assets) {
+			JsonObject asset = element.getAsJsonObject();
+			String name = string(asset, "name");
+			String url = string(asset, "browser_download_url");
+			if (tag.isEmpty() || !name.endsWith(".apk") || !url.startsWith(DOWNLOAD_PREFIX)) continue;
+			String digest = string(asset, "digest");
+			String sha = digest.startsWith("sha256:") ? digest.substring(7).toLowerCase(Locale.ROOT) : null;
+			long size = asset.has("size") ? asset.get("size").getAsLong() : -1L;
+			return new Release(tag, string(json, "body").trim(), url, size, sha, prerelease);
+		}
+		return null;
 	}
 
 	private static String string(JsonObject json, String key) {
@@ -173,20 +216,47 @@ public final class UpdateManager {
 		}
 	}
 
-	/** Compares dotted numbers, so "v1.10.0" is newer than "v1.9.3". */
-	private static boolean isNewer(String remote, String local) {
-		int[] a = numbers(remote);
-		int[] b = numbers(local);
-		for (int i = 0; i < Math.max(a.length, b.length); i++) {
-			int x = i < a.length ? a[i] : 0;
-			int y = i < b.length ? b[i] : 0;
-			if (x != y) return x > y;
+	/**
+	 * Compares versions as numbers, so "v1.10.0" is newer than "v1.9.3". A pre-release comes before
+	 * its release: "v2.1.1-beta1" < "v2.1.1-beta2" < "v2.1.1".
+	 */
+	static boolean isNewer(String remote, String local) {
+		Matcher a = VERSION.matcher(remote.trim());
+		Matcher b = VERSION.matcher(local.trim());
+		if (!a.matches() || !b.matches()) return false;
+		int[] x = numbers(a.group(1));
+		int[] y = numbers(b.group(1));
+		for (int i = 0; i < Math.max(x.length, y.length); i++) {
+			int p = i < x.length ? x[i] : 0;
+			int q = i < y.length ? y[i] : 0;
+			if (p != q) return p > q;
 		}
-		return false;
+		String remoteTag = a.group(2).trim();
+		String localTag = b.group(2).trim();
+		if (remoteTag.isEmpty() || localTag.isEmpty()) return remoteTag.isEmpty() && !localTag.isEmpty();
+		Matcher remoteNumber = TRAILING_NUMBER.matcher(remoteTag);
+		Matcher localNumber = TRAILING_NUMBER.matcher(localTag);
+		boolean remoteHasNumber = remoteNumber.find();
+		boolean localHasNumber = localNumber.find();
+		String remoteName = remoteHasNumber ? remoteTag.substring(0, remoteNumber.start()) : remoteTag;
+		String localName = localHasNumber ? localTag.substring(0, localNumber.start()) : localTag;
+		int byName = remoteName.compareToIgnoreCase(localName);
+		if (byName != 0) return byName > 0;
+		long remoteCount = remoteHasNumber ? parseLong(remoteNumber.group(1)) : 0;
+		long localCount = localHasNumber ? parseLong(localNumber.group(1)) : 0;
+		return remoteCount > localCount;
 	}
 
-	private static int[] numbers(String version) {
-		String[] parts = version.replaceAll("[^0-9.]", "").split("\\.");
+	private static long parseLong(@NonNull String digits) {
+		try {
+			return Long.parseLong(digits);
+		} catch (NumberFormatException e) {
+			return 0;
+		}
+	}
+
+	private static int[] numbers(String core) {
+		String[] parts = core.split("\\.");
 		int[] out = new int[parts.length];
 		for (int i = 0; i < parts.length; i++) {
 			try {
@@ -205,7 +275,7 @@ public final class UpdateManager {
 		String message = activity.getString(R.string.update_message, release.tag(), current)
 						+ (notes.isEmpty() ? "" : "\n\n" + notes);
 		new MaterialAlertDialogBuilder(activity)
-						.setTitle(R.string.update_title)
+						.setTitle(release.prerelease() ? R.string.update_title_prerelease : R.string.update_title)
 						.setMessage(message)
 						.setPositiveButton(R.string.update_action, (d, w) -> startUpdate(activity, release))
 						.setNegativeButton(R.string.update_later, (d, w) -> {

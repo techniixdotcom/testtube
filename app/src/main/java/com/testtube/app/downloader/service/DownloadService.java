@@ -18,8 +18,8 @@ import androidx.media3.common.util.UnstableApi;
 
 import com.testtube.app.AppGraph;
 import com.testtube.app.R;
+import com.testtube.app.downloader.core.DownloadListener;
 import com.testtube.app.downloader.core.DownloadTaskIdHelper;
-import com.testtube.app.downloader.core.ProgressCallback2;
 import com.testtube.app.downloader.core.Task;
 import com.testtube.app.downloader.core.TestTubeDownloader;
 import com.testtube.app.downloader.core.history.DownloadHistoryRepository;
@@ -39,6 +39,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @UnstableApi
 public class DownloadService extends Service {
 	public static final String ACTION_DOWNLOAD_RECORD_UPDATED = "com.testtube.app.action.DOWNLOAD_RECORD_UPDATED";
+	/** Opens the app on the Library's Downloads tab (the notification's tap action). */
+	public static final String ACTION_OPEN_DOWNLOADS = "OPEN_DOWNLOADS";
 	public static final String EXTRA_TASK_ID = "extra_task_id";
 	private static final String CHANNEL_ID = "download_channel";
 	private static final int NOTIFICATION_ID = 1001;
@@ -84,8 +86,9 @@ public class DownloadService extends Service {
 	}
 
 	private void createNotificationChannel() {
-		NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Downloads", NotificationManager.IMPORTANCE_DEFAULT);
-		channel.setDescription("Download progress notifications");
+		NotificationChannel channel = new NotificationChannel(CHANNEL_ID, getString(R.string.library_downloads),
+						NotificationManager.IMPORTANCE_DEFAULT);
+		channel.setDescription(getString(R.string.notification_channel_downloads_description));
 		channel.setSound(null, null);
 		notificationManager.createNotificationChannel(channel);
 	}
@@ -143,7 +146,7 @@ public class DownloadService extends Service {
 		activeIds.add(taskId);
 		activeNames.put(taskId, task.fileName());
 
-		downloader.setCallback(taskId, new ProgressCallback2() {
+		downloader.setCallback(taskId, new DownloadListener() {
 			@Override
 			public void onProgress(int progress, long downloaded, long total) {
 				updateRecordProgress(taskId, progress, downloaded, total, DownloadStatus.RUNNING);
@@ -316,7 +319,7 @@ public class DownloadService extends Service {
 	private synchronized void initNotification() {
 		notificationBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
 						.setSmallIcon(R.drawable.ic_notification)
-						.setContentTitle("Initializing...")
+						.setContentTitle(getString(R.string.preparing_download))
 						.setContentIntent(createContentIntent())
 						.setPriority(NotificationCompat.PRIORITY_DEFAULT)
 						.setOngoing(true);
@@ -330,8 +333,8 @@ public class DownloadService extends Service {
 
 	private synchronized void updateNotificationProgress(String fileName, int progress) {
 		if (notificationBuilder != null) {
-			notificationBuilder.setContentTitle("Downloading: " + fileName)
-							.setContentText(progress + "%")
+			notificationBuilder.setContentTitle(getString(R.string.downloading_file, fileName))
+							.setContentText(getString(R.string.percent_value, progress))
 							.setOngoing(true)
 							.setProgress(100, progress, false);
 			notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build());
@@ -340,8 +343,8 @@ public class DownloadService extends Service {
 
 	private synchronized void updateNotificationMerging(String fileName) {
 		if (notificationBuilder != null) {
-			notificationBuilder.setContentTitle("Merging: " + fileName)
-							.setContentText("Finalizing file...")
+			notificationBuilder.setContentTitle(getString(R.string.merging_file, fileName))
+							.setContentText(getString(R.string.download_finalizing))
 							.setOngoing(true)
 							.setProgress(100, 0, true);
 			notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build());
@@ -391,7 +394,7 @@ public class DownloadService extends Service {
 			notificationBuilder.setOngoing(false)
 							.setAutoCancel(true)
 							.setProgress(0, 0, false)
-							.setContentTitle(success ? "Download Finished" : "Download Failed")
+							.setContentTitle(getString(success ? R.string.download_finished : R.string.failed_to_download))
 							.setContentText(fileName);
 			notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build());
 
@@ -402,7 +405,7 @@ public class DownloadService extends Service {
 
 	private PendingIntent createContentIntent() {
 		Intent intent = new Intent(this, MainActivity.class);
-		intent.setAction("OPEN_DOWNLOADS");
+		intent.setAction(ACTION_OPEN_DOWNLOADS);
 		intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
 		return PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
 	}

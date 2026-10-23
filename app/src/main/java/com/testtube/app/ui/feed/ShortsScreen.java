@@ -28,6 +28,7 @@ import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 import com.testtube.app.R;
 import com.testtube.app.extractor.AvatarCache;
+import com.testtube.app.extractor.ExtractionSession;
 import com.testtube.app.extractor.FeedClient;
 import com.testtube.app.extractor.FeedItem;
 import com.testtube.app.extractor.LocalSubscriptions;
@@ -36,6 +37,7 @@ import com.testtube.app.extractor.VideoDetails;
 import com.testtube.app.extractor.YoutubeExtractor;
 import com.testtube.app.filter.ContentFilters;
 import com.testtube.app.history.WatchHistory;
+import com.testtube.app.net.Failure;
 import com.testtube.app.player.engine.ShortsEngine;
 import com.testtube.app.util.ToastUtils;
 
@@ -252,7 +254,12 @@ public final class ShortsScreen {
 			call = null;
 			loading.setVisibility(View.GONE);
 			if (error != null || page == null) {
-				if (items.isEmpty()) showMessage(R.string.shorts_load_failed);
+				if (items.isEmpty()) {
+					// Say why when it's something the person can act on (offline, YouTube's pause)
+					Failure failure = error != null ? Failure.report(error) : Failure.OTHER;
+					showMessage(failure == Failure.OFFLINE || failure == Failure.SLOW_DOWN || failure == Failure.TIMEOUT
+									? failure.message : R.string.shorts_load_failed);
+				}
 				return;
 			}
 			next = page.next();
@@ -355,7 +362,7 @@ public final class ShortsScreen {
 	/** Extracts the next Short ahead of time, so swiping to it starts right away. */
 	private void prefetch(int position) {
 		if (position < 0 || position >= items.size()) return;
-		extractor.getInfo(items.get(position).url(), null);
+		extractor.getInfo(items.get(position).url(), new ExtractionSession().setBackground(true));
 	}
 
 	private void record(@NonNull VideoDetails video) {

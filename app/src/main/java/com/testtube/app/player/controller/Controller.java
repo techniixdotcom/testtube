@@ -7,7 +7,6 @@ import android.graphics.Typeface;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.format.DateUtils;
-import android.util.TypedValue;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
@@ -36,6 +35,7 @@ import androidx.media3.exoplayer.DecoderCounters;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.testtube.app.AppSettings;
 import com.testtube.app.R;
 import com.testtube.app.extractor.StreamCatalog;
 import com.testtube.app.nav.TabManager;
@@ -43,6 +43,7 @@ import com.testtube.app.player.TestTubePlayerView;
 import com.testtube.app.player.common.PlayerLoopMode;
 import com.testtube.app.player.common.PlayerPreferences;
 import com.testtube.app.player.common.PlayerUtils;
+import com.testtube.app.player.controller.gesture.GestureAction;
 import com.testtube.app.player.controller.gesture.PlayerGestureListener;
 import com.testtube.app.player.controller.gesture.WatchDrag;
 import com.testtube.app.player.controller.gesture.ZoomTouchListener;
@@ -623,18 +624,13 @@ public class Controller {
 				TextView text = view.findViewById(R.id.text);
 				icon.setImageResource(R.drawable.ic_track);
 				text.setText(getItem(position));
-				TypedValue tv = new TypedValue();
-				if (position == checkedItem) {
-					activity.getTheme().resolveAttribute(android.R.attr.colorPrimary, tv, true);
-					icon.setColorFilter(tv.data);
-					text.setTextColor(tv.data);
-					text.setTypeface(null, Typeface.BOLD);
-				} else {
-					activity.getTheme().resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, tv, true);
-					icon.setColorFilter(activity.getColor(android.R.color.darker_gray));
-					text.setTextColor(tv.data);
-					text.setTypeface(null, Typeface.NORMAL);
-				}
+				boolean checked = position == checkedItem;
+				int color = ViewUtils.themeColor(activity, checked
+								? androidx.appcompat.R.attr.colorPrimary
+								: com.google.android.material.R.attr.colorOnSurfaceVariant);
+				icon.setColorFilter(color);
+				text.setTextColor(color);
+				text.setTypeface(null, checked ? Typeface.BOLD : Typeface.NORMAL);
 				return view;
 			}
 		};
@@ -651,7 +647,7 @@ public class Controller {
 		builder.setTitle(R.string.info).setPositiveButton(R.string.confirm, null);
 		String[] info = {getVideoDetailsText(details)};
 		builder.setMessage(info[0]).setNeutralButton(R.string.copy, (dialog, which) -> {
-			DeviceUtils.copyToClipboard(activity, "Video Details", info[0]);
+			DeviceUtils.copyToClipboard(activity, activity.getString(R.string.info), info[0]);
 			showHint(activity.getString(R.string.debug_info_copied), HINT_HIDE_DELAY_MS);
 		});
 		AlertDialog dialog = builder.show();
@@ -746,6 +742,11 @@ public class Controller {
 		state = state.exitFullscreen();
 		applyControllerState(previousState, true);
 		zoomListener.reset();
+		// Fullscreen swipes always change the brightness; outside it only if the gestures say so
+		if (AppSettings.gestureLeft() != GestureAction.Vertical.BRIGHTNESS
+						&& AppSettings.gestureRight() != GestureAction.Vertical.BRIGHTNESS) {
+			gestureListener.resetBrightness();
+		}
 	}
 
 	public void release() {
@@ -894,16 +895,11 @@ public class Controller {
 			@Override
 			public View getView(int pos, @Nullable View conv, @NonNull ViewGroup parent) {
 				TextView tv = (TextView) super.getView(pos, conv, parent);
-				TypedValue out = new TypedValue();
-				if (pos == checked) {
-					activity.getTheme().resolveAttribute(android.R.attr.colorPrimary, out, true);
-					tv.setTextColor(out.data);
-					tv.setTypeface(null, Typeface.BOLD);
-				} else {
-					activity.getTheme().resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, out, true);
-					tv.setTextColor(out.data);
-					tv.setTypeface(null, Typeface.NORMAL);
-				}
+				boolean selected = pos == checked;
+				tv.setTextColor(ViewUtils.themeColor(activity, selected
+								? androidx.appcompat.R.attr.colorPrimary
+								: com.google.android.material.R.attr.colorOnSurfaceVariant));
+				tv.setTypeface(null, selected ? Typeface.BOLD : Typeface.NORMAL);
 				return tv;
 			}
 		};

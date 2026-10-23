@@ -1,21 +1,61 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="yt_red">#FF0000</color>
+    <!--
+        TestTube palette, dark (the default). The light theme overrides the same names in
+        values-notnight. Layouts and code use theme attributes (?attr/colorPrimary,
+        ?attr/colorSurfaceContainer…); these colours feed the theme.
+    -->
+
+    <!-- Brand: solid fills only (LIVE and "Now playing" badges, logo, placeholders) -->
+    <color name="brand_red">#FF0033</color>
     <color name="logo_watermark">#8B0000</color>
-    <color name="primary">#FFFFFF</color>
-    <color name="on_primary">#0F0F0F</color>
-    <color name="secondary">#AAAAAA</color>
-    <color name="on_secondary">#0F0F0F</color>
-    <color name="background">#0F0F0F</color>
-    <color name="on_background">#FFFFFF</color>
+
+    <!-- Accent: everything interactive or highlighted (switches, sliders, tabs, buttons, progress) -->
+    <color name="accent">#FF4E5B</color>
+    <color name="on_accent">#FFFFFF</color>
+    <color name="accent_container">#4A1A20</color>
+    <color name="on_accent_container">#FFD9DC</color>
+
+    <!-- Neutral tones, lightest on top -->
+    <color name="neutral">#C9C9C9</color>
+    <color name="on_neutral">#0F0F0F</color>
+    <color name="neutral_container">#2E2E2E</color>
+    <color name="on_neutral_container">#F1F1F1</color>
+
+    <!-- Surfaces from the page up to raised elements (dialogs, sheets, bars) -->
     <color name="surface">#0F0F0F</color>
-    <color name="on_surface">#FFFFFF</color>
-    <color name="surface_variant">#212121</color>
+    <color name="surface_container_lowest">#0A0A0A</color>
+    <color name="surface_container_low">#151515</color>
+    <color name="surface_container">#1B1B1B</color>
+    <color name="surface_container_high">#222222</color>
+    <color name="surface_container_highest">#2C2C2C</color>
+    <color name="on_surface">#F1F1F1</color>
     <color name="on_surface_variant">#AAAAAA</color>
-    <color name="outline">#3A3A3A</color>
-    <color name="queue_switch_red_track">#66FF0000</color>
-    <color name="queue_switch_neutral_track">#52FFFFFF</color>
-    <color name="queue_switch_thumb_off">#FFFFFF</color>
+    <color name="outline">#4A4A4A</color>
+    <color name="outline_variant">#2E2E2E</color>
+
+    <!-- Cards holding a group of settings -->
+    <color name="settings_group">#2C2C2C</color>
+
+    <!-- Revealed under a list row while it is swiped -->
+    <color name="swipe_background">#000000</color>
+    <color name="swipe_content">#FFFFFF</color>
+
+    <!-- Contrasting pill (Follow button) -->
+    <color name="inverse_surface">#F1F1F1</color>
+    <color name="inverse_on_surface">#0F0F0F</color>
+
+    <color name="error">#FFB4AB</color>
+    <color name="on_error">#690005</color>
+    <color name="error_container">#93000A</color>
+    <color name="on_error_container">#FFDAD6</color>
+
+    <!-- Overlays on video and pictures -->
+    <color name="scrim_strong">#CC000000</color>
+    <color name="scrim_soft">#80000000</color>
+    <color name="scrubber_unplayed">#99FFFFFF</color>
+    <color name="sponsor_segment">#4CAF50</color>
+
     <!-- Launcher icon -->
     <color name="ic_launcher_background">#000000</color>
     <color name="ic_launcher_play">#E5251E</color>

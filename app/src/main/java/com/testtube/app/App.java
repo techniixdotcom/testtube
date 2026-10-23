@@ -9,10 +9,12 @@ import android.webkit.WebView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.media3.common.util.UnstableApi;
 import androidx.webkit.WebViewCompat;
 
 import com.squareup.picasso.LruCache;
+import com.squareup.picasso.OkHttp3Downloader;
 import com.squareup.picasso.Picasso;
 import com.tencent.mmkv.MMKV;
 import com.testtube.app.extractor.ContentLanguage;
@@ -27,6 +29,8 @@ public class App extends Application {
 	public void onCreate() {
 		super.onCreate();
 		MMKV.initialize(this);
+		// Before any screen is created, so the first one already has the chosen colours
+		AppCompatDelegate.setDefaultNightMode(AppSettings.theme().nightMode);
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
 			String processName = getProcessName();
 			if (!getPackageName().equals(processName)) {
@@ -45,11 +49,15 @@ public class App extends Application {
 		ContentLanguage.apply(this);
 	}
 
-	/** Memory cache of up to 1/8 of the heap; Picasso's disk cache stays enabled. */
+	/**
+	 * Memory cache of up to 1/8 of the heap. Pictures load through the app's HTTP client, so they
+	 * share its connections and its disk cache (which "Clear cache" can empty).
+	 */
 	private void initImageLoader() {
 		long heap = Runtime.getRuntime().maxMemory();
 		Picasso.setSingletonInstance(new Picasso.Builder(this)
 						.memoryCache(new LruCache((int) Math.min(heap / 8, Integer.MAX_VALUE)))
+						.downloader(new OkHttp3Downloader(graph.okHttpClient()))
 						.build());
 	}
 
@@ -103,6 +111,7 @@ public class App extends Application {
 	private static void applyChromeMajor(@NonNull String major) {
 		Constant.CHROME_MAJOR = major;
 		Constant.USER_AGENT = UserAgents.mobile(major);
+		Constant.DESKTOP_USER_AGENT = UserAgents.desktop(major);
 	}
 
 	@NonNull

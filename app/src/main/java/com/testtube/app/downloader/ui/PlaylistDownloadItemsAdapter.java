@@ -1,6 +1,5 @@
 package com.testtube.app.downloader.ui;
 
-import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,6 +12,7 @@ import com.google.android.material.checkbox.MaterialCheckBox;
 import com.google.android.material.imageview.ShapeableImageView;
 import com.testtube.app.R;
 import com.testtube.app.util.ImageUtils;
+import com.testtube.app.util.ViewUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -164,24 +164,19 @@ public final class PlaylistDownloadItemsAdapter extends RecyclerView.Adapter<Pla
 		}
 
 		private int getStatusColor(@NonNull PlaylistDownloadItem item) {
-			if (item.getBatchResultStatus() == PlaylistDownloadItem.BatchResultStatus.FAILED) {
-				return getThemeColor(androidx.appcompat.R.attr.colorError, android.R.color.holo_red_dark);
-			}
-			if (item.getBatchResultStatus() == PlaylistDownloadItem.BatchResultStatus.PARTIAL
-							|| item.getBatchResultStatus() == PlaylistDownloadItem.BatchResultStatus.QUEUED
-							|| item.getBatchResultStatus() == PlaylistDownloadItem.BatchResultStatus.PREPARING
+			PlaylistDownloadItem.BatchResultStatus batch = item.getBatchResultStatus();
+			int attr;
+			if (batch == PlaylistDownloadItem.BatchResultStatus.FAILED) {
+				attr = androidx.appcompat.R.attr.colorError;
+			} else if (batch == PlaylistDownloadItem.BatchResultStatus.PARTIAL
+							|| batch == PlaylistDownloadItem.BatchResultStatus.QUEUED
+							|| batch == PlaylistDownloadItem.BatchResultStatus.PREPARING
 							|| item.getAvailabilityStatus() == PlaylistDownloadItem.AvailabilityStatus.READY) {
-				return getThemeColor(androidx.appcompat.R.attr.colorPrimary, android.R.color.holo_blue_dark);
+				attr = androidx.appcompat.R.attr.colorPrimary;
+			} else {
+				attr = com.google.android.material.R.attr.colorOnSurfaceVariant;
 			}
-			return itemView.getContext().getColor(android.R.color.darker_gray);
-		}
-
-		private int getThemeColor(int attrId, int fallbackColorRes) {
-			TypedValue value = new TypedValue();
-			if (itemView.getContext().getTheme().resolveAttribute(attrId, value, true)) {
-				return value.data;
-			}
-			return itemView.getContext().getColor(fallbackColorRes);
+			return ViewUtils.themeColor(itemView.getContext(), attr);
 		}
 
 		@NonNull

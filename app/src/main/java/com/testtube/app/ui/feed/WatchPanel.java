@@ -10,7 +10,6 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.text.format.DateUtils;
 import android.text.method.LinkMovementMethod;
-import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -49,6 +48,7 @@ import com.testtube.app.filter.ContentFilters;
 import com.testtube.app.nav.TabManager;
 import com.testtube.app.util.ToastUtils;
 import com.testtube.app.util.UrlUtils;
+import com.testtube.app.util.ViewUtils;
 
 import org.schabi.newpipe.extractor.Page;
 
@@ -537,7 +537,7 @@ public final class WatchPanel {
 			settings.setGeolocationEnabled(false);
 			settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
 			// The app is always dark: no white flash before the chat has loaded
-			int surface = themeColor(chatHost.getContext(), com.google.android.material.R.attr.colorSurface);
+			int surface = ViewUtils.themeColor(chatHost.getContext(), com.google.android.material.R.attr.colorSurface);
 			web.setBackgroundColor(surface);
 			// Stay on YouTube pages, ignore other links and schemes
 			web.setWebViewClient(new WebViewClient() {
@@ -579,12 +579,6 @@ public final class WatchPanel {
 						+ "s.textContent='html,body,yt-live-chat-app,yt-live-chat-renderer{background:" + color + " !important}';"
 						+ "document.head.appendChild(s);"
 						+ "})();";
-	}
-
-	private static int themeColor(@NonNull Context context, int attr) {
-		TypedValue value = new TypedValue();
-		context.getTheme().resolveAttribute(attr, value, true);
-		return value.data;
 	}
 
 	private void releaseChat() {

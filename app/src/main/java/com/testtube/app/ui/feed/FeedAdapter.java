@@ -34,17 +34,38 @@ import java.util.Objects;
 final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	private static final int TYPE_VIDEO = 0;
 	private static final int TYPE_ENTITY = 1;
-	private static final ColorMatrixColorFilter GREY = greyFilter();
 	private static final String SEPARATOR = " • ";
 	/** Rebinds only the uploader image of a row. */
 	private static final Object AVATAR_PAYLOAD = new Object();
 
-	// Watched videos: greyscale and dimmed
+	/** How dark the darkest setting makes the images; a little stays visible. */
+	private static final float DARKEST = 0.1f;
+	/** How faint the text gets at the darkest setting. */
+	private static final float FAINTEST_TEXT = 0.35f;
+
+	@Nullable
+	private static ColorMatrixColorFilter watchedFilter;
+	private static int watchedFilterKey = -1;
+
+	/**
+	 * Black and white, darkened by the setting: the lowest is plain greyscale, the highest almost
+	 * black. Kept until the setting changes, since every watched row uses the same one.
+	 */
 	@NonNull
-	private static ColorMatrixColorFilter greyFilter() {
+	private static ColorMatrixColorFilter watchedFilter(float darkness) {
+		int key = Math.round(darkness * 1000f);
+		ColorMatrixColorFilter filter = watchedFilter;
+		if (filter != null && watchedFilterKey == key) return filter;
 		ColorMatrix matrix = new ColorMatrix();
 		matrix.setSaturation(0f);
-		return new ColorMatrixColorFilter(matrix);
+		float brightness = 1f - (1f - DARKEST) * darkness;
+		ColorMatrix darken = new ColorMatrix();
+		darken.setScale(brightness, brightness, brightness, 1f);
+		matrix.postConcat(darken);
+		filter = new ColorMatrixColorFilter(matrix);
+		watchedFilter = filter;
+		watchedFilterKey = key;
+		return filter;
 	}
 
 	interface Listener {
@@ -248,9 +269,15 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 			holder.duration.setVisibility(View.GONE);
 		}
 		boolean watched = AppSettings.greyOutWatched() && filters.isWatched(item.videoId());
-		holder.itemView.setAlpha(watched ? 1f - AppSettings.watchedDimPercent() / 100f : 1f);
-		holder.thumbnail.setColorFilter(watched ? GREY : null);
-		holder.avatar.setColorFilter(watched ? GREY : null);
+		// On the children, not the row: RecyclerView's change animation resets the row's alpha
+		float darkness = watched ? AppSettings.watchedDarkness() : 0f;
+		ColorMatrixColorFilter filter = watched ? watchedFilter(darkness) : null;
+		holder.thumbnail.setColorFilter(filter);
+		holder.avatar.setColorFilter(filter);
+		float textAlpha = 1f - (1f - FAINTEST_TEXT) * darkness;
+		holder.title.setAlpha(textAlpha);
+		holder.meta.setAlpha(textAlpha);
+		holder.duration.setAlpha(textAlpha);
 		loadImage(holder.thumbnail, item.thumbnailUrl(), R.drawable.thumb_clear);
 		bindAvatar(holder, item);
 		holder.itemView.setOnClickListener(v -> listener.onOpen(item));

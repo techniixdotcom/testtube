@@ -39,8 +39,6 @@ public final class YoutubeJavaScriptPlayerManager {
     @Nullable
     private static String cachedSignatureDeobfuscationFunction;
     @Nullable
-    private static String cachedThrottlingDeobfuscationFunctionName;
-    @Nullable
     private static String cachedThrottlingDeobfuscationFunction;
 
     @Nullable
@@ -62,7 +60,7 @@ public final class YoutubeJavaScriptPlayerManager {
      * </p>
      *
      * <p>
-     * The base JavaScript player file will fetched if it is not already done.
+     * The base JavaScript player file will be fetched if it is not already done.
      * </p>
      *
      * <p>
@@ -147,7 +145,7 @@ public final class YoutubeJavaScriptPlayerManager {
                 cachedSignatureDeobfuscationFunction = YoutubeSignatureUtils.getDeobfuscationCode(
                         cachedJavaScriptPlayerCode);
             } catch (final ParsingException e) {
-                // Store the exception for future calls of this method, in order to improve
+                // Store the exception for future calls of this method in order to improve
                 // performance
                 sigDeobFuncExtractionEx = e;
                 throw e;
@@ -240,16 +238,11 @@ public final class YoutubeJavaScriptPlayerManager {
 
         if (cachedThrottlingDeobfuscationFunction == null) {
             try {
-                cachedThrottlingDeobfuscationFunctionName =
-                        YoutubeThrottlingParameterUtils.getDeobfuscationFunctionName(
-                                cachedJavaScriptPlayerCode);
-
                 cachedThrottlingDeobfuscationFunction =
-                        YoutubeThrottlingParameterUtils.getDeobfuscationFunction(
-                                cachedJavaScriptPlayerCode,
-                                cachedThrottlingDeobfuscationFunctionName);
+                        YoutubeThrottlingParameterUtils.getDeobfuscationCode(
+                                cachedJavaScriptPlayerCode);
             } catch (final ParsingException e) {
-                // Store the exception for future calls of this method, in order to improve
+                // Store the exception for future calls of this method in order to improve
                 // performance
                 throttlingDeobfFuncExtractionEx = e;
                 throw e;
@@ -263,7 +256,7 @@ public final class YoutubeJavaScriptPlayerManager {
         try {
             final String deobfuscatedThrottlingParameter = JavaScript.run(
                     cachedThrottlingDeobfuscationFunction,
-                    cachedThrottlingDeobfuscationFunctionName,
+                    YoutubeThrottlingParameterUtils.DEOBFUSCATION_FUNCTION_NAME,
                     obfuscatedThrottlingParameter);
 
             if (isNullOrEmpty(deobfuscatedThrottlingParameter)) {
@@ -308,7 +301,6 @@ public final class YoutubeJavaScriptPlayerManager {
     public static void clearAllCaches() {
         cachedJavaScriptPlayerCode = null;
         cachedSignatureDeobfuscationFunction = null;
-        cachedThrottlingDeobfuscationFunctionName = null;
         cachedThrottlingDeobfuscationFunction = null;
         cachedSignatureTimestamp = null;
         clearThrottlingParametersCache();

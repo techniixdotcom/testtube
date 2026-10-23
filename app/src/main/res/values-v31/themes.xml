@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+: the app shows blurred behind dialogs, with a lighter dim to match -->
+    <style name="ThemeOverlay.TestTube.AlertDialog" parent="Base.ThemeOverlay.TestTube.AlertDialog">
+        <item name="android:windowBlurBehindEnabled">true</item>
+        <item name="android:windowBlurBehindRadius">24dp</item>
+        <item name="android:backgroundDimAmount">0.45</item>
+    </style>
+</resources>

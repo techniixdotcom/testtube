@@ -42,6 +42,15 @@ public final class PermissionUtils {
 						== PackageManager.PERMISSION_GRANTED;
 	}
 
+	/** True when a permission request came back with every permission granted. */
+	public static boolean allGranted(@NonNull int[] grantResults) {
+		if (grantResults.length == 0) return false;
+		for (int result : grantResults) {
+			if (result != PackageManager.PERMISSION_GRANTED) return false;
+		}
+		return true;
+	}
+
 	@NonNull
 	public static String[] downloadStoragePermissions() {
 		return new String[]{

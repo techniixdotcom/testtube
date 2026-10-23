@@ -7,7 +7,6 @@ import android.content.ServiceConnection;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
-import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -210,10 +209,8 @@ public final class PlaylistDownloadDialog {
 		if (threadsSeekBar != null) threadsSeekBar.setProgress(threadCount - 1);
 		if (threadsCountView != null) threadsCountView.setText(String.valueOf(threadCount));
 
-		TypedValue value = new TypedValue();
-		context.getTheme().resolveAttribute(attr.colorPrimary, value, true);
-		toggleSelectedColor = value.data;
-		toggleUnselectedColor = context.getColor(android.R.color.darker_gray);
+		toggleSelectedColor = ViewUtils.themeColor(context, attr.colorPrimary);
+		toggleUnselectedColor = ViewUtils.themeColor(context, com.google.android.material.R.attr.colorSurfaceContainerHighest);
 
 		if (recyclerView != null) {
 			recyclerView.setLayoutManager(new LinearLayoutManager(context));
@@ -450,7 +447,8 @@ public final class PlaylistDownloadDialog {
 		parentRecord = batchRequest.parent;
 		batchPreparedCount = 0;
 		batchTotalCount = batchRequest.selectedIndexes.size();
-		batchExtractionSession = new ExtractionSession();
+		// A whole playlist is many videos in a row: paced as background work
+		batchExtractionSession = new ExtractionSession().setBackground(true);
 		lockUiForBatch(true);
 		updateStatusText();
 		updatePrimaryActionState();

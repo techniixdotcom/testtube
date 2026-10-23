@@ -96,7 +96,8 @@ final class PlayerDataSource {
 	@NonNull
 	private YoutubeHttpDataSource.Factory youtubeFactory(boolean rangeEnabled,
 	                                                     boolean rnEnabled) {
-		return new YoutubeHttpDataSource.Factory(Constant.USER_AGENT)
+		// Web streaming URLs come from the desktop WEB client; VISIONOS ones get their own agent
+		return new YoutubeHttpDataSource.Factory(Constant.DESKTOP_USER_AGENT)
 						.setConnectTimeoutMs(30_000)
 						.setReadTimeoutMs(30_000)
 						.setRangeParameterEnabled(rangeEnabled)

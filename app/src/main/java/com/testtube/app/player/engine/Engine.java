@@ -27,9 +27,11 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection;
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
 
+import com.testtube.app.AppSettings;
 import com.testtube.app.Constant;
 import com.testtube.app.R;
 import com.testtube.app.extractor.DeliveryCatalog;
+import com.testtube.app.extractor.ExtractionSession;
 import com.testtube.app.extractor.FeedClient;
 import com.testtube.app.extractor.FeedItem;
 import com.testtube.app.extractor.PlaybackDetails;
@@ -123,7 +125,6 @@ public class Engine {
 					prefetchedPick = null;
 					prefetchNext(videoId);
 				}
-				if (remaining <= UP_NEXT_LEAD_MS && !videoId.equals(upNextShownFor)) showUpNext(videoId, remaining);
 			}
 			long now = SystemClock.elapsedRealtime();
 			if (now - lastPersistAt >= PERSIST_INTERVAL_MS) {
@@ -205,7 +206,6 @@ public class Engine {
 	private static final int SUGGESTION_POOL = 5;
 	private static final int SUGGESTION_RETRIES = 3;
 	private static final int RECENT_AUTHORS = 3;
-	private static final long UP_NEXT_LEAD_MS = 15_000L;
 	private static final long SUGGESTION_RETRY_DELAY_MS = 1500L;
 	/** When the next video is picked, extracted and its start cached. */
 	private static final long PREFETCH_BEFORE_END_MS = 120_000L;
@@ -224,13 +224,6 @@ public class Engine {
 	@Nullable
 	private volatile UnaryOperator<PlaybackDetails> planSelector;
 	/**
-	 * The video the "Up next" notice was shown for, and the one it was cancelled for.
-	 */
-	@Nullable
-	private String upNextShownFor;
-	@Nullable
-	private String upNextCancelledFor;
-	/**
 	 * Videos played before the current one, newest last, for the previous button.
 	 */
 	@NonNull
@@ -243,8 +236,6 @@ public class Engine {
 	private FeedClient feedClient;
 	@NonNull
 	private final ArrayDeque<String> recentAuthors = new ArrayDeque<>();
-	@Nullable
-	private UpNextListener upNextListener;
 	@Nullable
 	private Candidate prefetchedPick;
 	@Nullable
@@ -292,16 +283,9 @@ public class Engine {
 			@Override
 			public void onPlaybackStateChanged(int state) {
 				if (state == Player.STATE_ENDED) {
-					if (videoId != null) {
-						prefs.clearProgress(videoId);
-						contentFilters.recordProgress(videoId, 1L, 1L);
-					}
+					markFinished();
 					if (loopMode.skipsToNextOnEnded()) {
-						// Up next was cancelled, just stop
-						if (videoId != null && videoId.equals(upNextCancelledFor)) return;
-						String endedId = videoId;
-						skipToNext(false);
-						removeFromQueue(endedId);
+						playNextAfterFinished();
 						return;
 					}
 					if (loopMode.selectsRandomPlaylistItemOnEnded()) {
@@ -361,7 +345,20 @@ public class Engine {
 		return client == null || client.isBlank() ? UNKNOWN_CLIENT : client;
 	}
 
-	/** Queued videos are removed once played or skipped. */
+	/** The video counts as fully watched and won't resume from its last position. */
+	private void markFinished() {
+		if (videoId == null) return;
+		prefs.clearProgress(videoId);
+		contentFilters.recordProgress(videoId, 1L, 1L);
+	}
+
+	/** What happens when a video ends: the next one plays, and a queued video leaves the queue. */
+	private void playNextAfterFinished() {
+		String endedId = videoId;
+		skipToNext(false);
+		removeFromQueue(endedId);
+	}
+
 	private void removeFromQueue(@Nullable String id) {
 		if (id != null && queueRepository.containsVideo(id)) {
 			queueRepository.remove(id);
@@ -428,8 +425,6 @@ public class Engine {
 			failedClients.clear();
 			recoveries = 0;
 			autoplayToken++;
-			upNextShownFor = null;
-			upNextCancelledFor = null;
 			// History writes serialize whole lists, so they stay off the main thread.
 			String id = video.getId();
 			String title = video.getTitle();
@@ -742,22 +737,7 @@ public class Engine {
 	/**
 	 * A video that could play next.
 	 */
-	private record Candidate(@NonNull String id, @Nullable String title, @Nullable String author) {
-	}
-
-	/**
-	 * Shows the "Up next" notice during the last seconds of a video.
-	 */
-	public interface UpNextListener {
-		/**
-		 * @param delayMs  how long the notice stays, until the video ends
-		 * @param onCancel stops the switch; the next video then does not start
-		 */
-		void show(@NonNull String title, long delayMs, @NonNull Runnable onCancel);
-	}
-
-	public void setUpNextListener(@Nullable UpNextListener listener) {
-		this.upNextListener = listener;
+	private record Candidate(@NonNull String id, @Nullable String author) {
 	}
 
 	public void setFeedClient(@Nullable FeedClient feedClient) {
@@ -792,7 +772,7 @@ public class Engine {
 			List<Candidate> found = new ArrayList<>();
 			if (related != null) {
 				for (RelatedVideo video : related) {
-					found.add(new Candidate(video.id(), video.title(), video.uploaderName()));
+					found.add(new Candidate(video.id(), video.uploaderName()));
 				}
 			}
 			if (hasOther(found, sourceId)) {
@@ -835,7 +815,7 @@ public class Engine {
 					if (item.kind() != FeedItem.Kind.VIDEO || item.live() || item.videoId() == null) continue;
 					if (item.videoId().equals(sourceId)) continue;
 					if (item.author() != null && contentFilters.isChannelBlocked(item.author(), item.authorUrl())) continue;
-					found.add(new Candidate(item.videoId(), item.title(), item.author()));
+					found.add(new Candidate(item.videoId(), item.author()));
 				}
 			} else if (error != null) {
 				Log.w(TAG, "feed suggestions unavailable videoId=" + sourceId, error);
@@ -863,35 +843,10 @@ public class Engine {
 		startNext(pick);
 	}
 
-	/** Switches to the picked video right away (Up next already offered a cancel). */
+	/** Switches to the picked video right away. */
 	private void startNext(@NonNull Candidate pick) {
 		recordAuthor(pick.author());
 		tabManager.playInWatch(Constant.HOME_URL + "/watch?v=" + pick.id());
-	}
-
-	/** Shows Up next once the next video is known; retried on every tick until then. */
-	private void showUpNext(@NonNull String currentId, long remainingMs) {
-		UpNextListener listener = upNextListener;
-		if (listener == null || !loopMode.skipsToNextOnEnded()) return;
-		String title = nextTitle(currentId);
-		if (title == null) return;
-		upNextShownFor = currentId;
-		listener.show(title, remainingMs, () -> upNextCancelledFor = currentId);
-	}
-
-	/**
-	 * Title of the video that plays after this one, or null when it is not known (yet) or comes
-	 * from a playlist.
-	 */
-	@Nullable
-	private String nextTitle(@NonNull String currentId) {
-		if (queueRepository.hasItems()) {
-			QueueItem item = queueRepository.findRelative(currentId, 1);
-			return item != null ? item.getTitle() : null;
-		}
-		if (tabManager.watchHasPlaylist() || !currentId.equals(prefetchedFor) || prefetchedPick == null) return null;
-		String title = prefetchedPick.title();
-		return title != null && !title.isBlank() ? title : prefetchedPick.id();
 	}
 
 	private void recordAuthor(@Nullable String author) {
@@ -970,8 +925,11 @@ public class Engine {
 		String id = YoutubeExtractor.getVideoId(url);
 		if (id == null || id.equals(preloadTarget) || id.equals(videoId)) return;
 		preloadTarget = id;
-		extractor.getInfo(url, null).whenComplete((details, error) -> {
+		// The details are a few kilobytes and always fetched ahead; the video's first seconds only
+		// when the video cache setting allows it
+		extractor.getInfo(url, new ExtractionSession().setBackground(true)).whenComplete((details, error) -> {
 			if (error != null || details == null || !id.equals(preloadTarget)) return;
+			if (!AppSettings.videoCache().preloadsNext) return;
 			UnaryOperator<PlaybackDetails> selector = planSelector;
 			try {
 				preloader.preload(selector != null ? selector.apply(details) : details);

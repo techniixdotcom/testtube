@@ -29,6 +29,8 @@ import com.testtube.app.extractor.FeedClient;
 import com.testtube.app.extractor.FeedItem;
 import com.testtube.app.extractor.LocalSubscriptions;
 import com.testtube.app.filter.ContentFilters;
+import com.testtube.app.net.Failure;
+import com.testtube.app.net.RequestPacer;
 
 import org.schabi.newpipe.extractor.Page;
 
@@ -46,6 +48,8 @@ import java.util.function.Consumer;
 public final class NativeBrowser {
 	private static final int LOAD_MORE_THRESHOLD = 6;
 	private static final int MAX_EMPTY_PAGES = 3;
+	private static final long AUTO_RETRY_MIN_MS = 2_500L;
+	private static final long AUTO_RETRY_MAX_MS = 20_000L;
 	private static final long RETRY_AFTER_MS = 3_000L;
 
 	public enum Mode {
@@ -127,9 +131,6 @@ public final class NativeBrowser {
 	private final TextView title;
 	@NonNull
 	private final ImageView logo;
-	/** The app icon at the top right; opens the settings like the logo. */
-	@NonNull
-	private final View appIcon;
 	@NonNull
 	private final ImageButton searchButton;
 	@NonNull
@@ -186,7 +187,6 @@ public final class NativeBrowser {
 		for (Mode value : Mode.values()) states.put(value, new State());
 		title = root.findViewById(R.id.browser_title);
 		logo = root.findViewById(R.id.browser_logo);
-		appIcon = root.findViewById(R.id.browser_app_icon);
 		searchButton = root.findViewById(R.id.browser_search);
 		searchBack = root.findViewById(R.id.browser_search_back);
 		searchField = root.findViewById(R.id.browser_search_field);
@@ -215,6 +215,8 @@ public final class NativeBrowser {
 				if (item.kind() == FeedItem.Kind.VIDEO) host.showMenu(item);
 			}
 		});
+		// Uploader pictures in every list: Home, Subscriptions and search
+		adapter.setShowAvatars(true);
 		layoutManager = new LinearLayoutManager(root.getContext());
 		list.setLayoutManager(layoutManager);
 		list.setAdapter(adapter);
@@ -255,7 +257,8 @@ public final class NativeBrowser {
 				load(mode, !state.loaded);
 			}
 		});
-		refresh.setColorSchemeResources(R.color.yt_red);
+		refresh.setColorSchemeResources(R.color.accent);
+		refresh.setProgressBackgroundColorSchemeResource(R.color.surface_container_high);
 		refresh.setOnRefreshListener(() -> load(mode, true));
 		searchButton.setOnClickListener(v -> {
 			if (mode == Mode.SEARCH) submitSearch();
@@ -491,9 +494,11 @@ public final class NativeBrowser {
 			if (state.call != call) return;
 			state.call = null;
 			if (error != null) {
-				if (!isCancellation(error)) {
+				if (!isCancellation(error) && !Failure.isCancellation(error)) {
 					state.error = true;
 					state.errorAt = System.currentTimeMillis();
+					state.failure = Failure.report(error);
+					retryLater(target, state, firstPage);
 					// Load failed (e.g. offline): show the last saved list instead of an error
 					if (firstPage && target != Mode.SEARCH && state.items.isEmpty()) {
 						for (FeedItem cached : FeedCache.load(cacheKey(target))) {
@@ -503,6 +508,7 @@ public final class NativeBrowser {
 					}
 				}
 			} else if (page != null) {
+				state.autoRetried = false;
 				if (firstPage && !streamed[0]) {
 					state.items.clear();
 					state.seen.clear();
@@ -536,6 +542,22 @@ public final class NativeBrowser {
 		}));
 	}
 
+	/**
+	 * A first page that failed for a passing reason (YouTube's pause, a timeout) loads once more by
+	 * itself when the pause is over; pulling down still retries right away.
+	 */
+	private void retryLater(@NonNull Mode target, @NonNull State state, boolean firstPage) {
+		if (!firstPage || state.autoRetried
+						|| (state.failure != Failure.SLOW_DOWN && state.failure != Failure.TIMEOUT)) {
+			return;
+		}
+		state.autoRetried = true;
+		long delay = Math.max(AUTO_RETRY_MIN_MS, Math.min(AUTO_RETRY_MAX_MS, RequestPacer.pauseRemainingMs()));
+		handler.postDelayed(() -> {
+			if (state.call == null && state.error && target == mode) load(target, true);
+		}, delay);
+	}
+
 	private static boolean isCancellation(@NonNull Throwable error) {
 		Throwable cause = error instanceof CompletionException && error.getCause() != null ? error.getCause() : error;
 		return cause instanceof CancellationException;
@@ -550,8 +572,6 @@ public final class NativeBrowser {
 			if (item.author() != null && filters.isChannelBlocked(item.author(), item.authorUrl())) continue;
 			visible.add(item);
 		}
-		// Uploader pictures on Home only, not in Subscriptions or search
-		adapter.setShowAvatars(mode == Mode.HOME);
 		adapter.submit(visible);
 		refresh.setRefreshing(state.call != null && state.refreshing);
 		if (!visible.isEmpty()) {
@@ -565,9 +585,9 @@ public final class NativeBrowser {
 		} else if (mode == Mode.SUBSCRIPTIONS && !host.accountEnabled()) {
 			// Local subscriptions don't need a login
 			text = LocalSubscriptions.get().all().isEmpty() ? R.string.subs_local_empty
-							: state.error ? R.string.feed_error : R.string.feed_empty;
+							: state.error ? state.failure.feedMessage : R.string.feed_empty;
 		} else if (state.error) {
-			text = R.string.feed_error;
+			text = state.failure.feedMessage;
 		} else if (mode == Mode.SUBSCRIPTIONS && (!client.isSignedIn() || (state.loaded && !state.signedIn))) {
 			text = R.string.feed_sign_in;
 		} else if (mode == Mode.SEARCH) {
@@ -595,7 +615,6 @@ public final class NativeBrowser {
 
 	private void applySearchUi(boolean searching) {
 		logo.setVisibility(searching ? View.GONE : View.VISIBLE);
-		appIcon.setVisibility(searching ? View.GONE : View.VISIBLE);
 		title.setVisibility(searching ? View.GONE : View.VISIBLE);
 		searchBack.setVisibility(searching ? View.VISIBLE : View.GONE);
 		searchField.setVisibility(searching ? View.VISIBLE : View.GONE);
@@ -642,6 +661,11 @@ public final class NativeBrowser {
 		boolean signedIn = true;
 		boolean refreshing;
 		boolean error;
+		/** Why the last load failed, for the message. */
+		@NonNull
+		Failure failure = Failure.OTHER;
+		/** The first page already retried by itself once since it last loaded. */
+		boolean autoRetried;
 		int emptyPages;
 		long errorAt;
 	}

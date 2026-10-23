@@ -9,6 +9,7 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.testtube.app.R;
@@ -17,6 +18,7 @@ import com.testtube.app.util.ImageUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public final class QueueAdapter extends RecyclerView.Adapter<QueueAdapter.ViewHolder> {
 	@NonNull
@@ -30,13 +32,52 @@ public final class QueueAdapter extends RecyclerView.Adapter<QueueAdapter.ViewHo
 		this.actions = actions;
 	}
 
+	/**
+	 * Shows a new queue state. Only rows that actually changed are rebound, so the frequent
+	 * player updates (minimize, play/pause) don't reload every thumbnail.
+	 */
 	public void replaceItems(@NonNull List<QueueItem> newItems, @Nullable String playingId) {
-		items.clear();
+		List<QueueItem> oldItems = new ArrayList<>(items);
+		String oldPlayingId = this.playingId;
+		List<QueueItem> fresh = new ArrayList<>(newItems.size());
 		for (QueueItem item : newItems) {
-			items.add(item.copy());
+			fresh.add(item.copy());
 		}
+		DiffUtil.DiffResult diff = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+			@Override
+			public int getOldListSize() {
+				return oldItems.size();
+			}
+
+			@Override
+			public int getNewListSize() {
+				return fresh.size();
+			}
+
+			@Override
+			public boolean areItemsTheSame(int oldPosition, int newPosition) {
+				return Objects.equals(oldItems.get(oldPosition).getVideoId(), fresh.get(newPosition).getVideoId());
+			}
+
+			@Override
+			public boolean areContentsTheSame(int oldPosition, int newPosition) {
+				QueueItem before = oldItems.get(oldPosition);
+				QueueItem after = fresh.get(newPosition);
+				return Objects.equals(before.getTitle(), after.getTitle())
+								&& Objects.equals(before.getAuthor(), after.getAuthor())
+								&& Objects.equals(before.getThumbnailUrl(), after.getThumbnailUrl())
+								&& Objects.equals(before.getVideoUrl(), after.getVideoUrl())
+								&& isPlaying(before, oldPlayingId) == isPlaying(after, playingId);
+			}
+		});
+		items.clear();
+		items.addAll(fresh);
 		this.playingId = playingId;
-		notifySafe(this::notifyDataSetChanged);
+		notifySafe(() -> diff.dispatchUpdatesTo(this));
+	}
+
+	private static boolean isPlaying(@NonNull QueueItem item, @Nullable String playingId) {
+		return item.getVideoId() != null && item.getVideoId().equals(playingId);
 	}
 
 	public boolean moveItem(int from, int to) {
@@ -121,7 +162,7 @@ public final class QueueAdapter extends RecyclerView.Adapter<QueueAdapter.ViewHo
 							? itemView.getContext().getString(R.string.queue_unknown_author)
 							: item.getAuthor());
 			ImageUtils.loadThumb(thumbnailView, item.getThumbnailUrl());
-			boolean playing = item.getVideoId() != null && item.getVideoId().equals(playingId);
+			boolean playing = isPlaying(item, playingId);
 			itemView.setActivated(playing);
 			itemView.setAlpha(1.0f);
 			playingBadgeView.setVisibility(playing ? View.VISIBLE : View.GONE);

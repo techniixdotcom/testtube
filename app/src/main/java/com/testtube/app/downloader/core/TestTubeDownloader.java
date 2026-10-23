@@ -4,7 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 public interface TestTubeDownloader {
-	void setCallback(@NonNull String videoId, @Nullable ProgressCallback2 callback);
+	void setCallback(@NonNull String videoId, @Nullable DownloadListener callback);
 
 	void download(@NonNull Task task);
 

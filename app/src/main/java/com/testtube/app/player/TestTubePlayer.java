@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.RectF;
 import android.graphics.drawable.Icon;
 import android.os.Build;
 import android.view.View;
@@ -33,8 +34,8 @@ import com.testtube.app.extractor.PlaybackPlan;
 import com.testtube.app.extractor.PlaybackPlanner;
 import com.testtube.app.extractor.VideoDetails;
 import com.testtube.app.extractor.YoutubeExtractor;
-import com.testtube.app.extractor.exception.ExtractionException;
-import com.testtube.app.extractor.exception.LoginRequiredExtractionException;
+import com.testtube.app.net.Failure;
+import com.testtube.app.net.RequestPacer;
 import com.testtube.app.player.common.PlayerLoopMode;
 import com.testtube.app.player.common.PlayerPreferences;
 import com.testtube.app.player.controller.Controller;
@@ -45,32 +46,13 @@ import com.testtube.app.player.queue.QueueNav;
 import com.testtube.app.player.queue.QueueRepository;
 import com.testtube.app.player.sponsor.SponsorBlockManager;
 import com.testtube.app.player.sponsor.SponsorOverlayView;
-import com.testtube.app.ui.ErrorDialog;
+import com.testtube.app.ui.FailureDialog;
 import com.testtube.app.util.NetworkWatcher;
 import com.testtube.app.util.ToastUtils;
 
-import org.schabi.newpipe.extractor.exceptions.AgeRestrictedContentException;
-import org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException;
-import org.schabi.newpipe.extractor.exceptions.ContentNotSupportedException;
-import org.schabi.newpipe.extractor.exceptions.GeographicRestrictionException;
-import org.schabi.newpipe.extractor.exceptions.PaidContentException;
-import org.schabi.newpipe.extractor.exceptions.PrivateContentException;
-import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
-import org.schabi.newpipe.extractor.exceptions.SignInConfirmNotBotException;
-import org.schabi.newpipe.extractor.exceptions.UnsupportedContentInCountryException;
-import org.schabi.newpipe.extractor.exceptions.YoutubeMusicPremiumContentException;
-
-import java.io.IOException;
-import java.net.ConnectException;
-import java.net.NoRouteToHostException;
-import java.net.SocketTimeoutException;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -122,6 +104,11 @@ public class TestTubePlayer {
 	private volatile String activeId;
 	@Nullable
 	private ExtractionSession extractSession;
+	/** The video already retried by itself after a failure, so it isn't retried endlessly. */
+	@Nullable
+	private String autoRetriedId;
+	private static final long AUTO_RETRY_MIN_MS = 2_500L;
+	private static final long AUTO_RETRY_MAX_MS = 20_000L;
 	@Nullable
 	private Runnable onRestore;
 	@Nullable
@@ -131,6 +118,11 @@ public class TestTubePlayer {
 	private boolean inMiniPlayer;
 	@Nullable
 	private MiniBar miniBar;
+	/** The video in a window over the app, when minimizing goes there; made on first use. */
+	@Nullable
+	private FloatingWindow floatingWindow;
+	@Nullable
+	private WatchDrag watchDrag;
 	@Nullable
 	private String currentTitle;
 	@Nullable
@@ -188,32 +180,13 @@ public class TestTubePlayer {
 		if (activeId != null) engine.applyPreferredQuality();
 	}
 
-	private static boolean containsException(@Nullable Throwable throwable,
-	                                         @NonNull Class<? extends Throwable> throwableClass) {
-		if (throwable == null) return false;
-
-		Set<Throwable> visited = Collections.newSetFromMap(new IdentityHashMap<>());
-		List<Throwable> pending = new ArrayList<>();
-		pending.add(throwable);
-
-		for (int i = 0; i < pending.size(); i++) {
-			Throwable th = pending.get(i);
-			if (th == null || !visited.add(th)) continue;
-			if (throwableClass.isInstance(th)) return true;
-
-			Throwable cause = th.getCause();
-			if (cause != null) pending.add(cause);
-			Collections.addAll(pending, th.getSuppressed());
-		}
-		return false;
-	}
-
 	private void setupEngineListeners() {
 		engine.addListener(new Player.Listener() {
 			@Override
 			public void onIsPlayingChanged(boolean isPlaying) {
 				updateServiceProgress(isPlaying);
 				if (inMiniPlayer) miniBar().setPlaying(isPlaying);
+				if (floatingWindow != null) floatingWindow.setPlaying(isPlaying);
 				updateFloatingPlayer();
 				Runnable listener = onStartedPlaying;
 				if (isPlaying && listener != null) listener.run();
@@ -239,25 +212,36 @@ public class TestTubePlayer {
 				if (Engine.playbackRecoveryReason(error) != null && refreshStreams(error)) {
 					return;
 				}
-				ErrorDialog.show(activity, error.getMessage(), error);
+				String failedId = activeId;
+				if (failedId != null && cannotEverPlay(error) && engine.skipUnavailable(failedId)) {
+					ToastUtils.show(activity, R.string.video_unplayable_skipped);
+					return;
+				}
+				showFailure(error, failedId);
 			}
 		});
 	}
 
-	private void saveSelectedTrackLanguage(Tracks tracks) {
-		try {
-			for (Tracks.Group group : tracks.getGroups()) {
-				if (group.getType() == C.TRACK_TYPE_AUDIO && group.isSelected()) {
-					for (int i = 0; i < group.length; i++) {
-						if (group.isTrackSelected(i)) {
-							String lang = group.getTrackFormat(i).language;
-							kv.encode(KEY_LAST_AUDIO_LANG, lang != null ? lang : "und");
-							return;
-						}
-					}
+	/**
+	 * The video itself can't be played here (broken stream, unsupported format, DRM). Network
+	 * errors don't count, otherwise a bad connection would skip through a whole playlist.
+	 */
+	private static boolean cannotEverPlay(@NonNull PlaybackException error) {
+		int code = error.errorCode;
+		return code >= PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED && code < 5000
+						|| code >= PlaybackException.ERROR_CODE_DRM_UNSPECIFIED && code < 7000;
+	}
+
+	private void saveSelectedTrackLanguage(@NonNull Tracks tracks) {
+		for (Tracks.Group group : tracks.getGroups()) {
+			if (group.getType() != C.TRACK_TYPE_AUDIO || !group.isSelected()) continue;
+			for (int i = 0; i < group.length; i++) {
+				if (group.isTrackSelected(i)) {
+					String lang = group.getTrackFormat(i).language;
+					kv.encode(KEY_LAST_AUDIO_LANG, lang != null ? lang : "und");
+					return;
 				}
 			}
-		} catch (Exception ignored) {
 		}
 	}
 
@@ -341,9 +325,10 @@ public class TestTubePlayer {
 							try {
 								engine.play(er);
 							} catch (IllegalArgumentException e) {
-								ErrorDialog.show(activity, e.getMessage(), e);
+								showFailure(e, videoId);
 								return;
 							}
+							autoRetriedId = null;
 							this.activeId = videoId;
 							activeDurationSeconds = er.video().getDuration();
 							stateStore.setVideoId(videoId);
@@ -363,25 +348,19 @@ public class TestTubePlayer {
 							refreshQueueNav();
 						})).exceptionally(e -> {
 							if (this.extractSession == session) this.extractSession = null;
-							Throwable cause = e instanceof CompletionException ? e.getCause() : e;
-							if (cause instanceof CompletionException && cause.getCause() != null) {
-								cause = cause.getCause();
-							}
-							if (cause instanceof Exception && !(cause instanceof ExtractionException)) {
-								cause = classifyException((Exception) cause);
-							}
-							boolean unavailable = isUnavailable(e);
-							if (cause instanceof ExtractionException) {
-								Throwable error = cause;
-								activity.runOnUiThread(() -> {
-									if (!Objects.equals(this.queuedId, videoId)) return;
-									if (unavailable && engine.skipUnavailable(videoId)) {
-										ToastUtils.show(activity, R.string.video_unavailable_skipped);
-										return;
-									}
-									ErrorDialog.show(activity, error.getMessage(), error);
-								});
-							}
+							Throwable cause = e instanceof CompletionException && e.getCause() != null ? e.getCause() : e;
+							if (session.isCancelled() || Failure.isCancellation(cause)) return null;
+							Failure failure = Failure.report(cause);
+							activity.runOnUiThread(() -> {
+								if (!Objects.equals(this.queuedId, videoId)) return;
+								// Removed, private, age-restricted, blocked…: in a playlist or the
+								// queue, say why and move on instead of stopping on an error
+								if (!failure.retryable && engine.skipUnavailable(videoId)) {
+									ToastUtils.show(activity, failure.skippedMessage());
+									return;
+								}
+								if (!retryLater(failure, videoId)) showFailure(cause, videoId);
+							});
 							return null;
 						});
 	}
@@ -424,105 +403,51 @@ public class TestTubePlayer {
 								return;
 							}
 							if (error != null || details == null) {
-								ErrorDialog.show(activity, cause.getMessage(), cause);
+								showFailure(error != null ? error : cause, videoId);
 								return;
 							}
 							try {
 								engine.replace(details, position);
 							} catch (IllegalArgumentException e) {
-								ErrorDialog.show(activity, e.getMessage(), e);
+								showFailure(e, videoId);
 							}
 						}));
 		return true;
 	}
 
 	/**
-	 * Removed, private, blocked or otherwise unplayable videos.
+	 * After YouTube's bot check or a timeout, tries the video once more by itself when the pause is
+	 * over, so a short hiccup needs no tap. The person sees a short notice meanwhile.
+	 *
+	 * @return true if a retry was scheduled
 	 */
-	private static boolean isUnavailable(@Nullable Throwable error) {
-		for (Throwable t = error; t != null; t = t.getCause()) {
-			if (t instanceof ContentNotAvailableException) return true;
-			if (t.getCause() == t) break;
-		}
-		return false;
+	private boolean retryLater(@NonNull Failure failure, @NonNull String videoId) {
+		if (failure != Failure.SLOW_DOWN && failure != Failure.TIMEOUT) return false;
+		if (videoId.equals(autoRetriedId)) return false;
+		autoRetriedId = videoId;
+		long delay = failure == Failure.SLOW_DOWN
+						? Math.max(AUTO_RETRY_MIN_MS, Math.min(AUTO_RETRY_MAX_MS, RequestPacer.pauseRemainingMs()))
+						: AUTO_RETRY_MIN_MS;
+		ToastUtils.show(activity, failure == Failure.SLOW_DOWN ? R.string.failure_retrying_slow_down
+						: R.string.failure_retrying);
+		playerView.postDelayed(() -> {
+			if (Objects.equals(queuedId, videoId)) playAgain(videoId);
+		}, delay);
+		return true;
 	}
 
-	@NonNull
-	private ExtractionException classifyException(@NonNull Exception exception) {
-		return classifyExtractionException(exception);
+	/** Loads a video again from scratch, e.g. after a failure. */
+	private void playAgain(@NonNull String videoId) {
+		queuedId = null;
+		play("https://www.youtube.com/watch?v=" + videoId);
 	}
 
-	@NonNull
-	private static ExtractionException classifyExtractionException(@NonNull Exception exception) {
-		if (containsException(exception, SignInConfirmNotBotException.class)) {
-			return new LoginRequiredExtractionException(exception);
-		}
-		if (containsException(exception, ReCaptchaException.class)) {
-			return new LoginRequiredExtractionException(exception);
-		}
-		if (containsException(exception, AgeRestrictedContentException.class)) {
-			return new ExtractionException("This video is age restricted and could not be extracted.", exception);
-		}
-		if (containsException(exception, GeographicRestrictionException.class)
-						|| containsException(exception, UnsupportedContentInCountryException.class)) {
-			return new ExtractionException("This video is not available in your region.", exception);
-		}
-		if (containsException(exception, PrivateContentException.class)) {
-			return new ExtractionException("This video is private or requires permission.", exception);
-		}
-		if (containsException(exception, PaidContentException.class)
-						|| containsException(exception, YoutubeMusicPremiumContentException.class)
-						|| containsException(exception, ContentNotSupportedException.class)) {
-			return new ExtractionException("This video type is not supported.", exception);
-		}
-		if (containsException(exception, SocketTimeoutException.class)
-						|| containsException(exception, ConnectException.class)
-						|| containsException(exception, NoRouteToHostException.class)
-						|| containsException(exception, UnknownHostException.class)) {
-			return new ExtractionException("Network error while extracting video info.", exception);
-		}
-		if (containsException(exception, IOException.class)) {
-			return new ExtractionException("I/O error while extracting video info.", exception);
-		}
-		ContentNotAvailableException unavailable =
-						firstException(exception, ContentNotAvailableException.class);
-		if (unavailable != null) {
-			return new ExtractionException(messageOrDefault(unavailable, "This video is not available."), exception);
-		}
-		org.schabi.newpipe.extractor.exceptions.ExtractionException extraction =
-						firstException(exception, org.schabi.newpipe.extractor.exceptions.ExtractionException.class);
-		if (extraction != null) {
-			return new ExtractionException("Extract failed: " + messageOrDefault(extraction, extraction.getClass().getSimpleName()), exception);
-		}
-		return new ExtractionException("Extract failed", exception);
-	}
-
-	@Nullable
-	private static <T extends Throwable> T firstException(@Nullable Throwable throwable,
-	                                                     @NonNull Class<T> throwableClass) {
-		if (throwable == null) return null;
-
-		Set<Throwable> visited = Collections.newSetFromMap(new IdentityHashMap<>());
-		List<Throwable> pending = new ArrayList<>();
-		pending.add(throwable);
-
-		for (int i = 0; i < pending.size(); i++) {
-			Throwable th = pending.get(i);
-			if (th == null || !visited.add(th)) continue;
-			if (throwableClass.isInstance(th)) return throwableClass.cast(th);
-
-			Throwable cause = th.getCause();
-			if (cause != null) pending.add(cause);
-			Collections.addAll(pending, th.getSuppressed());
-		}
-		return null;
-	}
-
-	@NonNull
-	private static String messageOrDefault(@NonNull Throwable throwable,
-	                                       @NonNull String fallback) {
-		String message = throwable.getMessage();
-		return message == null || message.isBlank() ? fallback : message;
+	private void showFailure(@NonNull Throwable error, @Nullable String videoId) {
+		Failure failure = Failure.report(error);
+		FailureDialog.show(activity, failure, error, videoId == null ? null : () -> {
+			autoRetriedId = videoId;
+			playAgain(videoId);
+		});
 	}
 
 	public void hide() {
@@ -669,16 +594,70 @@ public class TestTubePlayer {
 	}
 
 	/** Moves the video into the bottom bar; playback continues. */
+	/**
+	 * Minimizes the video: into the floating window over the app, or into the bottom bar, as set in
+	 * the settings.
+	 */
 	public void enterInAppMiniPlayer() {
 		inMiniPlayer = true;
 		stateStore.setInMiniPlayer(true);
 		if (controller.isFullscreen()) controller.exitFullscreenImmediately();
 		controller.enterMiniPlayer();
-		playerView.hide();
-		updateMiniBar();
-		miniBar().setPlaying(engine.isPlaying());
-		miniBar().show();
+		showMinimized();
 		refreshQueueNav();
+	}
+
+	/** Shows the minimized video in the form the settings ask for now. */
+	private void showMinimized() {
+		if (AppSettings.floatingPlayer()) {
+			miniBar().hide();
+			playerView.show();
+			floatingWindow().setPlaying(engine.isPlaying());
+			floatingWindow().show();
+		} else {
+			if (floatingWindow != null) floatingWindow.hide();
+			playerView.hide();
+			updateMiniBar();
+			miniBar().setPlaying(engine.isPlaying());
+			miniBar().show();
+		}
+	}
+
+	/** The minimize setting changed: a minimized video moves to the bar or the window right away. */
+	public void applyMinimizeMode() {
+		if (inMiniPlayer && !wasInPip) showMinimized();
+	}
+
+	/** Where the floating window is, when minimizing goes there; null for the bottom bar. */
+	@Nullable
+	public RectF floatingTarget() {
+		return AppSettings.floatingPlayer() ? floatingWindow().bounds() : null;
+	}
+
+	@NonNull
+	private FloatingWindow floatingWindow() {
+		FloatingWindow window = floatingWindow;
+		if (window == null) {
+			window = new FloatingWindow(activity, playerView, new FloatingWindow.Actions() {
+				@Override
+				public void expand() {
+					WatchDrag drag = watchDrag;
+					if (drag == null || !drag.expand()) restoreFromMiniPlayer();
+				}
+
+				@Override
+				public void playPause() {
+					togglePlayback();
+				}
+
+				@Override
+				public void close() {
+					closeMinimized();
+				}
+			});
+			floatingWindow = window;
+		}
+		return window;
 	}
 
 	/**
@@ -690,6 +669,7 @@ public class TestTubePlayer {
 		inMiniPlayer = false;
 		stateStore.setInMiniPlayer(false);
 		miniBar().hide();
+		if (floatingWindow != null) floatingWindow.hide();
 		playerView.fitToWidth();
 		playerView.show();
 		controller.exitMiniPlayer();
@@ -699,7 +679,24 @@ public class TestTubePlayer {
 		inMiniPlayer = false;
 		stateStore.setInMiniPlayer(false);
 		miniBar().hide();
+		if (floatingWindow != null) floatingWindow.hide();
 		controller.exitMiniPlayer();
+	}
+
+	private void togglePlayback() {
+		if (engine.isPlaying()) {
+			engine.pause();
+		} else {
+			if (engine.getPlaybackState() == Player.STATE_ENDED) engine.seekTo(0L);
+			engine.play();
+		}
+	}
+
+	/** Closing the bar or the window stops the video. */
+	private void closeMinimized() {
+		Runnable close = onClose;
+		hide();
+		if (close != null) close.run();
 	}
 
 	@NonNull
@@ -710,20 +707,9 @@ public class TestTubePlayer {
 			bar.setActions(
 							this::restoreFromMiniPlayer,
 							engine::skipToPrevious,
-							() -> {
-								if (engine.isPlaying()) {
-									engine.pause();
-								} else {
-									if (engine.getPlaybackState() == Player.STATE_ENDED) engine.seekTo(0L);
-									engine.play();
-								}
-							},
+							this::togglePlayback,
 							engine::skipToNext,
-							() -> {
-								Runnable close = onClose;
-								hide();
-								if (close != null) close.run();
-							});
+							this::closeMinimized);
 			miniBar = bar;
 		}
 		return bar;
@@ -735,9 +721,7 @@ public class TestTubePlayer {
 
 	public void restoreInAppMiniPlayerUiIfNeeded() {
 		if (!inMiniPlayer) return;
-		updateMiniBar();
-		miniBar().setPlaying(engine.isPlaying());
-		miniBar().show();
+		showMinimized();
 	}
 
 	/**
@@ -753,6 +737,7 @@ public class TestTubePlayer {
 	}
 
 	public void setWatchDrag(@Nullable WatchDrag drag) {
+		this.watchDrag = drag;
 		controller.setWatchDrag(drag);
 	}
 
@@ -786,8 +771,10 @@ public class TestTubePlayer {
 		if (isInPiP) {
 			// A brightness set by swiping would otherwise stay on over other apps
 			controller.resetBrightness();
-			// In the bottom bar the picture is hidden; the window shows the video alone
+			// In the bottom bar the picture is hidden, and the in-app window is scaled down; the
+			// system window shows the video alone, at full size
 			if (inMiniPlayer) {
+				if (floatingWindow != null) floatingWindow.hide();
 				playerView.show();
 				miniBar().hide();
 			}
@@ -795,8 +782,7 @@ public class TestTubePlayer {
 			if (!closed && onRestore != null) {
 				onRestore.run();
 			} else {
-				playerView.hide();
-				restoreInAppMiniPlayerUiIfNeeded();
+				showMinimized();
 			}
 		}
 		wasInPip = isInPiP;
@@ -843,6 +829,7 @@ public class TestTubePlayer {
 		});
 		inMiniPlayer = false;
 		if (miniBar != null) miniBar.hide();
+		if (floatingWindow != null) floatingWindow.hide();
 		engine.release();
 	}
 

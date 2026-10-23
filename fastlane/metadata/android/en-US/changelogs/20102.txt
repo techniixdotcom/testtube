@@ -1,0 +1,6 @@
+- Theme follows the phone by default
+- Light theme no longer darkened by the phone's dark mode
+- Playlists skip private, removed or blocked videos and say why
+- Removed the "Up next" notice
+- Channel export no longer freezes the app on slow storage
+- Smaller fixes and cleanup

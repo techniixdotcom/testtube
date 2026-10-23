@@ -8,6 +8,7 @@ import androidx.annotation.Nullable;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
+import com.testtube.app.Constant;
 import com.testtube.app.extractor.AuthContext;
 import com.testtube.app.extractor.ExtractionSession;
 import com.testtube.app.extractor.ExtractionSessionScope;
@@ -295,8 +296,8 @@ public final class PoTokenCoordinator {
 		Request request = new Request.Builder()
 						.url(url)
 						.post(RequestBody.create(body, MediaType.get("application/json+protobuf")))
-						.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-										+ "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.3")
+						// Same browser as the BotGuard page that this request continues
+						.header("User-Agent", Constant.DESKTOP_USER_AGENT)
 						.header("Accept", "application/json")
 						.header("Content-Type", "application/json+protobuf")
 						.header("x-goog-api-key", "AIzaSyDyT5W0Jh49F30Pqqtyfdf7pDLFKLJoAnw")

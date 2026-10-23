@@ -24,10 +24,12 @@ import com.testtube.app.player.engine.Engine;
 import java.util.Locale;
 
 /**
- * Tap toggles the controls, double tap seeks ten seconds or toggles playback, horizontal swipes
- * seek. Vertical swipes either drag the video down to the bottom bar and open fullscreen (up), or,
- * when that is switched off in the settings, change the brightness on the left half and the volume
- * on the right half.
+ * Tap toggles the controls. The rest follows the gesture settings ({@link AppSettings}): by default
+ * double tap skips ten seconds (or plays and pauses in the middle), horizontal swipes seek, and
+ * vertical swipes drag the video down to minimize it (to the bottom bar or the floating window) or
+ * up to fullscreen. With custom gestures each half of the video can instead change the brightness
+ * or the volume, or do nothing. In fullscreen, vertical swipes always change the brightness (left)
+ * and the volume (right).
  */
 @UnstableApi
 public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListener {
@@ -72,6 +74,14 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 	}
 
 	private static DoubleTapAction getDoubleTapAction(float x, float width) {
+		switch (AppSettings.gestureDoubleTap()) {
+			case NONE:
+				return DoubleTapAction.NOTHING;
+			case PLAY_PAUSE:
+				return DoubleTapAction.TOGGLE_PLAYBACK;
+			default:
+				break;
+		}
 		if (width <= 0f) return DoubleTapAction.TOGGLE_PLAYBACK;
 		if (x < width / 3f) return DoubleTapAction.SEEK_BACKWARD;
 		if (x > width * 2f / 3f) return DoubleTapAction.SEEK_FORWARD;
@@ -232,10 +242,12 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 			if (Math.abs(dy) > Math.abs(dx)) {
 				gestureMode = verticalMode(e1);
 			} else if (Math.abs(dx) > Math.abs(dy)) {
-				gestureMode = GestureMode.SEEK;
+				gestureMode = AppSettings.gestureHorizontal() == GestureAction.Horizontal.SEEK
+								? GestureMode.SEEK : GestureMode.IGNORED;
 			}
 			if (gestureMode == GestureMode.NONE) return false;
 		}
+		if (gestureMode == GestureMode.IGNORED) return true;
 		gesturing = true;
 		handler.removeCallbacks(hideHint);
 		switch (gestureMode) {
@@ -252,6 +264,7 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 				adjustVolume(e1, e2);
 				break;
 			case NONE:
+			case IGNORED:
 				return false;
 		}
 		handler.postDelayed(hideHint, AUTO_HIDE_DELAY_MS);
@@ -305,17 +318,35 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 		}
 	}
 
+	/**
+	 * What a vertical swipe does on the half of the video where it started. In fullscreen it is
+	 * always brightness (left) and volume (right), whatever the settings say; Back or the button
+	 * in the corner leave fullscreen.
+	 */
 	@NonNull
 	private GestureMode verticalMode(@NonNull MotionEvent start) {
-		if (AppSettings.swipeDownMinimizes()) return GestureMode.MINIMIZE;
-		if (start.getX() < playerView.getWidth() / 2f) {
-			levelAtStart = currentBrightness();
-			return GestureMode.BRIGHTNESS;
+		boolean left = start.getX() < playerView.getWidth() / 2f;
+		GestureAction.Vertical action;
+		if (controller.isFullscreen()) {
+			action = left ? GestureAction.Vertical.BRIGHTNESS : GestureAction.Vertical.VOLUME;
+		} else {
+			action = left ? AppSettings.gestureLeft() : AppSettings.gestureRight();
 		}
-		AudioManager audio = audioManager();
-		if (audio == null) return GestureMode.NONE;
-		levelAtStart = audio.getStreamVolume(AudioManager.STREAM_MUSIC);
-		return GestureMode.VOLUME;
+		switch (action) {
+			case MINIMIZE:
+				return GestureMode.MINIMIZE;
+			case BRIGHTNESS:
+				levelAtStart = currentBrightness();
+				return GestureMode.BRIGHTNESS;
+			case VOLUME: {
+				AudioManager audio = audioManager();
+				if (audio == null) return GestureMode.IGNORED;
+				levelAtStart = audio.getStreamVolume(AudioManager.STREAM_MUSIC);
+				return GestureMode.VOLUME;
+			}
+			default:
+				return GestureMode.IGNORED;
+		}
 	}
 
 	/** Fraction of the player height swiped upwards since the gesture started (negative when down). */
@@ -374,6 +405,8 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 
 	private enum GestureMode {
 		NONE,
+		/** A swipe whose gesture is switched off: swallowed until the finger lifts. */
+		IGNORED,
 		SEEK,
 		MINIMIZE,
 		BRIGHTNESS,
@@ -381,6 +414,7 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 	}
 
 	private enum DoubleTapAction {
+		NOTHING,
 		SEEK_BACKWARD,
 		TOGGLE_PLAYBACK,
 		SEEK_FORWARD

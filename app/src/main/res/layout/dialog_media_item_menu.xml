@@ -24,15 +24,17 @@
 
         <ImageButton
             android:id="@+id/media_item_close"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:layout_gravity="top|end"
             android:layout_margin="8dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
+            android:background="@drawable/bg_icon_on_picture"
             android:contentDescription="@string/close"
-            android:padding="12dp"
+            android:foreground="?attr/selectableItemBackgroundBorderless"
+            android:padding="8dp"
             android:src="@drawable/ic_close"
-            app:tint="?attr/colorOnSurface" />
+            android:theme="@style/ThemeOverlay.TestTube.OnVideo"
+            app:tint="@android:color/white" />
     </FrameLayout>
 
     <ScrollView

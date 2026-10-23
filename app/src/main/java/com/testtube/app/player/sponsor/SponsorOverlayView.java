@@ -2,12 +2,14 @@ package com.testtube.app.player.sponsor;
 
 import android.content.Context;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.util.AttributeSet;
 import android.view.View;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
+
+import com.testtube.app.R;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -19,7 +21,7 @@ public class SponsorOverlayView extends View {
 
 	public SponsorOverlayView(Context context, AttributeSet attrs) {
 		super(context, attrs);
-		paint.setColor(Color.parseColor("#4CAF50"));
+		paint.setColor(ContextCompat.getColor(context, R.color.sponsor_segment));
 		paint.setStyle(Paint.Style.FILL);
 	}
 

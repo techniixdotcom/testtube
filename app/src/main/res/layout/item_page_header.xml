@@ -134,18 +134,12 @@
             android:id="@+id/page_tabs"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@android:color/transparent"
             app:tabGravity="start"
-            app:tabIndicatorColor="?attr/colorOnSurface"
-            app:tabIndicatorFullWidth="true"
-            app:tabMode="scrollable"
-            app:tabSelectedTextColor="?attr/colorOnSurface"
-            app:tabTextAppearance="@style/TextAppearance.TestTube.PageTab"
-            app:tabTextColor="?attr/colorOnSurfaceVariant" />
+            app:tabMode="scrollable" />
 
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:background="@color/outline" />
+            android:background="?attr/colorOutlineVariant" />
     </LinearLayout>
 </LinearLayout>
