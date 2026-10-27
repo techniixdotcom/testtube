@@ -101,7 +101,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	private static final long WARM_UP_DELAY_MS = 1_500L;
 	private final Handler handler = new Handler(Looper.getMainLooper());
 	private final Consumer<PlaybackDetails> extrasListener = details -> handler.post(() -> {
-		if (player != null) player.onExtras(details);
+		if (this.player != null) this.player.onExtras(details);
 	});
 	private ActivityGraph graph;
 	private TabManager tabManager;
