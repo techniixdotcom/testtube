@@ -1,0 +1,3 @@
+- Subscriptions sorted newest first
+- Original audio, titles, descriptions and chapters by default
+- Channel pages only hide the Playlists tab

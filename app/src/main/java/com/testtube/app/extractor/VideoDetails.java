@@ -77,6 +77,10 @@ public class VideoDetails {
 		return likeCount;
 	}
 
+	public void setLikeCount(long likeCount) {
+		this.likeCount = likeCount;
+	}
+
 	public Date getUploadDate() {
 		return uploadDate;
 	}
@@ -87,6 +91,10 @@ public class VideoDetails {
 
 	public String getUploaderAvatarUrl() {
 		return uploaderAvatarUrl;
+	}
+
+	public void setUploaderAvatarUrl(String uploaderAvatarUrl) {
+		this.uploaderAvatarUrl = uploaderAvatarUrl;
 	}
 
 	public long getViewCount() {

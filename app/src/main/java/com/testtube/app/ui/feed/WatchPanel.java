@@ -32,7 +32,6 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.tabs.TabLayout;
-import com.squareup.picasso.Picasso;
 import com.testtube.app.AppSettings;
 import com.testtube.app.Constant;
 import com.testtube.app.R;
@@ -45,6 +44,7 @@ import com.testtube.app.extractor.VideoDetails;
 import com.testtube.app.extractor.YoutubeExtractor;
 import com.testtube.app.filter.ContentFilters;
 import com.testtube.app.nav.TabManager;
+import com.testtube.app.util.ImageUtils;
 import com.testtube.app.util.StringUtils;
 import com.testtube.app.util.ToastUtils;
 import com.testtube.app.util.UrlUtils;
@@ -729,9 +729,9 @@ public final class WatchPanel {
 							? context.getString(R.string.watch_likes, StringUtils.compactCount(d.getLikeCount())) : "");
 			String avatarUrl = d != null ? d.getUploaderAvatarUrl() : null;
 			if (avatarUrl != null && !avatarUrl.isBlank()) {
-				Picasso.get().load(avatarUrl).fit().centerCrop().into(avatar);
+				ImageUtils.load(avatar, avatarUrl, R.drawable.bg_avatar_placeholder);
 			} else {
-				Picasso.get().cancelRequest(avatar);
+				ImageUtils.clear(avatar);
 				avatar.setImageDrawable(null);
 			}
 			String channelUrl = d != null ? FeedClient.mobile(d.getUploaderUrl()) : null;

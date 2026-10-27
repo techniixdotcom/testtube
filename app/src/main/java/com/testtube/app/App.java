@@ -13,9 +13,6 @@ import androidx.appcompat.app.AppCompatDelegate;
 import androidx.media3.common.util.UnstableApi;
 import androidx.webkit.WebViewCompat;
 
-import com.squareup.picasso.LruCache;
-import com.squareup.picasso.OkHttp3Downloader;
-import com.squareup.picasso.Picasso;
 import com.tencent.mmkv.MMKV;
 import com.testtube.app.extractor.ContentLanguage;
 import com.testtube.app.util.UserAgents;
@@ -39,7 +36,6 @@ public class App extends Application {
 		}
 		ContentLanguage.apply(this);
 		graph = new AppGraph(this);
-		initImageLoader();
 		initUserAgent();
 	}
 
@@ -47,18 +43,6 @@ public class App extends Application {
 	public void onConfigurationChanged(@NonNull Configuration newConfig) {
 		super.onConfigurationChanged(newConfig);
 		ContentLanguage.apply(this);
-	}
-
-	/**
-	 * Memory cache of up to 1/8 of the heap. Pictures load through the app's HTTP client, so they
-	 * share its connections and its disk cache (which "Clear cache" can empty).
-	 */
-	private void initImageLoader() {
-		long heap = Runtime.getRuntime().maxMemory();
-		Picasso.setSingletonInstance(new Picasso.Builder(this)
-						.memoryCache(new LruCache((int) Math.min(heap / 8, Integer.MAX_VALUE)))
-						.downloader(new OkHttp3Downloader(graph.okHttpClient()))
-						.build());
 	}
 
 	/**

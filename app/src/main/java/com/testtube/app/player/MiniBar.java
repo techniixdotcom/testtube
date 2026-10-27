@@ -9,8 +9,8 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.squareup.picasso.Picasso;
 import com.testtube.app.R;
+import com.testtube.app.util.ImageUtils;
 
 final class MiniBar {
 	private static final float DISABLED_ALPHA = 0.38f;
@@ -81,11 +81,7 @@ final class MiniBar {
 		}
 		if (videoThumbnailUrl.equals(thumbnailUrl)) return;
 		thumbnailUrl = videoThumbnailUrl;
-		Picasso.get()
-						.load(videoThumbnailUrl)
-						.placeholder(R.drawable.ic_thumbnail_placeholder)
-						.error(R.drawable.ic_thumbnail_placeholder)
-						.into(thumbnail);
+		ImageUtils.load(thumbnail, videoThumbnailUrl, R.drawable.ic_thumbnail_placeholder);
 	}
 
 	void setPlaying(boolean playing) {

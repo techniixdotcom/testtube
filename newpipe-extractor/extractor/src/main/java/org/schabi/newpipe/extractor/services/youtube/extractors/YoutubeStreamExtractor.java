@@ -134,6 +134,71 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private JsonObject playerResponse;
     private JsonObject nextResponse;
 
+    /**
+     * TestTube: what to do with the "next" request (likes, suggestions, chapters, description
+     * extras), which isn't needed to start playing.
+     */
+    public enum NextMode {
+        /** Wait for it, as upstream does. */
+        WAIT,
+        /** Send it, but return without it; {@link #awaitNext()} fills it in later. */
+        LATER,
+        /** Don't send it at all (Shorts). */
+        SKIP
+    }
+
+    private static final ThreadLocal<NextMode> NEXT_MODE = ThreadLocal.withInitial(() -> NextMode.WAIT);
+    private static final ThreadLocal<YoutubeStreamExtractor> LAST_LATER = new ThreadLocal<>();
+    @Nullable
+    private CompletableFuture<JsonObject> pendingNext;
+
+    /** TestTube: how extractions on this thread treat the "next" request, until set again. */
+    public static void setNextMode(@Nonnull final NextMode mode) {
+        NEXT_MODE.set(mode);
+    }
+
+    /**
+     * TestTube: the extractor of the last {@link NextMode#LATER} extraction on this thread, to
+     * call {@link #awaitNext()} on; null when there was none. Clears it.
+     */
+    @Nullable
+    public static YoutubeStreamExtractor takeLastLater() {
+        final YoutubeStreamExtractor extractor = LAST_LATER.get();
+        LAST_LATER.remove();
+        return extractor;
+    }
+
+    /**
+     * TestTube: done once the "next" answer is in (or failed), so {@link #awaitNext()} won't
+     * block. Already done when there's nothing pending.
+     */
+    @Nonnull
+    public CompletableFuture<?> nextDone() {
+        final CompletableFuture<JsonObject> pending = pendingNext;
+        return pending == null ? CompletableFuture.completedFuture(null)
+                : pending.handle((json, error) -> null);
+    }
+
+    /**
+     * TestTube: waits for the "next" request a {@link NextMode#LATER} extraction sent, so the
+     * like count, suggestions and chapters can be read. Without an answer they stay empty.
+     */
+    public void awaitNext() {
+        final CompletableFuture<JsonObject> pending = pendingNext;
+        if (pending == null) {
+            return;
+        }
+        pendingNext = null;
+        try {
+            nextResponse = await(pending);
+        } catch (final IOException | ExtractionException | RuntimeException e) {
+            nextResponse = new JsonObject();
+        }
+        // Read from the empty response before; read them again from the real one
+        videoPrimaryInfoRenderer = null;
+        videoSecondaryInfoRenderer = null;
+    }
+
     @Nullable
     private JsonObject visionOsStreamingData;
 
@@ -841,7 +906,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         final CompletableFuture<JsonObject> webMetadata = requestAsync(() ->
                 YoutubeStreamHelper.getWebMetadataPlayerResponse(
                         playerLocalization, playerCountry, videoId));
-        final CompletableFuture<JsonObject> next = requestAsync(() -> {
+        final NextMode nextMode = NEXT_MODE.get();
+        final CompletableFuture<JsonObject> next = nextMode == NextMode.SKIP ? null : requestAsync(() -> {
             final byte[] nextBody = JsonWriter.string(
                     prepareDesktopJsonBuilder(localization, contentCountry)
                             .value(VIDEO_ID, videoId)
@@ -857,6 +923,14 @@ public class YoutubeStreamExtractor extends StreamExtractor {
 
         applyWebClientMetadataAndSetThumbnails(webMetadata, videoId);
         // TestTube: "next" only has likes, description extras and suggestions; play without it
+        if (next == null || nextMode == NextMode.LATER) {
+            nextResponse = new JsonObject();
+            pendingNext = next;
+            if (next != null) {
+                LAST_LATER.set(this);
+            }
+            return;
+        }
         try {
             nextResponse = await(next);
         } catch (final IOException | ExtractionException | RuntimeException e) {

@@ -13,22 +13,25 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.squareup.picasso.Picasso;
 import com.testtube.app.AppSettings;
 import com.testtube.app.R;
 import com.testtube.app.extractor.AvatarCache;
 import com.testtube.app.extractor.FeedItem;
 import com.testtube.app.extractor.Originals;
 import com.testtube.app.filter.ContentFilters;
+import com.testtube.app.util.ImageUtils;
 import com.testtube.app.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	private static final int TYPE_VIDEO = 0;
@@ -37,6 +40,12 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	private static final String SEPARATOR = " • ";
 	private static final Object AVATAR_PAYLOAD = new Object();
 	private static final Object ORIGINAL_PAYLOAD = new Object();
+
+	/** Rows ahead of the one being shown whose pictures start loading already. */
+	private static final int PREFETCH_AHEAD = 4;
+	/** Rows of a freshly loaded list whose pictures start loading right away. */
+	private static final int PREFETCH_ON_LOAD = 8;
+	private static final int MAX_PREFETCHED = 400;
 
 	/** How dark the darkest setting makes the images; a little stays visible. */
 	private static final float DARKEST = 0.1f;
@@ -96,6 +105,12 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	private List<FeedItem> items = new ArrayList<>();
 	private boolean showAvatars;
 	private boolean compactRows;
+	/** Pictures already asked for ahead of time, so scrolling doesn't ask again and again. */
+	@NonNull
+	private final Set<String> prefetched = new HashSet<>();
+	/** From the list the adapter is shown in; null until then. */
+	@Nullable
+	private Context context;
 	private int attached;
 
 	FeedAdapter(@NonNull ContentFilters filters, @NonNull Listener listener) {
@@ -105,21 +120,46 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	}
 
 	/**
-	 * Shows a new list. Appending to the current list only inserts the new rows.
+	 * Shows a new list. Appending only inserts the new rows; anything else is diffed, so rows
+	 * slotting in above (Subscriptions sorting by date) don't make the list jump.
 	 */
 	void submit(@NonNull List<FeedItem> next) {
 		avatars.rememberAll(next);
 		List<FeedItem> previous = items;
-		items = next;
 		boolean appended = next.size() >= previous.size();
 		for (int i = 0; appended && i < previous.size(); i++) {
 			if (!previous.get(i).url().equals(next.get(i).url())) appended = false;
 		}
-		if (appended && next.size() > previous.size()) {
-			notifyItemRangeInserted(previous.size(), next.size() - previous.size());
-		} else if (!appended) {
-			notifyDataSetChanged();
+		if (appended) {
+			items = next;
+			if (next.size() > previous.size()) notifyItemRangeInserted(previous.size(), next.size() - previous.size());
+			if (previous.isEmpty()) prefetch(0, PREFETCH_ON_LOAD);
+			return;
 		}
+		DiffUtil.DiffResult diff = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+			@Override
+			public int getOldListSize() {
+				return previous.size();
+			}
+
+			@Override
+			public int getNewListSize() {
+				return next.size();
+			}
+
+			@Override
+			public boolean areItemsTheSame(int oldPosition, int newPosition) {
+				return previous.get(oldPosition).url().equals(next.get(newPosition).url());
+			}
+
+			@Override
+			public boolean areContentsTheSame(int oldPosition, int newPosition) {
+				return previous.get(oldPosition).equals(next.get(newPosition));
+			}
+		});
+		items = next;
+		diff.dispatchUpdatesTo(this);
+		prefetch(0, PREFETCH_ON_LOAD);
 	}
 
 	/**
@@ -159,6 +199,7 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	@Override
 	public void onAttachedToRecyclerView(@NonNull RecyclerView recyclerView) {
 		super.onAttachedToRecyclerView(recyclerView);
+		context = recyclerView.getContext();
 		if (attached++ == 0) {
 			avatars.addListener(avatarListener);
 			originals.addListener(originalsListener);
@@ -229,6 +270,7 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
 	@Override
 	public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+		prefetch(position + 1, PREFETCH_AHEAD);
 		FeedItem item = items.get(position);
 		if (holder instanceof VideoHolder video) {
 			bindVideo(video, item);
@@ -262,11 +304,11 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	@Override
 	public void onViewRecycled(@NonNull RecyclerView.ViewHolder holder) {
 		if (holder instanceof VideoHolder video) {
-			Picasso.get().cancelRequest(video.thumbnail);
-			Picasso.get().cancelRequest(video.avatar);
+			ImageUtils.clear(video.thumbnail);
+			ImageUtils.clear(video.avatar);
 			video.avatarUrl = null;
 		}
-		if (holder instanceof EntityHolder entity) Picasso.get().cancelRequest(entity.thumbnail);
+		if (holder instanceof EntityHolder entity) ImageUtils.clear(entity.thumbnail);
 	}
 
 	private void bindVideo(@NonNull VideoHolder holder, @NonNull FeedItem listed) {
@@ -307,7 +349,7 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 		holder.title.setAlpha(textAlpha);
 		holder.meta.setAlpha(textAlpha);
 		holder.duration.setAlpha(textAlpha);
-		loadImage(holder.thumbnail, item.thumbnailUrl(), R.drawable.thumb_clear);
+		ImageUtils.load(holder.thumbnail, item.thumbnailUrl(), R.drawable.thumb_clear);
 		bindAvatar(holder, item);
 		holder.itemView.setOnClickListener(v -> listener.onOpen(item));
 		holder.itemView.setOnLongClickListener(v -> {
@@ -336,7 +378,7 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	private void bindAvatar(@NonNull VideoHolder holder, @NonNull FeedItem item) {
 		if (!showAvatars) {
 			holder.avatar.setVisibility(View.GONE);
-			Picasso.get().cancelRequest(holder.avatar);
+			ImageUtils.clear(holder.avatar);
 			holder.avatarUrl = null;
 			return;
 		}
@@ -345,7 +387,7 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 		if (url == null) url = avatars.find(item.authorUrl());
 		if (url == null) {
 			avatars.request(item.authorUrl());
-			Picasso.get().cancelRequest(holder.avatar);
+			ImageUtils.clear(holder.avatar);
 			holder.avatar.setImageResource(R.drawable.bg_avatar_placeholder);
 			holder.avatarUrl = null;
 			return;
@@ -353,13 +395,7 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 		// Already showing (or loading) this image, don't flicker
 		if (Objects.equals(url, holder.avatarUrl)) return;
 		holder.avatarUrl = url;
-		Picasso.get()
-						.load(url)
-						.fit()
-						.centerCrop()
-						.placeholder(R.drawable.bg_avatar_placeholder)
-						.error(R.drawable.bg_avatar_placeholder)
-						.into(holder.avatar);
+		ImageUtils.load(holder.avatar, url, R.drawable.bg_avatar_placeholder);
 	}
 
 	private void bindEntity(@NonNull EntityHolder holder, @NonNull FeedItem item) {
@@ -374,23 +410,28 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 			if (item.count() >= 0) meta.add(context.getString(R.string.feed_videos, StringUtils.compactCount(item.count())));
 		}
 		holder.meta.setText(String.join(SEPARATOR, meta));
-		loadImage(holder.thumbnail, item.thumbnailUrl(), R.drawable.bg_thumbnail_placeholder);
+		ImageUtils.load(holder.thumbnail, item.thumbnailUrl(), R.drawable.bg_thumbnail_placeholder);
 		holder.itemView.setOnClickListener(v -> listener.onOpen(item));
 	}
 
-	private static void loadImage(@NonNull ImageView view, @Nullable String url, int placeholder) {
-		if (url == null || url.isBlank()) {
-			Picasso.get().cancelRequest(view);
-			view.setImageResource(placeholder);
-			return;
+	/** Starts downloading the pictures of rows that aren't on screen yet. */
+	private void prefetch(int from, int count) {
+		int end = Math.min(items.size(), from + count);
+		for (int i = Math.max(0, from); i < end; i++) {
+			FeedItem item = items.get(i);
+			fetch(item.thumbnailUrl());
+			if (showAvatars && item.kind() == FeedItem.Kind.VIDEO) {
+				String avatar = AvatarCache.rowSize(item.authorAvatarUrl());
+				fetch(avatar != null ? avatar : avatars.find(item.authorUrl()));
+			}
 		}
-		Picasso.get()
-						.load(url)
-						.fit()
-						.centerCrop()
-						.placeholder(placeholder)
-						.error(placeholder)
-						.into(view);
+	}
+
+	private void fetch(@Nullable String url) {
+		Context current = context;
+		if (current == null || url == null || url.isBlank() || !prefetched.add(url)) return;
+		if (prefetched.size() > MAX_PREFETCHED) prefetched.clear();
+		ImageUtils.prefetch(current, url);
 	}
 
 	private static final class VideoHolder extends RecyclerView.ViewHolder {

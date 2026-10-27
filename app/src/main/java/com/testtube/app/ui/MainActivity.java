@@ -56,6 +56,7 @@ import com.testtube.app.downloader.ui.PlaylistDownloadItem;
 import com.testtube.app.extractor.FeedItem;
 import com.testtube.app.extractor.LocalSubscriptions;
 import com.testtube.app.extractor.PageSource;
+import com.testtube.app.extractor.PlaybackDetails;
 import com.testtube.app.extractor.VideoDetails;
 import com.testtube.app.extractor.YoutubeExtractor;
 import com.testtube.app.filter.AiChannelList;
@@ -89,6 +90,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -96,7 +98,11 @@ import java.util.regex.Pattern;
 public final class MainActivity extends AppCompatActivity implements DownloadPermissionHost {
 	private static final String STATE_LAST_URL = "main.last_url";
 	private static final Pattern SHARED_URL = Pattern.compile("https?://[\\w./?=&%#-]+", Pattern.CASE_INSENSITIVE);
+	private static final long WARM_UP_DELAY_MS = 1_500L;
 	private final Handler handler = new Handler(Looper.getMainLooper());
+	private final Consumer<PlaybackDetails> extrasListener = details -> handler.post(() -> {
+		if (player != null) player.onExtras(details);
+	});
 	private ActivityGraph graph;
 	private TabManager tabManager;
 	private TestTubePlayer player;
@@ -198,6 +204,8 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		tabManager = graph.tabManager;
 		player = graph.player;
 		youtubeExtractor = app.youtubeExtractor();
+		// After Home had its turn at the network
+		handler.postDelayed(app::warmUp, WARM_UP_DELAY_MS);
 		queueRepository = app.queueRepository();
 		watchHistory = app.watchHistory();
 		contentFilters = app.contentFilters();
@@ -357,6 +365,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		player.setDetailsListener(details -> {
 			if (watchPanel != null) watchPanel.onDetails(details);
 		});
+		youtubeExtractor.setExtrasListener(extrasListener);
 		player.setOnStartedPlaying(() -> {
 			if (shortsScreen != null) shortsScreen.pause();
 		});
@@ -653,7 +662,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		if (shortsScreen != null || shortsContainer == null || shortsHost == null) return;
 		View view = getLayoutInflater().inflate(R.layout.view_shorts, shortsContainer, true);
 		AppGraph app = AppGraph.of(this);
-		ShortsEngine engine = new ShortsEngine(this, app.simpleCache());
+		ShortsEngine engine = new ShortsEngine(this, app.simpleCache(), app.playerPreferences()::getPreferredQuality);
 		shortsScreen = new ShortsScreen(view, app.feedClient(), youtubeExtractor, engine, contentFilters,
 						app.watchHistory(), app.executor(), shortsHost);
 		// A Short and a regular video never play at the same time
@@ -1164,6 +1173,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
+		if (youtubeExtractor != null) youtubeExtractor.removeExtrasListener(extrasListener);
 		if (nativeBrowser != null) nativeBrowser.release();
 		if (shortsScreen != null) shortsScreen.release();
 		if (libraryScreen != null) libraryScreen.release();

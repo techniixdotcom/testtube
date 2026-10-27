@@ -20,6 +20,7 @@ import org.schabi.newpipe.extractor.stream.Description;
 import org.schabi.newpipe.extractor.stream.Stream;
 import org.schabi.newpipe.extractor.stream.StreamInfo;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
+import org.schabi.newpipe.extractor.stream.StreamSegment;
 import org.schabi.newpipe.extractor.stream.StreamType;
 import org.schabi.newpipe.extractor.stream.VideoStream;
 
@@ -43,6 +44,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -74,6 +76,11 @@ public final class YoutubeExtractor {
 	private final ConcurrentMap<String, Task> tasks = new ConcurrentHashMap<>();
 	@NonNull
 	private final ContentFilters filters;
+	/** Likes, suggestions and chapters still on their way, by video. */
+	@NonNull
+	private final ConcurrentMap<String, CompletableFuture<Void>> extras = new ConcurrentHashMap<>();
+	@Nullable
+	private volatile Consumer<PlaybackDetails> extrasListener;
 
 	public YoutubeExtractor(@NonNull DownloaderImpl downloader,
 	                        @NonNull TestTubePoTokenProvider testtubePoTokenProvider,
@@ -177,6 +184,25 @@ public final class YoutubeExtractor {
 	public CompletableFuture<PlaybackDetails> getInfo(@NonNull String videoUrl,
 	                                                  @Nullable ExtractionSession session,
 	                                                  boolean refresh) {
+		return getInfo(videoUrl, session, refresh, false);
+	}
+
+	/**
+	 * Same as {@link #getInfo(String, ExtractionSession, boolean)} for a Short: only what's needed to
+	 * play it, no likes or suggestions, so it starts sooner.
+	 */
+	@NonNull
+	public CompletableFuture<PlaybackDetails> getShort(@NonNull String videoUrl,
+	                                                   @Nullable ExtractionSession session,
+	                                                   boolean refresh) {
+		return getInfo(videoUrl, session, refresh, true);
+	}
+
+	@NonNull
+	private CompletableFuture<PlaybackDetails> getInfo(@NonNull String videoUrl,
+	                                                   @Nullable ExtractionSession session,
+	                                                   boolean refresh,
+	                                                   boolean shortVideo) {
 		String videoId = getVideoId(videoUrl);
 		if (videoId == null) {
 			return fail(new ExtractionException(
@@ -192,7 +218,7 @@ public final class YoutubeExtractor {
 			if (!refresh && active != null && !active.base.isDone() && !active.root.isCancelled()) {
 				return active;
 			}
-			return new Task(videoId, refresh, session != null && session.isBackground());
+			return new Task(videoId, refresh, session != null && session.isBackground(), shortVideo);
 		});
 		return task.attach(session);
 	}
@@ -208,11 +234,29 @@ public final class YoutubeExtractor {
 		if (cached != null && !stale) {
 			return CompletableFuture.completedFuture(allowed(cached));
 		}
-		// Old cache entries have no titles, extract again.
-		return getInfo(WATCH_URL + videoId, null, stale).thenApply(ignored -> {
-			List<RelatedVideo> related = cache.getRelatedVideos(videoId);
-			return related != null ? allowed(related) : new ArrayList<>();
-		});
+		// Old cache entries have no titles, extract again. The suggestions come a moment after the video.
+		return getInfo(WATCH_URL + videoId, null, stale)
+						.thenCompose(ignored -> extras.getOrDefault(videoId, CompletableFuture.completedFuture(null)))
+						.handle((ignored, error) -> {
+							if (error != null && cache.getPlaybackDetails(videoId) == null) {
+								throw error instanceof CompletionException ce ? ce : new CompletionException(error);
+							}
+							List<RelatedVideo> related = cache.getRelatedVideos(videoId);
+							return related != null ? allowed(related) : new ArrayList<>();
+						});
+	}
+
+	/**
+	 * Called (on a background thread) when likes, suggestions and chapters of a video arrive after it
+	 * started playing, with its details as they are now.
+	 */
+	public void setExtrasListener(@NonNull Consumer<PlaybackDetails> listener) {
+		extrasListener = listener;
+	}
+
+	/** Unless a newer screen set its own already. */
+	public void removeExtrasListener(@NonNull Consumer<PlaybackDetails> listener) {
+		if (extrasListener == listener) extrasListener = null;
 	}
 
 	@NonNull
@@ -229,7 +273,8 @@ public final class YoutubeExtractor {
 	@NonNull
 	private PlaybackDetails load(@NonNull String videoId,
 	                             @NonNull ExtractionSession session,
-	                             boolean refresh)
+	                             boolean refresh,
+	                             boolean shortVideo)
 					throws ExtractionException,
 					IOException,
 					InterruptedException {
@@ -242,7 +287,18 @@ public final class YoutubeExtractor {
 			}
 		}
 
-		StreamInfo streamInfo = fetch.fetch(videoId, session);
+		// Likes, suggestions and chapters come from a second request that playing doesn't need, so
+		// don't wait for it; Shorts don't show any of it, so don't even send it
+		YoutubeStreamExtractor.setNextMode(shortVideo
+						? YoutubeStreamExtractor.NextMode.SKIP : YoutubeStreamExtractor.NextMode.LATER);
+		StreamInfo streamInfo;
+		YoutubeStreamExtractor later;
+		try {
+			streamInfo = fetch.fetch(videoId, session);
+		} finally {
+			YoutubeStreamExtractor.setNextMode(YoutubeStreamExtractor.NextMode.WAIT);
+			later = YoutubeStreamExtractor.takeLastLater();
+		}
 		ensureNotCancelled(session);
 		Description description = streamInfo.getDescription();
 		Date uploadDate = streamInfo.getUploadDate() == null
@@ -275,21 +331,60 @@ public final class YoutubeExtractor {
 		Originals.get().remember(streamInfo.getId(), streamInfo.getName(), streamInfo.getUploaderName());
 		ensurePlayableSources(videoId, details.deliveries(), details.plan());
 		cache.putPlaybackDetails(videoId, details);
-		cache.putRelatedVideos(videoId, collectRelated(streamInfo, videoId));
+		if (later != null) {
+			loadExtras(videoId, later);
+		} else if (!shortVideo) {
+			cache.putRelatedVideos(videoId, collectRelated(streamInfo.getRelatedItems(), videoId));
+		}
 		return copy(details, PlaybackDetails.class);
 	}
 
+	/** Reads likes, suggestions and chapters once their request is back, and passes them on. */
+	private void loadExtras(@NonNull String videoId, @NonNull YoutubeStreamExtractor later) {
+		CompletableFuture<Void> done = later.nextDone().thenAcceptAsync(ignored -> {
+			later.awaitNext();
+			List<InfoItem> related = null;
+			try {
+				related = later.getRelatedItems().getItems();
+			} catch (ExtractionException | RuntimeException ignoredError) {
+				// no suggestions this time
+			}
+			cache.putRelatedVideos(videoId, collectRelated(related, videoId));
+			PlaybackDetails cached = cache.getPlaybackDetails(videoId);
+			if (cached == null) return;
+			VideoDetails video = cached.video();
+			try {
+				video.setLikeCount(later.getLikeCount());
+			} catch (ExtractionException | RuntimeException ignoredError) {
+				// ratings off, or YouTube moved the button again
+			}
+			try {
+				String avatar = getBestImageUrl(later.getUploaderAvatars());
+				if (avatar != null) video.setUploaderAvatarUrl(avatar);
+			} catch (ExtractionException | RuntimeException ignoredError) {
+				// keep none
+			}
+			List<StreamSegment> segments = cached.segments();
+			try {
+				segments = new ArrayList<>(later.getStreamSegments());
+			} catch (ExtractionException | RuntimeException ignoredError) {
+				// no chapters
+			}
+			PlaybackDetails updated = new PlaybackDetails(video, cached.catalog(), cached.deliveries(),
+							cached.plan(), segments, cached.subtitles());
+			cache.putPlaybackDetails(videoId, updated);
+			Consumer<PlaybackDetails> listener = extrasListener;
+			if (listener != null) listener.accept(copy(updated, PlaybackDetails.class));
+		}, executor);
+		extras.put(videoId, done);
+		done.whenComplete((ignored, error) -> extras.remove(videoId, done));
+	}
+
 	@NonNull
-	private List<RelatedVideo> collectRelated(@NonNull StreamInfo streamInfo,
+	private List<RelatedVideo> collectRelated(@Nullable List<InfoItem> items,
 	                                          @NonNull String currentId) {
 		Set<String> ids = new LinkedHashSet<>();
 		List<RelatedVideo> out = new ArrayList<>();
-		List<InfoItem> items;
-		try {
-			items = streamInfo.getRelatedItems();
-		} catch (RuntimeException e) {
-			return out;
-		}
 		for (InfoItem item : orEmpty(items)) {
 			if (!(item instanceof StreamInfoItem stream)) continue;
 			if (stream.isShortFormContent()) continue;
@@ -585,11 +680,11 @@ public final class YoutubeExtractor {
 		@NonNull
 		private final AtomicInteger refs = new AtomicInteger();
 
-		private Task(@NonNull String videoId, boolean refresh, boolean background) {
+		private Task(@NonNull String videoId, boolean refresh, boolean background, boolean shortVideo) {
 			this.root = new ExtractionSession(auth.current(false)).setBackground(background);
 			this.base = CompletableFuture.supplyAsync(() -> {
 				try {
-					return load(videoId, root, refresh);
+					return load(videoId, root, refresh, shortVideo);
 				} catch (InterruptedException e) {
 					Thread.currentThread().interrupt();
 					throw new CompletionException(e);

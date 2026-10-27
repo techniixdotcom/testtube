@@ -68,6 +68,22 @@ public final class PoTokenCoordinator {
 		this.okHttpClient = okHttpClient;
 	}
 
+	/**
+	 * Starts the WebView and runs BotGuard ahead of the first video, so tapping one doesn't wait
+	 * for all that. Blocks; call it off the main thread.
+	 */
+	public void warmUp() {
+		if (Looper.myLooper() == Looper.getMainLooper()) return;
+		synchronized (lock) {
+			if (!poTokenHost.awaitReady(4_000L)) return;
+			long hostGeneration = poTokenHost.getGeneration();
+			PoTokenSession active = session;
+			if (active == null || !active.matches(hostGeneration) || active.isExpired(System.currentTimeMillis())) {
+				session = initializeSession(hostGeneration);
+			}
+		}
+	}
+
 	@Nullable
 	public PoTokenResult getWebClientPoToken(@NonNull String videoId) {
 		if (Looper.myLooper() == Looper.getMainLooper()) {

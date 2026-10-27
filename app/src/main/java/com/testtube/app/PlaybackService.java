@@ -9,7 +9,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
@@ -31,12 +30,8 @@ import androidx.media3.common.util.UnstableApi;
 import com.testtube.app.player.engine.Engine;
 import com.testtube.app.player.queue.QueueNav;
 import com.testtube.app.ui.MainActivity;
+import com.testtube.app.util.ImageUtils;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InterruptedIOException;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -44,6 +39,8 @@ import java.util.concurrent.RejectedExecutionException;
 @UnstableApi
 public class PlaybackService extends Service {
 	private static final String TAG = "PlaybackService";
+	/** Big enough for the large notification picture on any screen. */
+	private static final int NOTIFICATION_ART_PX = 512;
 	private static final String CHANNEL_ID = "player_channel";
 	private static final int NOTIFICATION_ID = 100;
 	private final Handler handler = new Handler(Looper.getMainLooper());
@@ -169,33 +166,8 @@ public class PlaybackService extends Service {
 	@Nullable
 	private Bitmap fetchThumbnail(@Nullable String url) {
 		if (url == null || url.isEmpty() || shouldAbort()) return null;
-		Bitmap bitmap = null;
-		HttpURLConnection conn = null;
-		try {
-			conn = (HttpURLConnection) new URL(url).openConnection();
-			conn.setConnectTimeout(5000);
-			conn.setReadTimeout(10000);
-			conn.connect();
-			if (shouldAbort()) return null;
-			if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
-				try (InputStream inputStream = conn.getInputStream()) {
-					if (shouldAbort()) return null;
-					Bitmap original = BitmapFactory.decodeStream(inputStream);
-					if (original != null) {
-						int size = Math.min(original.getWidth(), original.getHeight());
-						bitmap = Bitmap.createBitmap(original, (original.getWidth() - size) / 2, (original.getHeight() - size) / 2, size, size);
-						if (bitmap != original) original.recycle();
-					}
-				}
-			}
-		} catch (InterruptedIOException e) {
-			Thread.currentThread().interrupt();
-		} catch (IOException e) {
-			Log.e(TAG, "fetchThumbnail error: " + e.getMessage());
-		} finally {
-			if (conn != null) conn.disconnect();
-		}
-		return bitmap;
+		// Usually straight from the picture cache: the same thumbnail is on screen already
+		return ImageUtils.squareBitmap(this, url, NOTIFICATION_ART_PX);
 	}
 
 	@Nullable

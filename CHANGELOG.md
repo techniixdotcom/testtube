@@ -1,12 +1,36 @@
 # Changelog
 
+## 2.4.0
+
+- Videos start playing before likes, suggestions and chapters are in; those fill in a moment later
+- Shorts: next 3 extracted right away, the next one already loading in a second player, so a swipe starts it at once. No likes/suggestions request for Shorts. Quality capped at 720p.
+- BotGuard and the connections to YouTube get set up shortly after start, not on the first tap
+- Home: first page shown right away, more loaded right after instead of before
+- Baseline profile covers Glide and OkHttp too
+
+## 2.3.1
+
+- Pictures load much faster: Glide instead of Picasso, thumbnails as WebP (about a third smaller), the next rows' pictures load ahead, and pictures stay cached at their real size
+- The notification picture comes from the picture cache instead of being downloaded again
+- Missing channel pictures are looked up in the background instead of holding up the list
+- Subscriptions: old videos jumped to the top after loading more (videos without a readable date were treated as brand new)
+- Pull to refresh now really reloads every channel, and channel feeds are never served from cache
+- Slow channels are waited for (up to 9 s) instead of cut off after 2.5 s
+- Subscriptions with a YouTube account: sorting no longer gives up when one video has no date; live streams on top
+
+## 2.3.0
+
+- Subscriptions sorted by upload date, newest first (also while channels are still loading and when scrolling further down). Home unchanged.
+- Original audio track by default (AI dubs last); a track picked in the menu only sticks for that video
+- Titles, channel names, descriptions and chapters in the creator's original language instead of YouTube's translations
+- Channel pages only hide the Playlists tab now; Podcasts, Courses and Releases are back
+- Fixed: original audio not detected in some languages
+
 ## 2.2.2
 
 ### New
 - Theme follows the system by default
-- Channel pages: compact rows, newest videos first, playlists tab hidden
-- Original audio track by default (AI dubs last); a track picked in the menu only sticks for that video
-- Titles, channel names, descriptions and chapters in the creator's original language instead of YouTube's translations
+- Channel pages: compact rows, newest videos first
 - Private/removed/age-restricted/blocked videos get skipped in playlists and the queue, with a short note why
 - Removed the "Up next" popup
 
@@ -16,7 +40,6 @@
 - 60 fps videos downloaded in lower quality in playlist downloads ("1080p60" was read as 108060)
 - Playlist download errors showed raw English text
 - Exporting channels could freeze the app on slow storage (Drive etc.)
-- Original audio not detected in some languages
 - Download dialogs kept working in the background after closing
 - "Download" share entry wasn't translated; French and Traditional Chinese "threads"
 

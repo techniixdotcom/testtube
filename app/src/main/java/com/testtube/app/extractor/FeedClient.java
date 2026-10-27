@@ -125,7 +125,15 @@ public final class FeedClient {
 	/**
 	 * @param next token for the next page, or null at the end
 	 */
-	public record FeedPage(@NonNull List<FeedItem> items, @Nullable Object next, boolean signedIn) {
+	/**
+	 * @param whole the items are everything loaded so far, in order, and replace what's shown
+	 *              instead of being added below it
+	 */
+	public record FeedPage(@NonNull List<FeedItem> items, @Nullable Object next, boolean signedIn,
+	                       boolean whole) {
+		public FeedPage(@NonNull List<FeedItem> items, @Nullable Object next, boolean signedIn) {
+			this(items, next, signedIn, false);
+		}
 	}
 
 	public record Comment(@NonNull String author, @Nullable String avatarUrl, @NonNull String text,
@@ -327,7 +335,7 @@ public final class FeedClient {
 		return run(signedIn -> {
 			if (feed == Feed.HOME) return homePage(continuation, signedIn);
 			FeedPage page = browsePage(feed, continuation, null);
-			FeedItem.sortNewestFirst(page.items());
+			FeedItem.sortByUploadDate(page.items());
 			if (signedIn) rememberSubscribed(page.items());
 			return page;
 		});
@@ -355,12 +363,15 @@ public final class FeedClient {
 		}
 		List<FeedItem> items = curate(page.items(), known);
 		Object next = page.next();
-		for (int i = 0; i < MAX_EXTRA_PAGES && items.size() < HOME_MIN_PAGE && next instanceof String token; i++) {
+		// The first page goes on screen with whatever it has; the list asks for more right after.
+		// Later pages are topped up so scrolling doesn't stall on near-empty ones.
+		int wanted = continuation == null ? 1 : HOME_MIN_PAGE;
+		for (int i = 0; i < MAX_EXTRA_PAGES && items.size() < wanted && next instanceof String token; i++) {
 			FeedPage more = browsePage(Feed.HOME, token, null);
 			items.addAll(curate(more.items(), known));
 			next = more.next();
 		}
-		if (continuation == null && items.size() < HOME_MIN_PAGE) {
+		if (continuation == null && items.isEmpty()) {
 			Set<String> urls = new HashSet<>();
 			for (FeedItem item : items) urls.add(item.url());
 			for (FeedItem item : discover(known, List.of())) {
@@ -479,11 +490,9 @@ public final class FeedClient {
 	private static final int DISCOVER_SEEDS = 3;
 	private static final int DISCOVER_TARGET = 40;
 	private static final String TAG = "FeedClient";
-	/** Max wait for channel feeds on the first page; slower ones show up on the next load. */
+	/** Max wait for channel feeds on the first page; slower ones show their saved videos until the next load. */
 	private static final long FEED_WAIT_MS = 9_000L;
 	private static final int RELATED_LOOKUPS = 4;
-	private static final long EARLY_WAIT_MS = 2_500L;
-	private static final int EARLY_MIN_VIDEOS = 20;
 	private static final long FALLBACK_WAIT_MS = 8_000L;
 	private static final int MAX_FALLBACK_CHANNELS = 6;
 	/**
@@ -584,12 +593,27 @@ public final class FeedClient {
 		return out;
 	}
 
+	/**
+	 * @param time     upload time; {@link #UNKNOWN_TIME} until placed among the channel's other videos
+	 * @param dateText YouTube's own wording ("2 days ago") for videos from the channel page, where
+	 *                 the time is only an estimate; null for feed entries, which have exact times
+	 */
 	private record RssVideo(@NonNull String id, @NonNull String title, @NonNull String author,
-	                        @NonNull String channelId, long views, long time, boolean shortForm) {
+	                        @NonNull String channelId, long views, long time, boolean shortForm,
+	                        @Nullable String dateText) {
+		RssVideo withTime(long newTime) {
+			return new RssVideo(id, title, author, channelId, views, newTime, shortForm, dateText);
+		}
 	}
 
-	/** Paging state per followed channel. Channels without older uploads are left out. */
-	private record LocalCursor(@NonNull Map<String, ChannelCursor> channels) {
+	private static final long UNKNOWN_TIME = Long.MIN_VALUE;
+
+	/**
+	 * Paging state per followed channel (channels without older uploads are left out), and every
+	 * video loaded so far: an older page from one channel can still be newer than the oldest
+	 * videos of another, so each page sorts the lot again.
+	 */
+	private record LocalCursor(@NonNull Map<String, ChannelCursor> channels, @NonNull List<RssVideo> loaded) {
 	}
 
 	private record ChannelCursor(@Nullable ListLinkHandler tab, @Nullable Page page, @NonNull String name) {
@@ -604,20 +628,22 @@ public final class FeedClient {
 	@NonNull
 	public Call localSubscriptions(@NonNull List<LocalSubscriptions.Channel> channels,
 	                               @Nullable Object continuation) {
-		return localSubscriptions(channels, continuation, null);
+		return localSubscriptions(channels, continuation, false, null);
 	}
 
 	/**
 	 * Same as {@link #localSubscriptions(List, Object)}, but on the first page {@code partial} gets
-	 * each channel's videos as they arrive (on a worker thread).
+	 * the whole list again each time more channels answered (on a worker thread).
+	 *
+	 * @param force load every channel now (pull to refresh) instead of using recent results
 	 */
 	@NonNull
 	public Call localSubscriptions(@NonNull List<LocalSubscriptions.Channel> channels,
-	                               @Nullable Object continuation,
+	                               @Nullable Object continuation, boolean force,
 	                               @Nullable Consumer<List<FeedItem>> partial) {
 		return run(signedIn -> continuation instanceof LocalCursor cursor
 						? olderLocalVideos(cursor)
-						: loadLocalFeed(channels, partial));
+						: loadLocalFeed(channels, force, partial));
 	}
 
 	private record CachedChannel(long loadedAt, @NonNull List<RssVideo> videos) {
@@ -663,84 +689,136 @@ public final class FeedClient {
 	}
 
 	@NonNull
-	private static FeedPage loadLocalFeed(@NonNull List<LocalSubscriptions.Channel> channels,
+	private static FeedPage loadLocalFeed(@NonNull List<LocalSubscriptions.Channel> channels, boolean force,
 	                                      @Nullable Consumer<List<FeedItem>> partial) throws IOException {
 		long start = System.currentTimeMillis();
-		List<RssVideo> all = new ArrayList<>();
-		List<RssVideo> cachedNow = new ArrayList<>();
+		// Freshly loaded videos per channel; channels that haven't answered show their saved ones
+		Map<String, List<RssVideo>> fresh = new LinkedHashMap<>();
+		Map<String, List<RssVideo>> saved = new HashMap<>();
 		ExecutorCompletionService<List<RssVideo>> done = new ExecutorCompletionService<>(FEED_POOL);
 		Map<Future<List<RssVideo>>, LocalSubscriptions.Channel> pending = new HashMap<>();
-		List<RssVideo> stale = new ArrayList<>();
 		for (LocalSubscriptions.Channel channel : channels) {
 			CachedChannel cached = cachedChannel(channel.id());
-			if (cached != null && start - cached.loadedAt() < CHANNEL_CACHE_MS) {
-				cachedNow.addAll(cached.videos());
+			if (cached != null && !force && start - cached.loadedAt() < CHANNEL_CACHE_MS) {
+				fresh.put(channel.id(), cached.videos());
 			} else {
-				if (cached != null) stale.addAll(cached.videos());
+				if (cached != null) saved.put(channel.id(), cached.videos());
 				pending.put(done.submit(RequestPacer.inBackground(() -> channelVideos(channel))), channel);
 			}
 		}
-		all.addAll(cachedNow);
-		if (partial != null && !cachedNow.isEmpty()) partial.accept(toFeedItems(cachedNow, Integer.MAX_VALUE));
-		// Hand videos to the UI as the channels respond
+		if (partial != null && (!fresh.isEmpty() || !saved.isEmpty())) {
+			partial.accept(toFeedItems(merge(fresh, saved), MAX_LOCAL_VIDEOS));
+		}
+		// Every answer updates the whole list, newest first, so slow channels just slot in
 		List<LocalSubscriptions.Channel> failed = new ArrayList<>();
+		long limit = start + FEED_WAIT_MS;
 		while (!pending.isEmpty()) {
-			long now = System.currentTimeMillis();
-			long limit = all.size() >= EARLY_MIN_VIDEOS ? Math.max(start + EARLY_WAIT_MS, now) : start + FEED_WAIT_MS;
-			List<RssVideo> batch = new ArrayList<>();
+			boolean changed = false;
 			try {
-				Future<List<RssVideo>> first = done.poll(Math.max(0L, limit - now), TimeUnit.MILLISECONDS);
+				Future<List<RssVideo>> first = done.poll(Math.max(0L, limit - System.currentTimeMillis()),
+								TimeUnit.MILLISECONDS);
 				// The rest keeps loading in the background and ends up in the cache
 				if (first == null) break;
 				for (Future<List<RssVideo>> ready = first; ready != null; ready = done.poll()) {
 					LocalSubscriptions.Channel channel = pending.remove(ready);
+					if (channel == null) continue;
 					try {
 						List<RssVideo> videos = ready.get();
-						if (videos.isEmpty() && channel != null) failed.add(channel);
-						else batch.addAll(videos);
+						if (videos.isEmpty()) {
+							failed.add(channel);
+						} else {
+							fresh.put(channel.id(), videos);
+							changed = true;
+						}
 					} catch (ExecutionException e) {
 						Log.w(TAG, "channel feed failed", e);
-						if (channel != null) failed.add(channel);
+						failed.add(channel);
 					}
 				}
 			} catch (InterruptedException e) {
 				Thread.currentThread().interrupt();
 				break;
 			}
-			all.addAll(batch);
-			if (partial != null && !batch.isEmpty()) partial.accept(toFeedItems(batch, Integer.MAX_VALUE));
+			if (partial != null && changed) partial.accept(toFeedItems(merge(fresh, saved), MAX_LOCAL_VIDEOS));
 		}
 		// Retry failed or empty feeds through the extractor, in parallel
 		if (!failed.isEmpty()) {
-			List<Future<List<RssVideo>>> fallbacks = new ArrayList<>();
+			Map<LocalSubscriptions.Channel, Future<List<RssVideo>>> fallbacks = new LinkedHashMap<>();
 			for (LocalSubscriptions.Channel channel : failed.subList(0, Math.min(failed.size(), MAX_FALLBACK_CHANNELS))) {
-				fallbacks.add(FEED_POOL.submit(RequestPacer.inBackground(() -> videosFromExtractor(channel))));
+				fallbacks.put(channel, FEED_POOL.submit(RequestPacer.inBackground(() -> videosFromExtractor(channel))));
 			}
 			long until = System.currentTimeMillis() + FALLBACK_WAIT_MS;
-			for (Future<List<RssVideo>> fallback : fallbacks) {
+			for (Map.Entry<LocalSubscriptions.Channel, Future<List<RssVideo>>> fallback : fallbacks.entrySet()) {
 				try {
-					all.addAll(fallback.get(Math.max(1L, until - System.currentTimeMillis()), TimeUnit.MILLISECONDS));
+					List<RssVideo> videos = fallback.getValue().get(Math.max(1L, until - System.currentTimeMillis()),
+									TimeUnit.MILLISECONDS);
+					if (!videos.isEmpty()) fresh.put(fallback.getKey().id(), videos);
 				} catch (InterruptedException | ExecutionException | TimeoutException e) {
 					Log.w(TAG, "extractor fallback failed", e);
 				}
 			}
 		}
-		// Channels that didn't answer in time (or while YouTube asked for a pause) show their last
-		// known videos rather than none
-		if (!stale.isEmpty()) {
-			Set<String> answered = new HashSet<>();
-			for (RssVideo video : all) answered.add(video.channelId());
-			for (RssVideo video : stale) {
-				if (!answered.contains(video.channelId())) all.add(video);
-			}
-		}
+		List<RssVideo> all = merge(fresh, saved);
 		// Nothing loaded at all: report an error rather than an empty list
 		if (all.isEmpty() && !channels.isEmpty()) throw new IOException("no followed channel could be loaded");
 		Map<String, ChannelCursor> older = new LinkedHashMap<>();
 		for (LocalSubscriptions.Channel channel : channels) {
 			older.put(channel.id(), new ChannelCursor(null, null, channel.name()));
 		}
-		return new FeedPage(toFeedItems(all, MAX_LOCAL_VIDEOS), new LocalCursor(older), true);
+		return new FeedPage(toFeedItems(new ArrayList<>(all), MAX_LOCAL_VIDEOS), new LocalCursor(older, all), true, true);
+	}
+
+	/** The fresh videos, plus the saved ones of channels that haven't answered (yet). */
+	@NonNull
+	private static List<RssVideo> merge(@NonNull Map<String, List<RssVideo>> fresh,
+	                                    @NonNull Map<String, List<RssVideo>> saved) {
+		List<RssVideo> out = new ArrayList<>();
+		for (List<RssVideo> videos : fresh.values()) out.addAll(videos);
+		for (Map.Entry<String, List<RssVideo>> entry : saved.entrySet()) {
+			if (!fresh.containsKey(entry.getKey())) out.addAll(entry.getValue());
+		}
+		return out;
+	}
+
+	/**
+	 * Gives videos without a readable date a time from their neighbours in the channel's own
+	 * order (newest first): just above the next older one, or just below the newer one before.
+	 * Inventing "now" put two-day-old videos at the top of Subscriptions.
+	 *
+	 * @param newerThan time of the channel's oldest video already known, or {@link #UNKNOWN_TIME}
+	 */
+	@NonNull
+	private static List<RssVideo> placeUndated(@NonNull List<RssVideo> channelOrder, long newerThan) {
+		List<RssVideo> out = new ArrayList<>(channelOrder);
+		int i = 0;
+		while (i < out.size()) {
+			if (out.get(i).time() != UNKNOWN_TIME) {
+				i++;
+				continue;
+			}
+			// A run of undated videos between a newer and an older dated one (either may be missing)
+			int end = i;
+			while (end < out.size() && out.get(end).time() == UNKNOWN_TIME) end++;
+			long newer = i > 0 ? out.get(i - 1).time() : newerThan;
+			long older = end < out.size() ? out.get(end).time() : UNKNOWN_TIME;
+			int count = end - i;
+			for (int r = 0; r < count; r++) {
+				long time;
+				if (newer != UNKNOWN_TIME && older != UNKNOWN_TIME) {
+					time = newer - (newer - older) * (r + 1) / (count + 1);
+				} else if (older != UNKNOWN_TIME) {
+					time = older + 60_000L * (count - r);
+				} else if (newer != UNKNOWN_TIME) {
+					time = newer - 60_000L * (r + 1);
+				} else {
+					// Nothing to go by at all: the bottom, not the top
+					time = -60_000L * r;
+				}
+				out.set(i + r, out.get(i + r).withTime(time));
+			}
+			i = end;
+		}
+		return out;
 	}
 
 	@NonNull
@@ -757,7 +835,8 @@ public final class FeedClient {
 			items.add(new FeedItem(FeedItem.Kind.VIDEO, watchUrl(video.id()), video.id(), video.title(),
 							video.author(), mobile("https://www.youtube.com/channel/" + video.channelId()),
 							FeedItem.thumbnailFor(video.id()), -1, video.views(),
-							DateUtils.getRelativeTimeSpanString(video.time(), now, DateUtils.MINUTE_IN_MILLIS,
+							video.dateText() != null ? video.dateText()
+											: DateUtils.getRelativeTimeSpanString(video.time(), now, DateUtils.MINUTE_IN_MILLIS,
 											DateUtils.FORMAT_ABBREV_RELATIVE).toString(), false, video.shortForm(), null));
 		}
 		return items;
@@ -779,12 +858,23 @@ public final class FeedClient {
 		}
 		long deadline = System.currentTimeMillis() + OLDER_BUDGET_MS;
 		Map<String, ChannelCursor> next = new LinkedHashMap<>();
-		List<RssVideo> videos = new ArrayList<>();
+		List<RssVideo> videos = new ArrayList<>(cursor.loaded());
+		Set<String> known = new HashSet<>();
+		for (RssVideo video : videos) known.add(video.id());
 		for (Map.Entry<String, Future<OlderRound>> entry : pending.entrySet()) {
 			try {
 				OlderRound round = entry.getValue().get(Math.max(1L, deadline - System.currentTimeMillis()),
 								TimeUnit.MILLISECONDS);
-				videos.addAll(round.videos());
+				// Below the channel's oldest video so far; the feed's exact times win over estimates
+				long oldest = UNKNOWN_TIME;
+				for (RssVideo video : videos) {
+					if (video.channelId().equals(entry.getKey()) && (oldest == UNKNOWN_TIME || video.time() < oldest)) {
+						oldest = video.time();
+					}
+				}
+				for (RssVideo video : placeUndated(round.videos(), oldest)) {
+					if (known.add(video.id())) videos.add(video);
+				}
 				if (round.next() != null) next.put(round.channelId(), round.next());
 			} catch (TimeoutException e) {
 				// Timed out, retry this channel on the next page
@@ -794,7 +884,8 @@ public final class FeedClient {
 				Log.w(TAG, "older uploads failed id=" + entry.getKey(), e);
 			}
 		}
-		return new FeedPage(toFeedItems(videos, Integer.MAX_VALUE), next.isEmpty() ? null : new LocalCursor(next), true);
+		return new FeedPage(toFeedItems(new ArrayList<>(videos), Integer.MAX_VALUE),
+						next.isEmpty() ? null : new LocalCursor(next, videos), true, true);
 	}
 
 	@NonNull
@@ -822,20 +913,26 @@ public final class FeedClient {
 		} else {
 			return new OlderRound(channelId, null, List.of());
 		}
-		long now = System.currentTimeMillis();
-		int index = 0;
 		List<RssVideo> videos = new ArrayList<>();
 		for (InfoItem item : items) {
 			if (!(item instanceof StreamInfoItem stream) || stream.isShortFormContent()) continue;
 			String id = YoutubeExtractor.getVideoId(stream.getUrl());
 			if (id == null) continue;
-			long time = stream.getUploadDate() != null
-							? stream.getUploadDate().offsetDateTime().toInstant().toEpochMilli()
-							: now - (index++) * DateUtils.HOUR_IN_MILLIS;
-			videos.add(new RssVideo(id, stream.getName(), name, channelId, stream.getViewCount(), time, false));
+			videos.add(new RssVideo(id, stream.getName(), name, channelId, stream.getViewCount(), timeOf(stream), false,
+							stream.getTextualUploadDate()));
 		}
 		ChannelCursor next = nextPage != null && Page.isValid(nextPage) ? new ChannelCursor(tab, nextPage, name) : null;
 		return new OlderRound(channelId, next, videos);
+	}
+
+	/** When a channel-page video went up; live right now counts as now. */
+	private static long timeOf(@NonNull StreamInfoItem stream) {
+		if (stream.getStreamType() == StreamType.LIVE_STREAM || stream.getStreamType() == StreamType.AUDIO_LIVE_STREAM) {
+			return System.currentTimeMillis();
+		}
+		return stream.getUploadDate() != null
+						? stream.getUploadDate().offsetDateTime().toInstant().toEpochMilli()
+						: UNKNOWN_TIME;
 	}
 
 	@NonNull
@@ -846,24 +943,18 @@ public final class FeedClient {
 		List<RssVideo> out = new ArrayList<>();
 		for (ListLinkHandler tab : info.getTabs()) {
 			if (!tab.getContentFilters().contains(ChannelTabs.VIDEOS)) continue;
-			long now = System.currentTimeMillis();
-			int index = 0;
 			for (InfoItem item : ChannelTabInfo.getInfo(ServiceList.YouTube, tab).getRelatedItems()) {
 				if (!(item instanceof StreamInfoItem stream) || stream.isShortFormContent()) continue;
 				String id = YoutubeExtractor.getVideoId(stream.getUrl());
 				if (id == null) continue;
-				// Without an exact date, keep the channel's own order, newest first.
-				long time = stream.getUploadDate() != null
-								? stream.getUploadDate().offsetDateTime().toInstant().toEpochMilli()
-								: now - (index++) * DateUtils.HOUR_IN_MILLIS;
-				out.add(new RssVideo(id, stream.getName(), info.getName(), channel.id(), stream.getViewCount(), time,
-								false));
+				out.add(new RssVideo(id, stream.getName(), info.getName(), channel.id(), stream.getViewCount(),
+								timeOf(stream), false, stream.getTextualUploadDate()));
 				if (out.size() >= 10) break;
 			}
 			break;
 		}
 		LocalSubscriptions.get().rename(channel.id(), info.getName());
-		return out;
+		return placeUndated(out, UNKNOWN_TIME);
 	}
 
 	/**
@@ -873,8 +964,10 @@ public final class FeedClient {
 	@NonNull
 	private static List<RssVideo> fetchChannelFeed(@NonNull LocalSubscriptions.Channel channel)
 					throws IOException, XmlPullParserException, ExtractionException {
+		// Never from the HTTP cache: a 15 minute old feed misses the video that just went up
 		org.schabi.newpipe.extractor.downloader.Response response = NewPipe.getDownloader()
-						.get("https://www.youtube.com/feeds/videos.xml?channel_id=" + channel.id());
+						.get("https://www.youtube.com/feeds/videos.xml?channel_id=" + channel.id(),
+										Map.of("Cache-Control", List.of("no-cache")));
 		if (response.responseCode() != 200) {
 			throw new IOException("channel feed answered HTTP " + response.responseCode());
 		}
@@ -942,7 +1035,7 @@ public final class FeedClient {
 						try {
 							long time = OffsetDateTime.parse(published).toInstant().toEpochMilli();
 							out.add(new RssVideo(id, title, author != null ? author : feedAuthor, channel.id(),
-											views, time, shortForm));
+											views, time, shortForm, null));
 						} catch (RuntimeException ignored) {
 							// Skip entries with an unparseable date
 						}
@@ -1333,7 +1426,8 @@ public final class FeedClient {
 	public String channelAvatar(@NonNull String channelUrl) throws IOException, ExtractionException {
 		String url = channelUrl.trim().replaceFirst("^https?://(m\\.|www\\.)?youtube\\.com", "https://www.youtube.com");
 		if (!url.startsWith("https://www.youtube.com/")) return null;
-		ExtractionSession session = new ExtractionSession(auth.current(true));
+		// Background: a missing channel picture must never hold up the list it belongs to
+		ExtractionSession session = new ExtractionSession(auth.current(true)).setBackground(true);
 		return downloader.withExtractionSession(() -> {
 			ChannelInfo info = ChannelInfo.getInfo(ServiceList.YouTube, url);
 			String avatar = avatar(info.getAvatars());

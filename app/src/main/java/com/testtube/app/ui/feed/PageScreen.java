@@ -27,7 +27,6 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.tabs.TabLayout;
-import com.squareup.picasso.Picasso;
 import com.testtube.app.AppSettings;
 import com.testtube.app.Constant;
 import com.testtube.app.R;
@@ -36,6 +35,7 @@ import com.testtube.app.extractor.LocalSubscriptions;
 import com.testtube.app.extractor.PageSource;
 import com.testtube.app.filter.ContentFilters;
 import com.testtube.app.net.Failure;
+import com.testtube.app.util.ImageUtils;
 import com.testtube.app.util.StringUtils;
 import com.testtube.app.util.ToastUtils;
 
@@ -739,8 +739,8 @@ public final class PageScreen {
 		}
 
 		void cancelImages() {
-			Picasso.get().cancelRequest(avatar);
-			if (banner != null) Picasso.get().cancelRequest(banner);
+			ImageUtils.clear(avatar);
+			if (banner != null) ImageUtils.clear(banner);
 			avatarUrl = null;
 			bannerUrl = null;
 		}
@@ -783,15 +783,12 @@ public final class PageScreen {
 			String next = h.avatarUrl() != null && !h.avatarUrl().isBlank() ? h.avatarUrl() : null;
 			avatar.setVisibility(next != null ? View.VISIBLE : View.GONE);
 			if (next == null) {
-				Picasso.get().cancelRequest(avatar);
+				ImageUtils.clear(avatar);
 				avatar.setImageResource(R.drawable.bg_avatar_placeholder);
 				avatarUrl = null;
 			} else if (!next.equals(avatarUrl)) {
 				avatarUrl = next;
-				Picasso.get().load(next).fit().centerCrop()
-								.placeholder(R.drawable.bg_avatar_placeholder)
-								.error(R.drawable.bg_avatar_placeholder)
-								.into(avatar);
+				ImageUtils.load(avatar, next, R.drawable.bg_avatar_placeholder);
 			}
 		}
 
@@ -800,15 +797,12 @@ public final class PageScreen {
 			String next = h.bannerUrl() != null && !h.bannerUrl().isBlank() ? h.bannerUrl() : null;
 			bannerFrame.setVisibility(next != null ? View.VISIBLE : View.GONE);
 			if (next == null) {
-				Picasso.get().cancelRequest(banner);
+				ImageUtils.clear(banner);
 				banner.setImageDrawable(null);
 				bannerUrl = null;
 			} else if (!next.equals(bannerUrl)) {
 				bannerUrl = next;
-				Picasso.get().load(next).fit().centerCrop()
-								.placeholder(R.drawable.bg_avatar_placeholder)
-								.error(R.drawable.bg_avatar_placeholder)
-								.into(banner);
+				ImageUtils.load(banner, next, R.drawable.bg_avatar_placeholder);
 			}
 		}
 

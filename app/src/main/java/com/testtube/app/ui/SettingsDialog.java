@@ -16,6 +16,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
 import androidx.appcompat.app.AppCompatDelegate;
 
+import com.bumptech.glide.Glide;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.slider.Slider;
@@ -257,6 +258,7 @@ final class SettingsDialog {
 		} catch (RuntimeException e) {
 			// No WebView provider right now; the rest is still cleared
 		}
+		Glide.get(activity).clearMemory();
 		sizeView.setText(PENDING_SIZE);
 		AppGraph app = AppGraph.of(activity);
 		app.executor().execute(() -> {

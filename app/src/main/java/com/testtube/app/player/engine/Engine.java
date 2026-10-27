@@ -484,6 +484,13 @@ public class Engine {
 		return videoId;
 	}
 
+	/** Chapters and likes that arrived after the video started. */
+	public void applyExtras(@NonNull PlaybackDetails details) {
+		if (!Objects.equals(details.video().getId(), videoId)) return;
+		videoDetails = details.video();
+		segments = details.segments();
+	}
+
 	/**
 	 * After a stream was rejected, tries the other streams of the same extraction. A 403 rules out
 	 * the whole InnerTube client (YouTube blocks per client), so its other formats are skipped too.

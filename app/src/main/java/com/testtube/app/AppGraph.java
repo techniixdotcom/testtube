@@ -9,6 +9,7 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.database.StandaloneDatabaseProvider;
 import androidx.media3.datasource.cache.SimpleCache;
 
+import com.bumptech.glide.Glide;
 import com.google.gson.Gson;
 import com.tencent.mmkv.MMKV;
 import com.testtube.app.downloader.core.StreamDownloader;
@@ -45,6 +46,8 @@ import okhttp3.Cache;
 import okhttp3.ConnectionPool;
 import okhttp3.Dispatcher;
 import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 import java.io.File;
 import java.io.IOException;
@@ -57,6 +60,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @UnstableApi
@@ -78,6 +82,9 @@ public final class AppGraph {
 	private PoTokenBridge poTokenBridge;
 	private PoTokenHost poTokenHost;
 	private PoTokenCoordinator poTokenCoordinator;
+	private final AtomicBoolean warmedUp = new AtomicBoolean();
+	/** Where the player's requests go first (the video hosts differ per video). */
+	private static final String[] WARM_HOSTS = {"www.youtube.com", "youtubei.googleapis.com", "i.ytimg.com"};
 	private TestTubePoTokenProvider poTokenProvider;
 	private ExtractionSessionScope extractionSessionScope;
 	private DownloaderImpl extractorDownloader;
@@ -129,6 +136,27 @@ public final class AppGraph {
 		return okHttpClient;
 	}
 
+	/**
+	 * Once the first screen is up: opens the connections a video needs and gets BotGuard going,
+	 * so the first tap on a video doesn't pay for any of it.
+	 */
+	public void warmUp() {
+		if (!warmedUp.compareAndSet(false, true)) return;
+		Executor background = executor();
+		OkHttpClient client = okHttpClient();
+		for (String host : WARM_HOSTS) {
+			background.execute(() -> {
+				Request request = new Request.Builder().url("https://" + host + "/generate_204").head().build();
+				try (Response ignored = client.newCall(request).execute()) {
+					// only the open connection matters
+				} catch (IOException | RuntimeException offline) {
+					// the real requests will say so
+				}
+			});
+		}
+		background.execute(() -> poTokenCoordinator().warmUp());
+	}
+
 	@NonNull
 	public synchronized Executor executor() {
 		if (executor == null) {
@@ -175,7 +203,7 @@ public final class AppGraph {
 	/** Folders in the cache directory that "Clear cache" must leave alone. */
 	private static final Set<String> KEPT_CACHE_FILES = Set.of("updates");
 	/** Cache folders emptied through their owners' APIs rather than by deleting files. */
-	private static final Set<String> SELF_MANAGED_CACHES = Set.of("player", "okhttp", "WebView");
+	private static final Set<String> SELF_MANAGED_CACHES = Set.of("player", "okhttp", TestTubeGlideModule.CACHE_DIR, "WebView");
 
 	/**
 	 * Bytes of cache the app holds: saved video, pictures and web data. Half-finished downloads
@@ -194,10 +222,11 @@ public final class AppGraph {
 	}
 
 	/**
-	 * Empties the video cache and the HTTP cache (also pictures) through their own APIs, so this is
+	 * Empties the video, HTTP and picture caches through their own APIs, so this is
 	 * safe while something plays, and deletes other leftovers in the cache directory. Downloads in
 	 * progress, downloaded updates, cookies, history, the queue and settings stay. Reads and writes
-	 * the disk; the WebView's own cache has to be cleared on the main thread by the caller.
+	 * the disk; the WebView's cache and the pictures in memory have to be cleared on the main
+	 * thread by the caller.
 	 */
 	@WorkerThread
 	public void clearCaches() {
@@ -217,11 +246,13 @@ public final class AppGraph {
 				Log.w("AppGraph", "could not clear the HTTP cache", e);
 			}
 		}
+		// Pictures; their memory cache is emptied by the caller on the main thread
+		Glide.get(context).clearDiskCache();
 		File[] files = context.getCacheDir().listFiles();
 		if (files == null) return;
 		for (File file : files) {
 			String name = file.getName();
-			// The two caches above and the WebView (cleared by the caller) manage their own folders
+			// The caches above and the WebView (cleared by the caller) manage their own folders
 			if (isKeptCacheFile(file) || SELF_MANAGED_CACHES.contains(name)) continue;
 			deleteRecursively(file);
 		}

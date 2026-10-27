@@ -17,7 +17,7 @@ activity = "1.13.0"
 constraintlayout = "2.2.2"
 media = "1.8.0"
 newpipeextractor = "v0.26.5-dev-2f7d9da"
-picasso = "2.8"
+glide = "5.0.9"
 swiperefreshlayout = "1.2.0"
 webkit = "1.17.1"
 okhttp = "5.5.0"
@@ -45,7 +45,9 @@ activity = { group = "androidx.activity", name = "activity", version.ref = "acti
 constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 media = { module = "androidx.media:media", version.ref = "media" }
 newpipeextractor = { module = "net.newpipe:extractor", version.ref = "newpipeextractor" }
-picasso = { module = "com.squareup.picasso:picasso", version.ref = "picasso" }
+glide = { module = "com.github.bumptech.glide:glide", version.ref = "glide" }
+glide-okhttp = { module = "com.github.bumptech.glide:okhttp4-integration", version.ref = "glide" }
+glide-compiler = { module = "com.github.bumptech.glide:compiler", version.ref = "glide" }
 swiperefreshlayout = { module = "androidx.swiperefreshlayout:swiperefreshlayout", version.ref = "swiperefreshlayout" }
 webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
 recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }

@@ -1,0 +1,4 @@
+- Videos start sooner: likes, suggestions and chapters load after playback starts
+- Shorts: the next ones load ahead, swiping on starts at once
+- First video after opening the app starts faster
+- Home shows up as soon as the first page is in

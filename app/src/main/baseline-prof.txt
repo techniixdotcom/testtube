@@ -2,3 +2,9 @@ HSPLcom/testtube/app/**->**(**)**
 Lcom/testtube/app/**;
 HSPLorg/schabi/newpipe/extractor/**->**(**)**
 Lorg/schabi/newpipe/extractor/**;
+HSPLcom/bumptech/glide/**->**(**)**
+Lcom/bumptech/glide/**;
+HSPLokhttp3/**->**(**)**
+Lokhttp3/**;
+HSPLokio/**->**(**)**
+Lokio/**;

@@ -461,24 +461,20 @@ public final class NativeBrowser {
 			}
 			call = client.search(state.query, next instanceof Page page ? page : null);
 		} else if (target == Mode.SUBSCRIPTIONS && !host.accountEnabled()) {
-			// Local subscriptions stream in per channel, in arrival order
+			// Local subscriptions show up as each channel answers, every time as the whole list so
+			// far sorted by upload date, so newer videos slot in above older ones
 			Consumer<List<FeedItem>> partial = !firstPage ? null : items -> handler.post(() -> {
 				if (state.loadToken != loadId) return;
-				if (!streamed[0]) {
-					streamed[0] = true;
-					state.items.clear();
-					state.seen.clear();
-					state.scroll = null;
-				}
-				for (FeedItem item : items) {
-					if (state.seen.add(item.url())) state.items.add(item);
-				}
+				boolean first = !streamed[0];
+				streamed[0] = true;
+				if (first) state.scroll = null;
+				replaceItems(state, items);
 				if (target == mode) {
 					render(state);
-					if (state.items.size() == items.size()) list.scrollToPosition(0);
+					if (first) list.scrollToPosition(0);
 				}
 			});
-			call = client.localSubscriptions(LocalSubscriptions.get().all(), next, partial);
+			call = client.localSubscriptions(LocalSubscriptions.get().all(), next, fresh, partial);
 		} else {
 			FeedClient.Feed feed = target == Mode.HOME ? FeedClient.Feed.HOME : FeedClient.Feed.SUBSCRIPTIONS;
 			call = client.browse(feed, next instanceof String token ? token : null);
@@ -509,18 +505,16 @@ public final class NativeBrowser {
 				}
 			} else if (page != null) {
 				state.autoRetried = false;
-				if (firstPage && !streamed[0]) {
-					state.items.clear();
-					state.seen.clear();
-					state.scroll = null;
-				}
-				int added = 0;
-				for (FeedItem item : page.items()) {
-					if (state.seen.add(item.url())) {
-						state.items.add(item);
-						added++;
+				if (firstPage && !streamed[0]) state.scroll = null;
+				int before = firstPage ? 0 : state.items.size();
+				if (page.whole() || firstPage) {
+					replaceItems(state, page.items());
+				} else {
+					for (FeedItem item : page.items()) {
+						if (state.seen.add(item.url())) state.items.add(item);
 					}
 				}
+				int added = state.items.size() - before;
 				// An empty page won't trigger a scroll, so request the next one now
 				state.emptyPages = added == 0 ? state.emptyPages + 1 : 0;
 				if (added == 0 && !firstPage && page.next() != null && state.emptyPages <= MAX_EMPTY_PAGES) {
@@ -531,6 +525,12 @@ public final class NativeBrowser {
 				state.next = page.next();
 				state.signedIn = page.signedIn();
 				state.loaded = true;
+				// A short first page (Home after filtering) doesn't fill the screen to scroll from
+				if (firstPage && state.next != null && state.items.size() < LOAD_MORE_THRESHOLD) {
+					handler.post(() -> {
+						if (target == mode) loadMore();
+					});
+				}
 				if (target != Mode.SEARCH && firstPage && !state.items.isEmpty()) {
 					FeedCache.save(cacheKey(target), state.items);
 				}
@@ -540,6 +540,14 @@ public final class NativeBrowser {
 				if (firstPage && error == null && !streamed[0]) list.scrollToPosition(0);
 			}
 		}));
+	}
+
+	private static void replaceItems(@NonNull State state, @NonNull List<FeedItem> items) {
+		state.items.clear();
+		state.seen.clear();
+		for (FeedItem item : items) {
+			if (state.seen.add(item.url())) state.items.add(item);
+		}
 	}
 
 	/**

@@ -1,0 +1,3 @@
+- Faster pictures everywhere (smaller thumbnails, new image loader)
+- Subscriptions: newest videos really on top, refresh loads every channel again
+- Fixed old videos jumping to the top

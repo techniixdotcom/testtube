@@ -82,10 +82,9 @@ public record FeedItem(@NonNull Kind kind,
 	}
 
 	/**
-	 * Sorts by upload date, newest first, for a channel's own list. Unlike
-	 * {@link #sortNewestFirst}, a row whose date can't be read doesn't stop the sort: it stays
-	 * right after the row it followed, and rows before the first date (upcoming premieres,
-	 * live streams) stay on top.
+	 * Sorts by upload date, newest first. Live streams go on top. A row whose date can't be read
+	 * stays right after the row it followed, and rows before the first date (upcoming premieres)
+	 * stay on top.
 	 */
 	public static void sortByUploadDate(@NonNull List<FeedItem> items) {
 		TimeAgoParser parser = TimeAgoPatternsManager.getTimeAgoParserFor(NewPipe.getPreferredLocalization());
@@ -94,7 +93,7 @@ public record FeedItem(@NonNull Kind kind,
 		Map<FeedItem, Long> ages = new HashMap<>();
 		long previous = -1;
 		for (FeedItem item : items) {
-			long age = previous;
+			long age = item.live() ? -1 : previous;
 			if (!item.live() && item.published() != null) {
 				try {
 					age = Duration.between(parser.parse(item.published()).getInstant(), now).getSeconds();
@@ -106,31 +105,6 @@ public record FeedItem(@NonNull Kind kind,
 			previous = age;
 		}
 		// Stable, so rows of the same age keep YouTube's order
-		items.sort(Comparator.comparingLong(ages::get));
-	}
-
-	/**
-	 * Sorts by YouTube's relative dates ("3 days ago", "hace 3 días"). Leaves the list as it is if a
-	 * video's date can't be parsed.
-	 */
-	public static void sortNewestFirst(@NonNull List<FeedItem> items) {
-		TimeAgoParser parser = TimeAgoPatternsManager.getTimeAgoParserFor(NewPipe.getPreferredLocalization());
-		if (parser == null) return;
-		Instant now = Instant.now();
-		Map<FeedItem, Long> ages = new HashMap<>();
-		for (FeedItem item : items) {
-			long age = -1;
-			try {
-				if (item.published() != null) {
-					age = Duration.between(parser.parse(item.published()).getInstant(), now).getSeconds();
-				}
-			} catch (Exception ignored) {
-				// Premieres and formats the patterns don't know
-			}
-			if (item.kind() == Kind.VIDEO && !item.live() && age < 0) return;
-			// Live streams and non-video rows count as newest
-			ages.put(item, Math.max(age, 0L));
-		}
 		items.sort(Comparator.comparingLong(ages::get));
 	}
 }

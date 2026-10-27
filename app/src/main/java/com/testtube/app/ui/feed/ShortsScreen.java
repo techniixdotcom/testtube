@@ -15,7 +15,6 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.PlaybackException;
-import androidx.media3.common.Player;
 import androidx.media3.common.VideoSize;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.ui.AspectRatioFrameLayout;
@@ -24,8 +23,6 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.PagerSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.squareup.picasso.Callback;
-import com.squareup.picasso.Picasso;
 import com.testtube.app.R;
 import com.testtube.app.extractor.AvatarCache;
 import com.testtube.app.extractor.ExtractionSession;
@@ -40,6 +37,7 @@ import com.testtube.app.filter.ContentFilters;
 import com.testtube.app.history.WatchHistory;
 import com.testtube.app.net.Failure;
 import com.testtube.app.player.engine.ShortsEngine;
+import com.testtube.app.util.ImageUtils;
 import com.testtube.app.util.ToastUtils;
 
 import java.util.ArrayList;
@@ -63,6 +61,10 @@ public final class ShortsScreen {
 	/** Pages that bring nothing new before giving up for now. */
 	private static final int MAX_EMPTY_PAGES = 3;
 	private static final long PROGRESS_INTERVAL_MS = 250L;
+	/** Shorts extracted ahead of the one on screen; the first of them also loads its video. */
+	private static final int PREFETCH_AHEAD = 3;
+	/** Some phones don't report the first frame of a player that loaded off screen. */
+	private static final long FIRST_FRAME_FALLBACK_MS = 200L;
 
 	@NonNull
 	private final Handler handler = new Handler(Looper.getMainLooper());
@@ -120,6 +122,9 @@ public final class ShortsScreen {
 	private boolean active;
 	@Nullable
 	private Runnable onStartedPlaying;
+	/** The next Short, extracted, waiting for the current one to show before loading its video. */
+	@Nullable
+	private PlaybackDetails nextUp;
 
 	public ShortsScreen(@NonNull View root,
 	                    @NonNull FeedClient client,
@@ -144,21 +149,10 @@ public final class ShortsScreen {
 		playerView = (PlayerView) LayoutInflater.from(root.getContext())
 						.inflate(R.layout.view_shorts_player, new FrameLayout(root.getContext()), false);
 		playerView.setPlayer(engine.player());
-		engine.player().addListener(new Player.Listener() {
-			@Override
-			public void onVideoSizeChanged(@NonNull VideoSize size) {
-				// Fill the screen with vertical Shorts; the odd landscape one is shown whole
-				boolean landscape = size.width > size.height;
-				playerView.setResizeMode(landscape
-								? AspectRatioFrameLayout.RESIZE_MODE_FIT : AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
-			}
-		});
 		engine.setListener(new ShortsEngine.Listener() {
 			@Override
 			public void onFirstFrame() {
-				firstFrameShown = true;
-				ShortHolder holder = holderAt(current);
-				if (holder != null) holder.showVideo();
+				showFirstFrame();
 			}
 
 			@Override
@@ -166,6 +160,20 @@ public final class ShortsScreen {
 				ShortHolder holder = holderAt(current);
 				if (holder != null) holder.paused.setVisibility(engine.isPlaying() ? View.GONE : View.VISIBLE);
 				if (playing && onStartedPlaying != null) onStartedPlaying.run();
+				if (playing && !firstFrameShown) {
+					long token = startToken;
+					handler.postDelayed(() -> {
+						if (token == startToken && engine.isPlaying()) showFirstFrame();
+					}, FIRST_FRAME_FALLBACK_MS);
+				}
+			}
+
+			@Override
+			public void onVideoSize(@NonNull VideoSize size) {
+				// Fill the screen with vertical Shorts; the odd landscape one is shown whole
+				boolean landscape = size.width > size.height;
+				playerView.setResizeMode(landscape
+								? AspectRatioFrameLayout.RESIZE_MODE_FIT : AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
 			}
 
 			@Override
@@ -190,6 +198,17 @@ public final class ShortsScreen {
 			emptyPages = 0;
 			load();
 		});
+	}
+
+	private void showFirstFrame() {
+		if (firstFrameShown) return;
+		firstFrameShown = true;
+		ShortHolder holder = holderAt(current);
+		if (holder != null) holder.showVideo();
+		// Now the next one can load its video without slowing this one down
+		PlaybackDetails next = nextUp;
+		nextUp = null;
+		if (next != null && active) engine.preload(next);
 	}
 
 	/**
@@ -319,7 +338,9 @@ public final class ShortsScreen {
 		detachPlayer();
 		ShortHolder holder = holderAt(current);
 		if (holder != null) holder.showLoading();
-		CompletableFuture<PlaybackDetails> extraction = extractor.getInfo(item.url(), null, refresh);
+		nextUp = null;
+		CompletableFuture<PlaybackDetails> extraction = extractor.getShort(item.url(), null, refresh);
+		if (!refresh) prefetchAhead();
 		extraction.whenComplete((result, error) -> handler.post(() -> {
 			if (token != startToken) return;
 			ShortHolder target = holderAt(current);
@@ -333,7 +354,8 @@ public final class ShortsScreen {
 				target.attachPlayer(playerView);
 			}
 			try {
-				engine.play(result);
+				// The preloaded player took over: show that one
+				if (engine.play(result)) playerView.setPlayer(engine.player());
 			} catch (IllegalArgumentException e) {
 				if (target != null) target.showError();
 				return;
@@ -341,7 +363,6 @@ public final class ShortsScreen {
 			if (!active) engine.pause();
 			else startProgress();
 			record(result.video());
-			prefetch(current + 1);
 		}));
 	}
 
@@ -356,9 +377,25 @@ public final class ShortsScreen {
 		if (holder != null) holder.showError();
 	}
 
-	private void prefetch(int position) {
-		if (position < 0 || position >= items.size()) return;
-		extractor.getInfo(items.get(position).url(), new ExtractionSession().setBackground(true));
+	/**
+	 * Extracts the next few Shorts right away, so swiping on doesn't wait for YouTube; the very next
+	 * one also gets its video loaded once the current one shows.
+	 */
+	private void prefetchAhead() {
+		int from = current;
+		for (int i = 1; i <= PREFETCH_AHEAD && from + i < items.size(); i++) {
+			FeedItem item = items.get(from + i);
+			CompletableFuture<PlaybackDetails> extraction = extractor.getShort(item.url(),
+							new ExtractionSession().setBackground(true), false);
+			if (i != 1) continue;
+			long token = startToken;
+			extraction.whenComplete((result, error) -> handler.post(() -> {
+				if (error != null || result == null || token != startToken || !active) return;
+				details.put(item.videoId(), result.video());
+				if (firstFrameShown) engine.preload(result);
+				else nextUp = result;
+			}));
+		}
 	}
 
 	private void record(@NonNull VideoDetails video) {
@@ -417,8 +454,8 @@ public final class ShortsScreen {
 
 		@Override
 		public void onViewRecycled(@NonNull ShortHolder holder) {
-			Picasso.get().cancelRequest(holder.thumbnail);
-			Picasso.get().cancelRequest(holder.avatar);
+			ImageUtils.clear(holder.thumbnail);
+			ImageUtils.clear(holder.avatar);
 			if (holder.slot.indexOfChild(playerView) >= 0) holder.slot.removeView(playerView);
 		}
 	}
@@ -495,16 +532,9 @@ public final class ShortsScreen {
 				thumbnail.setImageDrawable(null);
 				return;
 			}
-			Picasso.get().load("https://i.ytimg.com/vi/" + videoId + "/oar2.jpg").into(thumbnail, new Callback() {
-				@Override
-				public void onSuccess() {
-				}
-
-				@Override
-				public void onError(Exception e) {
-					Picasso.get().load("https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg").into(thumbnail);
-				}
-			});
+			// The vertical thumbnail, or the regular one for Shorts that have none
+			ImageUtils.loadWithFallback(thumbnail, "https://i.ytimg.com/vi/" + videoId + "/oar2.jpg",
+							"https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg");
 		}
 
 		void bindDetails(@NonNull VideoDetails video) {
@@ -517,15 +547,7 @@ public final class ShortsScreen {
 			channel.setVisibility(name != null && !name.isBlank() ? View.VISIBLE : View.INVISIBLE);
 			channel.setOnClickListener(url != null ? v -> host.openPage(url) : null);
 			String image = avatarUrl != null ? AvatarCache.rowSize(avatarUrl) : AvatarCache.get().find(url);
-			if (image != null) {
-				Picasso.get().load(image).fit().centerCrop()
-								.placeholder(R.drawable.bg_avatar_placeholder)
-								.error(R.drawable.bg_avatar_placeholder)
-								.into(avatar);
-			} else {
-				Picasso.get().cancelRequest(avatar);
-				avatar.setImageResource(R.drawable.bg_avatar_placeholder);
-			}
+			ImageUtils.load(avatar, image, R.drawable.bg_avatar_placeholder);
 			bindFollow(name, LocalSubscriptions.channelIdOf(url));
 		}
 

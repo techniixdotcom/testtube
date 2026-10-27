@@ -725,6 +725,16 @@ public class TestTubePlayer {
 		onStartedPlaying = listener;
 	}
 
+	/**
+	 * Likes, chapters and the channel picture of a video arrived after it started; main thread.
+	 */
+	public void onExtras(@NonNull PlaybackDetails details) {
+		if (!Objects.equals(activeId, details.video().getId())) return;
+		engine.applyExtras(details);
+		currentDetails = details.video();
+		if (detailsListener != null) detailsListener.accept(details.video());
+	}
+
 	/** Receives the details of each video once it starts, on the main thread. */
 	public void setDetailsListener(@Nullable Consumer<VideoDetails> listener) {
 		this.detailsListener = listener;

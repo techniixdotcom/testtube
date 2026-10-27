@@ -16,7 +16,6 @@ import androidx.media3.common.util.UnstableApi;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.squareup.picasso.Picasso;
 import com.testtube.app.R;
 import com.testtube.app.downloader.ui.DownloadDialog;
 import com.testtube.app.extractor.YoutubeExtractor;
@@ -25,6 +24,7 @@ import com.testtube.app.nav.MediaItemMenuPayload;
 import com.testtube.app.player.TestTubePlayer;
 import com.testtube.app.player.queue.QueueItem;
 import com.testtube.app.player.queue.QueueRepository;
+import com.testtube.app.util.ImageUtils;
 import com.testtube.app.util.ToastUtils;
 
 import java.util.concurrent.TimeUnit;
@@ -77,11 +77,7 @@ public final class MediaItemMenuDialog {
 		author.setText(item.author());
 		author.setVisibility(item.author() != null && !item.author().isBlank() ? View.VISIBLE : View.GONE);
 
-		Picasso.get()
-						.load(thumbUrl)
-						.placeholder(R.drawable.ic_thumbnail_placeholder)
-						.error(R.drawable.ic_thumbnail_placeholder)
-						.into(thumb);
+		ImageUtils.load(thumb, thumbUrl, R.drawable.ic_thumbnail_placeholder);
 
 		view.findViewById(R.id.media_item_close).setOnClickListener(v -> dialog.dismiss());
 		view.findViewById(R.id.action_queue).setOnClickListener(v -> {
