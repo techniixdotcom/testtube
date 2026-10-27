@@ -1,11 +1,10 @@
 package com.testtube.app.player.queue;
 
-public record QueueNav(boolean queue,
-                       boolean next,
-                       boolean shuffle,
+/** Which of the player's next and previous buttons work right now. */
+public record QueueNav(boolean next,
                        boolean queuePrev,
                        boolean prev) {
-	public static final QueueNav INACTIVE = new QueueNav(false, false, false, false, false);
+	public static final QueueNav INACTIVE = new QueueNav(false, false, false);
 
 	public boolean isNextActionEnabled() {
 		return next;

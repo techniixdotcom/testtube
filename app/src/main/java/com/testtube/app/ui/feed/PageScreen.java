@@ -2,7 +2,6 @@ package com.testtube.app.ui.feed;
 
 import android.content.Context;
 import android.content.res.ColorStateList;
-import android.icu.text.CompactDecimalFormat;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Parcelable;
@@ -37,6 +36,7 @@ import com.testtube.app.extractor.LocalSubscriptions;
 import com.testtube.app.extractor.PageSource;
 import com.testtube.app.filter.ContentFilters;
 import com.testtube.app.net.Failure;
+import com.testtube.app.util.StringUtils;
 import com.testtube.app.util.ToastUtils;
 
 import org.schabi.newpipe.extractor.channel.tabs.ChannelTabs;
@@ -47,7 +47,6 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -275,6 +274,7 @@ public final class PageScreen {
 
 	private void render(@NonNull Entry entry, boolean top) {
 		barTitle.setText(entry.header != null ? entry.header.title() : null);
+		items.setCompactRows(entry.kind == PageSource.Kind.CHANNEL);
 		header.notifyItemChanged(0);
 		renderList(entry);
 		refresh.setRefreshing(entry.pageCall != null);
@@ -293,10 +293,9 @@ public final class PageScreen {
 		}
 	}
 
-	/** The rows of the selected tab and the status row below them. */
 	private void renderList(@NonNull Entry entry) {
 		ListState state = entry.state();
-		List<FeedItem> shown = visible(state.items);
+		List<FeedItem> shown = visible(entry, state.items);
 		items.submit(shown);
 		Status next;
 		if (entry.header == null) {
@@ -314,7 +313,6 @@ public final class PageScreen {
 		status.show(next);
 	}
 
-	/** Loads (or reloads) the header and the first rows of the page. */
 	private void loadPage(@NonNull Entry entry) {
 		if (entry.pageCall != null) entry.pageCall.cancel(false);
 		// On a reload, stay on the tab that was open
@@ -356,7 +354,6 @@ public final class PageScreen {
 		}));
 	}
 
-	/** Loads the first rows of a channel tab. */
 	private void loadTab(@NonNull Entry entry, @NonNull String tabId) {
 		PageSource.Tab tab = tabOf(entry.header, tabId);
 		if (tab == null) return;
@@ -400,7 +397,6 @@ public final class PageScreen {
 		renderList(entry);
 	}
 
-	/** The status row was tapped after an error. */
 	private void retry() {
 		Entry entry = stack.peekLast();
 		if (entry == null || entry.header == null) return;
@@ -436,12 +432,16 @@ public final class PageScreen {
 		return null;
 	}
 
+	private static boolean isVideoTab(@NonNull String tabId) {
+		return tabId.equals(ChannelTabs.VIDEOS) || tabId.equals(ChannelTabs.SHORTS)
+						|| tabId.equals(ChannelTabs.LIVESTREAMS);
+	}
+
 	@StringRes
 	private static int tabLabel(@NonNull String tabId) {
 		return switch (tabId) {
 			case ChannelTabs.SHORTS -> R.string.page_tab_shorts;
 			case ChannelTabs.LIVESTREAMS -> R.string.page_tab_live;
-			case ChannelTabs.PLAYLISTS -> R.string.page_tab_playlists;
 			case ChannelTabs.PODCASTS -> R.string.page_tab_podcasts;
 			case ChannelTabs.COURSES -> R.string.page_tab_courses;
 			case ChannelTabs.ALBUMS -> R.string.page_tab_releases;
@@ -449,25 +449,26 @@ public final class PageScreen {
 		};
 	}
 
+	/**
+	 * The rows to show. A channel's Videos, Shorts and Live tabs show only videos (no playlists in
+	 * between), newest first. Podcasts, Courses, Releases and playlist pages keep YouTube's order.
+	 */
 	@NonNull
-	private List<FeedItem> visible(@NonNull List<FeedItem> source) {
+	private List<FeedItem> visible(@NonNull Entry entry, @NonNull List<FeedItem> source) {
+		boolean channel = entry.kind == PageSource.Kind.CHANNEL && isVideoTab(entry.tab);
 		List<FeedItem> out = new ArrayList<>(source.size());
 		boolean shorts = AppSettings.showShorts();
 		for (FeedItem item : source) {
+			if (channel && item.kind() != FeedItem.Kind.VIDEO) continue;
 			if (item.shortForm() && !shorts) continue;
 			if (item.author() != null && filters.isChannelBlocked(item.author(), item.authorUrl())) continue;
 			out.add(item);
 		}
+		if (channel) FeedItem.sortByUploadDate(out);
 		return out;
 	}
 
-	@NonNull
-	private static String compact(long value) {
-		return CompactDecimalFormat.getInstance(Locale.getDefault(), CompactDecimalFormat.CompactStyle.SHORT)
-						.format(value);
-	}
 
-	/** Rows of one list (a channel tab, or the playlist) and how far it is loaded. */
 	private static final class ListState {
 		@NonNull
 		final List<FeedItem> items = new ArrayList<>();
@@ -509,7 +510,6 @@ public final class PageScreen {
 		final String url;
 		/** Channel page with banner, follow button and tabs; fixed when the page opens. */
 		final boolean fullPage;
-		/** Lists by tab id ({@link #PLAYLIST_LIST} for a playlist). */
 		@NonNull
 		final Map<String, ListState> lists = new HashMap<>();
 		@NonNull
@@ -553,7 +553,6 @@ public final class PageScreen {
 		ERROR
 	}
 
-	/** One row under the list: a spinner, "nothing here" or "tap to retry". */
 	private final class StatusAdapter extends RecyclerView.Adapter<StatusHolder> {
 		@NonNull
 		private Status current = Status.NONE;
@@ -674,7 +673,6 @@ public final class PageScreen {
 		private final View tabsFrame;
 		@Nullable
 		private final TabLayout tabs;
-		/** Tab ids currently in {@link #tabs}, to rebuild them only when they change. */
 		@NonNull
 		private List<String> tabIds = new ArrayList<>();
 		/** Set while a tab is selected from code, so the listener ignores it. */
@@ -755,11 +753,11 @@ public final class PageScreen {
 				if (full && !h.stats().isEmpty()) {
 					parts.addAll(h.stats());
 				} else if (h.count() >= 0) {
-					parts.add(context.getString(R.string.feed_subscribers, compact(h.count())));
+					parts.add(context.getString(R.string.feed_subscribers, StringUtils.compactCount(h.count())));
 				}
 			} else {
 				if (h.subtitle() != null && !h.subtitle().isBlank()) parts.add(h.subtitle());
-				if (h.count() >= 0) parts.add(context.getString(R.string.feed_videos, compact(h.count())));
+				if (h.count() >= 0) parts.add(context.getString(R.string.feed_videos, StringUtils.compactCount(h.count())));
 			}
 			return String.join(SEPARATOR, parts);
 		}
@@ -832,7 +830,6 @@ public final class PageScreen {
 			description.setClickable(true);
 		}
 
-		/** Follows the channel locally, so its videos show up in Subscriptions. */
 		private void bindFollow(@NonNull PageSource.Header h) {
 			if (follow == null) return;
 			MaterialButton button = follow;
@@ -872,7 +869,7 @@ public final class PageScreen {
 			boolean playlist = h.kind() == PageSource.Kind.PLAYLIST && h.playlistId() != null && !rows.isEmpty();
 			playAll.setVisibility(playlist ? View.VISIBLE : View.GONE);
 			playAll.setOnClickListener(playlist ? v -> {
-				List<FeedItem> shown = visible(rows);
+				List<FeedItem> shown = visible(entry, rows);
 				if (shown.isEmpty()) return;
 				FeedItem first = shown.get(0);
 				if (first.videoId() == null) return;

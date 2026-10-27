@@ -121,14 +121,14 @@ public final class YoutubeAuth {
 	                                    @Nullable String userId,
 	                                    long nowSeconds) {
 		List<String> values = new ArrayList<>(3);
-		String sapisid = cookie(cookies, "SAPISID");
+		String sapisid = NativeAuth.cookie(cookies, "SAPISID");
 		if (sapisid == null) {
-			sapisid = cookie(cookies, "__Secure-3PAPISID");
+			sapisid = NativeAuth.cookie(cookies, "__Secure-3PAPISID");
 		}
 		add(values, "SAPISIDHASH", sapisid, origin, userId, nowSeconds);
-		add(values, "SAPISID1PHASH", cookie(cookies, "__Secure-1PAPISID"), origin, userId,
+		add(values, "SAPISID1PHASH", NativeAuth.cookie(cookies, "__Secure-1PAPISID"), origin, userId,
 						nowSeconds);
-		add(values, "SAPISID3PHASH", cookie(cookies, "__Secure-3PAPISID"), origin, userId,
+		add(values, "SAPISID3PHASH", NativeAuth.cookie(cookies, "__Secure-3PAPISID"), origin, userId,
 						nowSeconds);
 		if (values.isEmpty()) {
 			return null;
@@ -174,21 +174,6 @@ public final class YoutubeAuth {
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException("SHA-1 unavailable", e);
 		}
-	}
-
-	@Nullable
-	private static String cookie(@NonNull String cookies,
-	                             @NonNull String name) {
-		String prefix = name + "=";
-		for (String part : cookies.split(";")) {
-			String trimmed = part.trim();
-			if (!trimmed.startsWith(prefix)) {
-				continue;
-			}
-			String value = trimmed.substring(prefix.length());
-			return value.isBlank() ? null : value;
-		}
-		return null;
 	}
 
 	record Result(@NonNull Map<String, String> headers,

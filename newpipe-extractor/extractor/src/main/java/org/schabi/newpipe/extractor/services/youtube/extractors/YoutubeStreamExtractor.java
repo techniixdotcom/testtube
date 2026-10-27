@@ -65,6 +65,7 @@ import org.schabi.newpipe.extractor.localization.Localization;
 import org.schabi.newpipe.extractor.localization.TimeAgoParser;
 import org.schabi.newpipe.extractor.localization.TimeAgoPatternsManager;
 import org.schabi.newpipe.extractor.services.youtube.ItagItem;
+import org.schabi.newpipe.extractor.services.youtube.OriginalDescription;
 import org.schabi.newpipe.extractor.services.youtube.PoTokenProvider;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeJavaScriptPlayerManager;
 import org.schabi.newpipe.extractor.services.youtube.YoutubeMetaInfoHelper;
@@ -95,6 +96,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
@@ -124,7 +126,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private static final String TITLE = "title";
     /**
      * TestTube: waits before asking VISIONOS again after a "confirm you're not a bot" answer. The
-     * check often clears for a new visitorData, which every player request gets.
+     * check often clears for a new visitorData, which every player request gets. Don't ask me
+     * why, it just does.
      */
     private static final long[] BOT_CHECK_RETRY_DELAYS_MS = {700L, 2_000L};
 
@@ -160,20 +163,16 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Override
     public String getName() throws ParsingException {
         assertPageFetched();
-        String title;
-
-        // TestTube: prefer the localized title, like in the lists; fall back to the original
-        title = getTextFromObject(getVideoPrimaryInfoRenderer().getObject(TITLE));
-
+        // TestTube: the player response has the title as the creator wrote it; "next" has it
+        // translated into the content language (by the creator or by YouTube's damn
+        // auto-translate, which nobody asked for)
+        String title = playerResponse.getObject(VIDEO_DETAILS).getString(TITLE);
         if (isNullOrEmpty(title)) {
-            title = playerResponse.getObject(VIDEO_DETAILS)
-                    .getString(TITLE);
-
-            if (isNullOrEmpty(title)) {
-                throw new ParsingException("Could not get name");
-            }
+            title = getTextFromObject(getVideoPrimaryInfoRenderer().getObject(TITLE));
         }
-
+        if (isNullOrEmpty(title)) {
+            throw new ParsingException("Could not get name");
+        }
         return title;
     }
 
@@ -264,6 +263,14 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     @Override
     public Description getDescription() throws ParsingException {
         assertPageFetched();
+        // TestTube: the description as the creator wrote it, from the player response, with its
+        // links put back. "next" (below) has it translated into the content language.
+        final String original = originalDescription();
+        if (!isNullOrEmpty(original)) {
+            return new Description(OriginalDescription.toHtml(original, getUrl()),
+                    Description.Type.HTML);
+        }
+
         // Description with more info on links
         final String videoSecondaryInfoRendererDescription = getTextFromObject(
                 getVideoSecondaryInfoRenderer().getObject("description"),
@@ -1611,7 +1618,25 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             }
             segments.add(segment);
         }
+        // TestTube: chapter names as written in the original description; "next" has them
+        // translated along with the description
+        final String original = originalDescription();
+        if (!isNullOrEmpty(original)) {
+            final Map<Integer, String> written = OriginalDescription.chapters(original);
+            for (final StreamSegment segment : segments) {
+                final String title = written.get(segment.getStartTimeSeconds());
+                if (title != null) {
+                    segment.setTitle(title);
+                }
+            }
+        }
         return segments;
+    }
+
+    /** TestTube: the untranslated description, or null when the player response has none. */
+    @Nullable
+    private String originalDescription() {
+        return playerResponse.getObject(VIDEO_DETAILS).getString("shortDescription");
     }
 
     @Nonnull

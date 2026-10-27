@@ -1,6 +1,9 @@
+- Channel pages: compact rows, newest videos first, playlists hidden
+- Original audio, titles, descriptions and chapters by default
 - Theme follows the phone by default
 - Light theme no longer darkened by the phone's dark mode
 - Playlists skip private, removed or blocked videos and say why
 - Removed the "Up next" notice
 - Channel export no longer freezes the app on slow storage
+- Playlist downloads keep 60 fps quality and explain failures
 - Smaller fixes and cleanup

@@ -82,7 +82,7 @@ public enum Failure {
 	@NonNull
 	public static Failure of(@Nullable Throwable error) {
 		List<Throwable> chain = chain(error);
-		// Most specific first: a bot check often comes wrapped in a "not available" error
+		// Most specific first. YouTube loves wrapping its damn bot check in a "not available" error
 		if (has(chain, SignInConfirmNotBotException.class) || has(chain, ReCaptchaException.class)
 						|| has(chain, RequestPacer.PausedException.class)) {
 			return SLOW_DOWN;
@@ -136,7 +136,6 @@ public enum Failure {
 		return false;
 	}
 
-	/** The error and all its causes and suppressed errors, each once. */
 	@NonNull
 	private static List<Throwable> chain(@Nullable Throwable error) {
 		List<Throwable> out = new ArrayList<>();

@@ -83,8 +83,8 @@ public final class YoutubeCookies {
 
 	/**
 	 * Forgets the signed-out visitor, so the next requests start as a new one. Used after YouTube's
-	 * bot check, which is tied to the visitor as well as the network. Signed-in cookies are never
-	 * touched.
+	 * bot check, which is tied to the visitor as well as the network (took way too long to figure
+	 * that one out). Signed-in cookies are never touched.
 	 */
 	public static void startNewVisitor() {
 		String current = forUrl(COOKIE_URL);

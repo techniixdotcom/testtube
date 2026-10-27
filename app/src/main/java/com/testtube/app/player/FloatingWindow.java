@@ -87,10 +87,8 @@ final class FloatingWindow {
 	private final View.OnLayoutChangeListener relayout;
 
 	private boolean showing;
-	/** The finger moves the window, or it settles into its corner. */
 	private boolean moving;
 	private int corner;
-	/** Where the window is, in the parent's coordinates. */
 	private float x;
 	private float y;
 	private float width;
@@ -210,7 +208,6 @@ final class FloatingWindow {
 						playing ? R.string.mini_bar_pause : R.string.mini_bar_play));
 	}
 
-	/** Puts the window in its corner, sliding there or right away. */
 	private void place(boolean animate) {
 		float fromX = x;
 		float fromY = y;
@@ -243,7 +240,6 @@ final class FloatingWindow {
 		animator.start();
 	}
 
-	/** Size and position for the saved corner, also used for the animation into the window. */
 	private void measureAtCorner() {
 		float playerWidth = playerWidth();
 		boolean landscape = player.getResources().getConfiguration().orientation
@@ -412,7 +408,6 @@ final class FloatingWindow {
 		return player.getWidth() > 0 ? player.getWidth() : parent.getWidth();
 	}
 
-	/** The player's normal height, as laid out outside fullscreen. */
 	private float playerHeight() {
 		int height = player.getLayoutParams().height;
 		return height > 0 ? height : player.getHeight();

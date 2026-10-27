@@ -13,7 +13,6 @@ import androidx.annotation.NonNull;
 public final class ViewUtils {
 	private static final float ALPHA_VISIBLE = 1.0f;
 	private static final float ALPHA_INVISIBLE = 0.0f;
-	/** Length of the fade used when a screen or a page is swapped. */
 	private static final long FADE_IN_MS = 160L;
 
 	private ViewUtils() {

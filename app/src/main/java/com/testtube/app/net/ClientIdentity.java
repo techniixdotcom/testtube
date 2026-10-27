@@ -18,7 +18,6 @@ import java.util.Locale;
  */
 public final class ClientIdentity {
 	private static final String MOBILE_HOST = Constant.YOUTUBE_MOBILE_HOST;
-	/** InnerTube's API host, used by the app clients. */
 	private static final String GOOGLEAPIS_HOST = "youtubei.googleapis.com";
 
 	private ClientIdentity() {

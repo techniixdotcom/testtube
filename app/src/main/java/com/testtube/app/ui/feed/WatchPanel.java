@@ -2,7 +2,6 @@ package com.testtube.app.ui.feed;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.icu.text.CompactDecimalFormat;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Looper;
@@ -46,6 +45,7 @@ import com.testtube.app.extractor.VideoDetails;
 import com.testtube.app.extractor.YoutubeExtractor;
 import com.testtube.app.filter.ContentFilters;
 import com.testtube.app.nav.TabManager;
+import com.testtube.app.util.StringUtils;
 import com.testtube.app.util.ToastUtils;
 import com.testtube.app.util.UrlUtils;
 import com.testtube.app.util.ViewUtils;
@@ -134,7 +134,6 @@ public final class WatchPanel {
 	private String section;
 	private boolean expanded;
 	private long token;
-	/** Current suggestions; {@code endless} loads more near the end of the list. */
 	@NonNull
 	private final List<FeedItem> shown = new ArrayList<>();
 	@NonNull
@@ -354,7 +353,6 @@ public final class WatchPanel {
 		items.submit(new ArrayList<>(shown));
 	}
 
-	/** Appends more related videos when the end of the list comes into view. */
 	private void loadMoreSuggestions() {
 		if (moreLoading || shown.isEmpty()) return;
 		moreLoading = true;
@@ -598,11 +596,6 @@ public final class WatchPanel {
 		return out;
 	}
 
-	@NonNull
-	private static String compact(long value) {
-		return CompactDecimalFormat.getInstance(Locale.getDefault(), CompactDecimalFormat.CompactStyle.SHORT)
-						.format(value);
-	}
 
 	private static final class CommentAdapter extends RecyclerView.Adapter<CommentHolder> {
 		@NonNull
@@ -725,7 +718,7 @@ public final class WatchPanel {
 			VideoDetails d = details;
 			title.setText(d != null && d.getTitle() != null ? d.getTitle() : "");
 			List<String> parts = new ArrayList<>(2);
-			if (d != null && d.getViewCount() >= 0) parts.add(context.getString(R.string.feed_views, compact(d.getViewCount())));
+			if (d != null && d.getViewCount() >= 0) parts.add(context.getString(R.string.feed_views, StringUtils.compactCount(d.getViewCount())));
 			if (d != null && d.getUploadDate() != null) {
 				parts.add(DateUtils.getRelativeTimeSpanString(d.getUploadDate().getTime(),
 								System.currentTimeMillis(), DateUtils.DAY_IN_MILLIS).toString());
@@ -733,7 +726,7 @@ public final class WatchPanel {
 			meta.setText(String.join(SEPARATOR, parts));
 			author.setText(d != null && d.getAuthor() != null ? d.getAuthor() : "");
 			votes.setText(d != null && d.getLikeCount() > 0
-							? context.getString(R.string.watch_likes, compact(d.getLikeCount())) : "");
+							? context.getString(R.string.watch_likes, StringUtils.compactCount(d.getLikeCount())) : "");
 			String avatarUrl = d != null ? d.getUploaderAvatarUrl() : null;
 			if (avatarUrl != null && !avatarUrl.isBlank()) {
 				Picasso.get().load(avatarUrl).fit().centerCrop().into(avatar);
@@ -752,7 +745,6 @@ public final class WatchPanel {
 							: section != null && !section.isBlank() ? section : context.getString(R.string.watch_up_next));
 		}
 
-		/** Follows the channel locally (its videos show up in Subscriptions). */
 		private void bindFollow(@Nullable VideoDetails d) {
 			String channelId = d != null ? LocalSubscriptions.channelIdOf(d.getUploaderUrl()) : null;
 			if (channelId == null) {

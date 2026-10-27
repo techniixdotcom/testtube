@@ -4,12 +4,13 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.testtube.app.extractor.PlaybackDetails;
+import com.testtube.app.extractor.PlaybackPlanner;
 import com.testtube.app.extractor.StreamCatalog;
 import com.testtube.app.extractor.VideoDetails;
+import com.testtube.app.player.common.PlayerUtils;
 
 import org.schabi.newpipe.extractor.MediaFormat;
 import org.schabi.newpipe.extractor.stream.AudioStream;
-import org.schabi.newpipe.extractor.stream.AudioTrackType;
 import org.schabi.newpipe.extractor.stream.SubtitlesStream;
 import org.schabi.newpipe.extractor.stream.VideoStream;
 
@@ -235,12 +236,7 @@ public final class DownloadTaskFactory {
 
 	@Nullable
 	private AudioStream pickAudioStream(@NonNull StreamCatalog catalog) {
-		List<AudioStream> streams = catalog.getAudioStreams();
-		if (streams.isEmpty()) return null;
-		for (AudioStream stream : streams) {
-			if (stream.getAudioTrackType() == AudioTrackType.ORIGINAL) return stream;
-		}
-		return streams.get(0);
+		return PlaybackPlanner.originalAudio(catalog.getAudioStreams());
 	}
 
 	@Nullable
@@ -253,13 +249,13 @@ public final class DownloadTaskFactory {
 		List<VideoStream> streams = catalog.getVideoStreams();
 		if (streams.isEmpty()) return null;
 		Comparator<VideoStream> comparator = Comparator
-						.comparingInt(this::streamHeight)
+						.comparingInt(PlayerUtils::streamHeight)
 						.thenComparingInt(VideoStream::getFps)
 						.thenComparingInt(VideoStream::getBitrate);
 		VideoStream limited = streams.stream()
 						.filter(s -> s.getFormat() == MediaFormat.MPEG_4)
 						.filter(s -> {
-							int h = streamHeight(s);
+							int h = PlayerUtils.streamHeight(s);
 							return h > 0 && h <= 1080;
 						})
 						.max(comparator)
@@ -269,23 +265,6 @@ public final class DownloadTaskFactory {
 						.filter(s -> s.getFormat() == MediaFormat.MPEG_4)
 						.max(comparator)
 						.orElse(null);
-	}
-
-	private int streamHeight(@NonNull VideoStream stream) {
-		int height = stream.getHeight();
-		return height > 0 ? height : extractResolution(stream);
-	}
-
-	private int extractResolution(@NonNull VideoStream stream) {
-		String res = stream.getResolution();
-		if (res.isBlank()) return -1;
-		String digits = res.replaceAll("[^0-9]", "");
-		if (digits.isBlank()) return -1;
-		try {
-			return Integer.parseInt(digits);
-		} catch (NumberFormatException ignored) {
-			return -1;
-		}
 	}
 
 	/** Makes a title safe as a file name: no separators, control characters, "." or "..". */

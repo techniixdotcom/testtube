@@ -49,15 +49,12 @@ public final class NativeAuth {
 		boolean loggedIn = sapisid != null;
 		Config cfg = loggedIn ? config(sapisid, cookies, allowNetwork) : null;
 		return new AuthContext(
-						"native",
 						cookies,
 						cfg != null ? cfg.visitorData : null,
 						cfg != null ? cfg.dataSyncId : null,
 						cfg != null ? cfg.clientVersion : null,
 						cfg != null ? cfg.sessionIndex : null,
-						loggedIn,
-						false,
-						System.currentTimeMillis());
+						loggedIn);
 	}
 
 	public boolean isSignedIn() {
@@ -130,13 +127,15 @@ public final class NativeAuth {
 	}
 
 	@Nullable
-	private static String cookie(@Nullable String cookies, @NonNull String name) {
+	/** One cookie's value from a Cookie header, or null when it's missing or empty. */
+	static String cookie(@Nullable String cookies, @NonNull String name) {
 		if (cookies == null) return null;
 		String prefix = name + "=";
 		for (String part : cookies.split(";")) {
 			String trimmed = part.trim();
-			if (trimmed.startsWith(prefix) && trimmed.length() > prefix.length()) {
-				return trimmed.substring(prefix.length());
+			if (trimmed.startsWith(prefix)) {
+				String value = trimmed.substring(prefix.length());
+				return value.isBlank() ? null : value;
 			}
 		}
 		return null;

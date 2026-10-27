@@ -150,7 +150,6 @@ public final class UpdateManager {
 						&& System.currentTimeMillis() < store.decodeLong(KEY_SNOOZED_UNTIL, 0L);
 	}
 
-	/** The newest release to offer: the latest stable one, or with pre-releases on, the newest of all. */
 	@Nullable
 	private Release fetchLatest() throws IOException {
 		if (!prereleasesEnabled()) {
@@ -181,7 +180,6 @@ public final class UpdateManager {
 		}
 	}
 
-	/** A published release with an APK from this project, or null. */
 	@Nullable
 	private static Release parseRelease(@NonNull JsonObject json) {
 		if (json.has("draft") && json.get("draft").getAsBoolean()) return null;

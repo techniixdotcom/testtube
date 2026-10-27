@@ -90,7 +90,7 @@ public final class DownloaderImpl extends Downloader {
 		AuthContext auth = session != null && !appClient ? session.getAuth() : null;
 		String storedCookies = auth != null && auth.cookies() != null ? auth.cookies()
 						: appClient ? null : YoutubeCookies.forUrl(url);
-		String mergedCookies = mergeCookies(isYoutubeHost(host) ? storedCookies : null, null);
+		String mergedCookies = mergeCookies(YoutubeCookies.isYoutubeHost(host) ? storedCookies : null, null);
 
 		// Override with headers from request
 		if (headers != null) {
@@ -198,13 +198,9 @@ public final class DownloaderImpl extends Downloader {
 	@Nullable
 	private String getRestrictedModeCookie(@NonNull String url,
 	                                       @Nullable String cookies) {
-		if (!isYoutubeHost(YoutubeCookies.hostOf(url))) return null;
+		if (!YoutubeCookies.isYoutubeHost(YoutubeCookies.hostOf(url))) return null;
 		if (cookies != null && cookies.contains("PREF=")) return null;
 		return YOUTUBE_RESTRICTED_MODE_COOKIE;
-	}
-
-	private static boolean isYoutubeHost(@Nullable String host) {
-		return YoutubeCookies.isYoutubeHost(host);
 	}
 
 	private boolean isAppClientRequest(@Nullable Map<String, List<String>> headers) {

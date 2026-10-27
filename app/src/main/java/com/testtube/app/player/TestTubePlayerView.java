@@ -64,7 +64,6 @@ public class TestTubePlayerView extends PlayerView {
 	private int parentPaddingTop;
 	private int parentPaddingRight;
 	private int parentPaddingBottom;
-	/** Buttons of the floating window; the system adds expand and close. */
 	@Nullable
 	private Supplier<List<RemoteAction>> pipActions;
 
@@ -254,7 +253,6 @@ public class TestTubePlayerView extends PlayerView {
 		updateFullscreenButton(true);
 	}
 
-	/** The floating window shows the video alone, above the bars and lists of the app. */
 	private void applyPictureInPictureState(@NonNull ControllerState.Mode previousState) {
 		setBottomNavVisible(false);
 		setTranslationZ(ViewUtils.dpToPx(activity, PIP_ELEVATION_DP));

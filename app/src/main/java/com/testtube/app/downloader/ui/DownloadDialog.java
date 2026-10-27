@@ -34,13 +34,14 @@ import com.testtube.app.downloader.core.DownloadTaskFactory;
 import com.testtube.app.downloader.core.Task;
 import com.testtube.app.downloader.service.DownloadService;
 import com.testtube.app.extractor.ExtractionSession;
+import com.testtube.app.extractor.PlaybackPlanner;
 import com.testtube.app.extractor.StreamCatalog;
 import com.testtube.app.extractor.VideoDetails;
 import com.testtube.app.extractor.YoutubeExtractor;
+import com.testtube.app.player.common.PlayerUtils;
 import com.testtube.app.util.DownloadStorageUtils;
 import com.testtube.app.util.ImageUtils;
 import com.testtube.app.util.PermissionUtils;
-import com.testtube.app.util.StringUtils;
 import com.testtube.app.util.ToastUtils;
 import com.testtube.app.util.ViewUtils;
 
@@ -385,7 +386,7 @@ public class DownloadDialog {
 		streams = audioTrackChoices(streams);
 		selectedAudio = prefs.restoreAudioSelection(streams);
 		if (selectedAudio == null && !streams.isEmpty())
-			selectedAudio = chooseOriginalAudioStream(streams);
+			selectedAudio = PlaybackPlanner.originalAudio(streams);
 
 		for (AudioStream s : streams) {
 			CheckBox cb = new CheckBox(context);
@@ -448,7 +449,7 @@ public class DownloadDialog {
 		List<AudioStream> audioStreams = audioChoices();
 		selectedAudio = prefs.restoreAudioSelection(audioStreams);
 		if (selectedAudio == null && !audioStreams.isEmpty())
-			selectedAudio = chooseOriginalAudioStream(audioStreams);
+			selectedAudio = PlaybackPlanner.originalAudio(audioStreams);
 		for (AudioStream s : audioStreams) {
 			CheckBox cb = new CheckBox(context);
 			cb.setText(String.format(
@@ -582,7 +583,7 @@ public class DownloadDialog {
 	static List<VideoStream> sortVideoChoices(@NonNull List<VideoStream> streams) {
 		List<VideoStream> result = videoDownloadChoices(streams);
 		result.sort((left, right) -> {
-			int height = Integer.compare(videoHeight(right), videoHeight(left));
+			int height = Integer.compare(PlayerUtils.streamHeight(right), PlayerUtils.streamHeight(left));
 			if (height != 0) return height;
 			int fps = Integer.compare(Math.max(right.getFps(), 0), Math.max(left.getFps(), 0));
 			if (fps != 0) return fps;
@@ -622,11 +623,6 @@ public class DownloadDialog {
 		return String.valueOf(stream.getResolution()).trim() + "|"
 						+ Math.max(stream.getFps(), 0) + "|"
 						+ stream.getFormat();
-	}
-
-	private static int videoHeight(@NonNull VideoStream stream) {
-		int height = stream.getHeight();
-		return height > 0 ? height : StringUtils.parseHeight(stream.getResolution());
 	}
 
 	@NonNull
@@ -696,14 +692,6 @@ public class DownloadDialog {
 
 	private static boolean hasText(@Nullable String value) {
 		return value != null && !value.trim().isEmpty();
-	}
-
-	@NonNull
-	private AudioStream chooseOriginalAudioStream(@NonNull List<AudioStream> streams) {
-		for (AudioStream stream : streams) {
-			if (stream.getAudioTrackType() == AudioTrackType.ORIGINAL) return stream;
-		}
-		return streams.get(0);
 	}
 
 	private void dispatchDownloadTasks(@NonNull List<Task> tasks) {

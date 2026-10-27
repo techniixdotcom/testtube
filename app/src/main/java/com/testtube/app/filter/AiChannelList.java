@@ -77,13 +77,10 @@ public final class AiChannelList {
 	private final AtomicBoolean refreshing = new AtomicBoolean();
 	@NonNull
 	private final AtomicBoolean saveScheduled = new AtomicBoolean();
-	/** Listed handles, lower case and without the "@". */
 	@NonNull
 	private volatile Set<String> handles = Collections.emptySet();
-	/** Channel ids listed directly, lower case. */
 	@NonNull
 	private volatile Set<String> listedIds = Collections.emptySet();
-	/** Ids found for listed handles, lower case. */
 	@NonNull
 	private final Set<String> learnedIds = ConcurrentHashMap.newKeySet();
 	@Nullable
@@ -178,7 +175,6 @@ public final class AiChannelList {
 		return added;
 	}
 
-	/** Saves the learned ids and refreshes the lists at most every few seconds. */
 	private void scheduleSave() {
 		if (!saveScheduled.compareAndSet(false, true)) return;
 		main.postDelayed(() -> {

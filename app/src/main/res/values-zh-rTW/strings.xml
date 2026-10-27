@@ -57,7 +57,7 @@
     <string name="failed_to_load_video_details">加載影片詳情失敗</string>
     <string name="application_not_found">未找到應用程式</string>
     <string name="press_back_again_to_exit">再按一次退出</string>
-    <string name="threads">線程</string>
+    <string name="threads">執行緒</string>
     <string name="clear">清除</string>
     <string name="download_tasks_added">下載任務已添加</string>
     <string name="download_tasks_added_count">已添加 %1$d 個任務到隊列</string>
@@ -181,7 +181,6 @@
     <string name="page_play_all">全部播放</string>
     <string name="page_tab_videos">影片</string>
     <string name="page_tab_live">直播</string>
-    <string name="page_tab_playlists">播放清單</string>
     <string name="page_tab_podcasts">Podcast</string>
     <string name="page_tab_courses">課程</string>
     <string name="page_tab_releases">發行內容</string>

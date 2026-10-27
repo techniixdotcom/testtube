@@ -235,10 +235,8 @@ final class SettingsDialog {
 		return (config.uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
 	}
 
-	/** Shown while the cache size is being added up. */
 	private static final String PENDING_SIZE = "…";
 
-	/** Adds up the cache in the background and shows it, e.g. "87 MB". */
 	private static void showCacheSize(@NonNull Activity activity, @NonNull TextView view) {
 		AppGraph app = AppGraph.of(activity);
 		app.executor().execute(() -> {
@@ -286,7 +284,6 @@ final class SettingsDialog {
 		}
 	}
 
-	/** Builds the groups and rows of the dialog from small row layouts. */
 	private record Form(@NonNull Activity activity, @NonNull LayoutInflater inflater, @NonNull ViewGroup content) {
 		/** Adds a titled group and returns the container for its rows. */
 		@NonNull
@@ -375,7 +372,6 @@ final class SettingsDialog {
 		return out;
 	}
 
-	/** A row showing one of a few choices, which opens the list of them when tapped. */
 	private static final class ChoiceRow<T> {
 		@NonNull
 		T value;
@@ -427,7 +423,6 @@ final class SettingsDialog {
 		}
 	}
 
-	/** A row that shows a quality and opens the list of qualities when tapped. */
 	private static final class QualityRow {
 		@NonNull
 		String quality;

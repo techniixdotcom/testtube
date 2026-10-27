@@ -65,6 +65,13 @@ public record FeedItem(@NonNull Kind kind,
 						published, live, shortForm, authorAvatarUrl);
 	}
 
+	/** The same row with another title and channel name (the original ones, say). */
+	@NonNull
+	public FeedItem withNames(@NonNull String newTitle, @Nullable String newAuthor) {
+		return new FeedItem(kind, url, videoId, newTitle, newAuthor, authorUrl, thumbnailUrl, durationSeconds, count,
+						published, live, shortForm, authorAvatarUrl);
+	}
+
 	/**
 	 * 320x180 (16:9) thumbnail for list rows. About a third of the size of hqdefault, and without
 	 * the black bars.
@@ -72,6 +79,34 @@ public record FeedItem(@NonNull Kind kind,
 	@NonNull
 	public static String thumbnailFor(@NonNull String videoId) {
 		return "https://i.ytimg.com/vi/" + videoId + "/mqdefault.jpg";
+	}
+
+	/**
+	 * Sorts by upload date, newest first, for a channel's own list. Unlike
+	 * {@link #sortNewestFirst}, a row whose date can't be read doesn't stop the sort: it stays
+	 * right after the row it followed, and rows before the first date (upcoming premieres,
+	 * live streams) stay on top.
+	 */
+	public static void sortByUploadDate(@NonNull List<FeedItem> items) {
+		TimeAgoParser parser = TimeAgoPatternsManager.getTimeAgoParserFor(NewPipe.getPreferredLocalization());
+		if (parser == null || items.size() < 2) return;
+		Instant now = Instant.now();
+		Map<FeedItem, Long> ages = new HashMap<>();
+		long previous = -1;
+		for (FeedItem item : items) {
+			long age = previous;
+			if (!item.live() && item.published() != null) {
+				try {
+					age = Duration.between(parser.parse(item.published()).getInstant(), now).getSeconds();
+				} catch (Exception ignored) {
+					// Keeps the previous row's age, so the row doesn't move away from it
+				}
+			}
+			ages.put(item, age);
+			previous = age;
+		}
+		// Stable, so rows of the same age keep YouTube's order
+		items.sort(Comparator.comparingLong(ages::get));
 	}
 
 	/**

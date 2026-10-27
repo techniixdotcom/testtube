@@ -44,9 +44,7 @@ final class WatchDragger implements WatchDrag {
 	private static final long MIN_SETTLE_MS = 120L;
 	/** A flick this fast (dp per second) decides the direction, however far the video got. */
 	private static final float FLING_DP_PER_SECOND = 900f;
-	/** Size of the video, compared to its normal size, when it reaches the bar. */
 	private static final float END_SCALE = 0.5f;
-	/** The last part of the way, where the video fades into the bar. */
 	private static final float FADE_FROM = 0.7f;
 
 	@NonNull
@@ -72,7 +70,6 @@ final class WatchDragger implements WatchDrag {
 	private boolean active;
 	@Nullable
 	private ValueAnimator settle;
-	/** The floating window this drag moves into or out of; null for the bottom bar. */
 	@Nullable
 	private RectF floating;
 
@@ -197,7 +194,6 @@ final class WatchDragger implements WatchDrag {
 		details.setAlpha(Math.max(0f, 1f - progress * 2f));
 	}
 
-	/** Shrinks the video from its place on top straight into the floating window. */
 	private void applyFloating(@NonNull RectF target) {
 		float width = player.getWidth() > 0 ? player.getWidth() : root.getWidth();
 		float endScale = width > 0f ? target.width() / width : END_SCALE;
@@ -220,7 +216,6 @@ final class WatchDragger implements WatchDrag {
 		return Math.max(1f, bottom - root.getPaddingTop() - playerHeight() * END_SCALE);
 	}
 
-	/** The player's normal height, also while it is hidden in the bar and not laid out. */
 	private float playerHeight() {
 		int height = player.getLayoutParams().height;
 		return height > 0 ? height : player.getHeight();

@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.testtube.app.Constant;
+import com.testtube.app.net.YoutubeCookies;
 
 import java.net.URI;
 import java.util.Arrays;
@@ -22,8 +23,7 @@ public final class UrlUtils {
 			URI uri = URI.create(url);
 			String host = uri.getHost();
 			if (!"https".equalsIgnoreCase(uri.getScheme()) || host == null) return false;
-			String lowerHost = host.toLowerCase(NORMAL_LOCALE);
-			return isYoutubeHost(lowerHost) || lowerHost.equals("youtu.be");
+			return YoutubeCookies.isYoutubeHost(host);
 		} catch (IllegalArgumentException ignored) {
 			return false;
 		}
@@ -53,11 +53,6 @@ public final class UrlUtils {
 			return sep >= 0 ? pair.substring(sep + 1) : "";
 		}
 		return null;
-	}
-
-	private static boolean isYoutubeHost(@NonNull String lowerHost) {
-		return lowerHost.equals(Constant.YOUTUBE_DOMAIN)
-						|| lowerHost.endsWith("." + Constant.YOUTUBE_DOMAIN);
 	}
 
 	@NonNull

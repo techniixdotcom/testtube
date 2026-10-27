@@ -61,7 +61,6 @@ public final class AvatarCache {
 	private record Cached(@Nullable String url, long time) {
 	}
 
-	/** Marks channels already looked up in storage and not found there. */
 	private static final Cached MISSING = new Cached(null, 0L);
 
 	private static volatile AvatarCache instance;
@@ -251,7 +250,6 @@ public final class AvatarCache {
 		});
 	}
 
-	/** From memory, then from storage; null when the channel was never seen. */
 	@Nullable
 	private Cached cached(@NonNull String key) {
 		Cached cached = memory.get(key);

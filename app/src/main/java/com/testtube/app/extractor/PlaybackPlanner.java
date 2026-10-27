@@ -7,6 +7,7 @@ import androidx.media3.common.util.UnstableApi;
 
 import com.testtube.app.player.common.PlayerUtils;
 
+import org.schabi.newpipe.extractor.services.youtube.ItagItem;
 import org.schabi.newpipe.extractor.stream.AudioStream;
 import org.schabi.newpipe.extractor.stream.AudioTrackType;
 import org.schabi.newpipe.extractor.stream.StreamType;
@@ -14,7 +15,6 @@ import org.schabi.newpipe.extractor.stream.VideoStream;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -25,13 +25,12 @@ public final class PlaybackPlanner {
 
 	@NonNull
 	public static PlaybackPlan plan(@NonNull DeliveryCatalog deliveries) {
-		return plan(deliveries, null, null);
+		return plan(deliveries, null);
 	}
 
 	@NonNull
 	public static PlaybackPlan plan(@NonNull DeliveryCatalog deliveries,
-	                                @Nullable String preferredQuality,
-	                                @Nullable String preferredAudioLanguage) {
+	                                @Nullable String preferredQuality) {
 		PlaybackPlan plan = new PlaybackPlan();
 		plan.setStreamType(deliveries.getStreamType());
 
@@ -40,7 +39,7 @@ public final class PlaybackPlanner {
 		if (live) {
 			Delivery dash = deliveries.first(PlaybackMode.LIVE_DASH);
 			if (dash != null) {
-				return adaptivePlan(plan, dash, preferredQuality, preferredAudioLanguage);
+				return adaptivePlan(plan, dash, preferredQuality);
 			}
 			Delivery hls = deliveries.first(PlaybackMode.LIVE_HLS);
 			if (hls != null) {
@@ -53,7 +52,7 @@ public final class PlaybackPlanner {
 
 		Delivery adaptive = deliveries.first(PlaybackMode.ADAPTIVE);
 		if (adaptive != null) {
-			PlaybackPlan adaptivePlan = adaptivePlan(plan, adaptive, preferredQuality, preferredAudioLanguage);
+			PlaybackPlan adaptivePlan = adaptivePlan(plan, adaptive, preferredQuality);
 			if (adaptivePlan.getVideoCandidate() != null && adaptivePlan.getAudioCandidate() != null) {
 				return adaptivePlan;
 			}
@@ -70,11 +69,11 @@ public final class PlaybackPlanner {
 
 		Delivery audio = deliveries.first(PlaybackMode.AUDIO_ONLY);
 		if (audio != null) {
-			List<AudioStream> tracks = reorderAudioTracks(audio.audioStreams(), preferredAudioLanguage);
+			List<AudioStream> tracks = originalFirst(audio.audioStreams());
 			plan.setMode(PlaybackMode.AUDIO_ONLY);
 			plan.setDelivery(audio);
 			plan.setAudioCandidate(findAudioCandidate(audio.getAudio(),
-							PlayerUtils.selectAudioStream(tracks, null)));
+							PlayerUtils.defaultAudioStream(tracks)));
 		}
 		return plan;
 	}
@@ -119,7 +118,6 @@ public final class PlaybackPlanner {
 	@Nullable
 	public static PlaybackPlan adaptiveFallbackPlan(@NonNull DeliveryCatalog deliveries,
 	                                                @Nullable String preferredQuality,
-	                                                @Nullable String preferredAudioLanguage,
 	                                                @NonNull Predicate<StreamCandidate> blocked) {
 		Delivery adaptive = deliveries.first(PlaybackMode.ADAPTIVE);
 		if (adaptive == null) {
@@ -131,8 +129,7 @@ public final class PlaybackPlanner {
 		List<StreamCandidate> audio = adaptive.getAudio().stream()
 						.filter(candidate -> !blocked.test(candidate))
 						.collect(Collectors.toList());
-		PlaybackPlan plan = adaptivePlan(new PlaybackPlan(), adaptive, video, audio,
-						preferredQuality, preferredAudioLanguage);
+		PlaybackPlan plan = adaptivePlan(new PlaybackPlan(), adaptive, video, audio, preferredQuality);
 		return plan.getVideoCandidate() != null && plan.getAudioCandidate() != null ? plan : null;
 	}
 
@@ -152,7 +149,7 @@ public final class PlaybackPlanner {
 	}
 
 	@Nullable
-	private static StreamCandidate findAudioCandidate(@NonNull List<StreamCandidate> candidates,
+	public static StreamCandidate findAudioCandidate(@NonNull List<StreamCandidate> candidates,
 	                                                  @Nullable AudioStream stream) {
 		if (stream == null) {
 			return null;
@@ -166,61 +163,49 @@ public final class PlaybackPlanner {
 		return null;
 	}
 
+	/**
+	 * Audio tracks with the creator's original first, the way it was uploaded. Then other tracks
+	 * a person recorded (dubs, secondary), then audio description, and YouTube's automatic AI
+	 * dubs last. Within each, the better bitrate wins.
+	 */
 	@NonNull
-	private static List<AudioStream> reorderAudioTracks(@NonNull List<AudioStream> source,
-	                                                    @Nullable String preferredLanguage) {
-		if (source.isEmpty()) {
-			return source;
-		}
-		List<AudioStream> reordered = new ArrayList<>(source);
-		reordered.sort((first, second) -> compareAudioStreams(first, second, preferredLanguage));
-		return reordered;
+	public static List<AudioStream> originalFirst(@NonNull List<AudioStream> source) {
+		List<AudioStream> sorted = new ArrayList<>(source);
+		sorted.sort((first, second) -> {
+			int rank = Integer.compare(audioRank(first), audioRank(second));
+			return rank != 0 ? rank : Integer.compare(audioBitrate(second), audioBitrate(first));
+		});
+		return sorted;
 	}
 
-	private static int compareAudioStreams(@NonNull AudioStream first,
-	                                       @NonNull AudioStream second,
-	                                       @Nullable String preferredLanguage) {
-		int originalComparison = Boolean.compare(
-						isOriginal(second),
-						isOriginal(first));
-		if (originalComparison != 0) {
-			return originalComparison;
-		}
-		int languageComparison = Boolean.compare(
-						matchesLanguage(second, preferredLanguage),
-						matchesLanguage(first, preferredLanguage));
-		if (languageComparison != 0) {
-			return languageComparison;
-		}
-		return Integer.compare(audioBitrate(second), audioBitrate(first));
+	/** The original track, or the closest there is; null without audio. */
+	@Nullable
+	public static AudioStream originalAudio(@NonNull List<AudioStream> streams) {
+		return streams.isEmpty() ? null : originalFirst(streams).get(0);
 	}
 
-	private static boolean isOriginal(@NonNull AudioStream stream) {
-		return stream.getAudioTrackType() == AudioTrackType.ORIGINAL
-						|| (stream.getAudioTrackName() != null
-						&& stream.getAudioTrackName().toLowerCase(Locale.ROOT).contains("original"));
+	/** Lower is closer to the original upload. */
+	private static int audioRank(@NonNull AudioStream stream) {
+		ItagItem itag = stream.getItagItem();
+		if (itag != null && itag.isAutoGenerated()) return 4;
+		AudioTrackType type = stream.getAudioTrackType();
+		if (type == null) return 1;
+		return switch (type) {
+			case ORIGINAL -> 0;
+			case DESCRIPTIVE -> 3;
+			default -> 2;
+		};
 	}
 
-	private static boolean matchesLanguage(@NonNull AudioStream stream,
-	                                       @Nullable String preferredLanguage) {
-		if (preferredLanguage == null || preferredLanguage.isBlank()) {
-			return false;
-		}
-		return stream.getAudioLocale() != null
-						&& preferredLanguage.equalsIgnoreCase(stream.getAudioLocale().getLanguage());
-	}
-
-	private static int audioBitrate(@NonNull AudioStream stream) {
+	static int audioBitrate(@NonNull AudioStream stream) {
 		return stream.getAverageBitrate() > 0 ? stream.getAverageBitrate() : stream.getBitrate();
 	}
 
 	@NonNull
 	private static PlaybackPlan adaptivePlan(@NonNull PlaybackPlan plan,
 	                                         @NonNull Delivery delivery,
-	                                         @Nullable String preferredQuality,
-	                                         @Nullable String preferredAudioLanguage) {
-		return adaptivePlan(plan, delivery, delivery.getVideo(), delivery.getAudio(),
-						preferredQuality, preferredAudioLanguage);
+	                                         @Nullable String preferredQuality) {
+		return adaptivePlan(plan, delivery, delivery.getVideo(), delivery.getAudio(), preferredQuality);
 	}
 
 	@NonNull
@@ -228,14 +213,13 @@ public final class PlaybackPlanner {
 	                                         @NonNull Delivery delivery,
 	                                         @NonNull List<StreamCandidate> videoCandidates,
 	                                         @NonNull List<StreamCandidate> audioCandidates,
-	                                         @Nullable String preferredQuality,
-	                                         @Nullable String preferredAudioLanguage) {
+	                                         @Nullable String preferredQuality) {
 		plan.setMode(delivery.getMode());
 		plan.setDelivery(delivery);
 		VideoStream video = PlayerUtils.selectVideoStream(videoStreams(videoCandidates), preferredQuality);
-		List<AudioStream> tracks = reorderAudioTracks(audioStreams(audioCandidates), preferredAudioLanguage);
+		List<AudioStream> tracks = originalFirst(audioStreams(audioCandidates));
 		plan.setVideoCandidate(findVideoCandidate(videoCandidates, video));
-		plan.setAudioCandidate(findAudioCandidate(audioCandidates, PlayerUtils.selectAudioStream(tracks, null)));
+		plan.setAudioCandidate(findAudioCandidate(audioCandidates, PlayerUtils.defaultAudioStream(tracks)));
 		return plan;
 	}
 

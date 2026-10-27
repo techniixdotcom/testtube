@@ -4,9 +4,9 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.tencent.mmkv.MMKV;
+import com.testtube.app.extractor.PlaybackPlanner;
 
 import org.schabi.newpipe.extractor.stream.AudioStream;
-import org.schabi.newpipe.extractor.stream.AudioTrackType;
 import org.schabi.newpipe.extractor.stream.SubtitlesStream;
 import org.schabi.newpipe.extractor.stream.VideoStream;
 
@@ -147,17 +147,15 @@ public final class DownloadPrefs {
 	public AudioStream restoreAudioSelection(@NonNull List<AudioStream> streams) {
 		if (streams.isEmpty() || !isSingleAudioEnabled()) return null;
 
+		// Every language of a video shares the same format codes, so look in the original first
+		List<AudioStream> ordered = PlaybackPlanner.originalFirst(streams);
 		int itag = kv.decodeInt(KEY_AUD_ITAG, NO_VALUE);
 		if (itag != NO_VALUE) {
-			for (AudioStream stream : streams) {
+			for (AudioStream stream : ordered) {
 				if (stream.getItag() == itag) return stream;
 			}
 		}
-
-		for (AudioStream stream : streams) {
-			if (stream.getAudioTrackType() == AudioTrackType.ORIGINAL) return stream;
-		}
-		return streams.get(0);
+		return ordered.get(0);
 	}
 
 	@Nullable

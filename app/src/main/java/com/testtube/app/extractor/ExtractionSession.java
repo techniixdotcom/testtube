@@ -16,7 +16,7 @@ public final class ExtractionSession {
 	private volatile boolean background;
 
 	public ExtractionSession() {
-		this(new AuthContext("none", null, null, null, null, null, false, false, 0L));
+		this(new AuthContext(null, null, null, null, null, false));
 	}
 
 	public ExtractionSession(@NonNull AuthContext auth) {

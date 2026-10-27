@@ -39,9 +39,7 @@ public final class ControllerState {
 						uiState.lockVisible(),
 						uiState.miniVisible(),
 						uiState.scrimVisible(),
-						state.isLocked(),
 						uiState.fullscreen(),
-						state.isInPictureInPicture(),
 						uiState.fullscreenIconRes(),
 						uiState.lockIconRes());
 	}
@@ -122,11 +120,9 @@ public final class ControllerState {
 	public UiState uiState(boolean buffering, boolean zoomed) {
 		boolean locked = isLocked();
 		boolean fullscreen = mode.isFullscreen();
-		boolean fullscreenLayout = fullscreen || isInPictureInPicture();
 		boolean overlaysVisible = controlsVisible && !locked && !isInPictureInPicture() && !isInMiniPlayer();
 		return new UiState(
 						fullscreen,
-						fullscreenLayout,
 						overlaysVisible,
 						overlaysVisible && !buffering,
 						overlaysVisible,
@@ -152,7 +148,6 @@ public final class ControllerState {
 
 	public record UiState(
 					boolean fullscreen,
-					boolean fullscreenLayout,
 					boolean otherVisible,
 					boolean centerVisible,
 					boolean progressVisible,
@@ -174,9 +169,7 @@ public final class ControllerState {
 					boolean lockVisible,
 					boolean miniVisible,
 					boolean scrimVisible,
-					boolean locked,
 					boolean fullscreen,
-					boolean pip,
 					@DrawableRes int fullscreenIconRes,
 					@DrawableRes int lockIconRes
 	) {

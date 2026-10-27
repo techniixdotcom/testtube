@@ -52,7 +52,7 @@
     <string name="failed_to_load_video_details">Échec du chargement des détails de la vidéo</string>
     <string name="application_not_found">Application non trouvée</string>
     <string name="press_back_again_to_exit">Appuyez à nouveau sur retour pour quitter</string>
-    <string name="threads">Threads</string>
+    <string name="threads">Connexions</string>
     <string name="clear">Effacer</string>
     <string name="download_tasks_added">Tâches de téléchargement ajoutées</string>
     <string name="download_tasks_added_count">%1$d tâches ajoutées à la file d\'attente</string>
@@ -181,7 +181,6 @@
     <string name="page_play_all">Tout lire</string>
     <string name="page_tab_videos">Vidéos</string>
     <string name="page_tab_live">En direct</string>
-    <string name="page_tab_playlists">Playlists</string>
     <string name="page_tab_podcasts">Podcasts</string>
     <string name="page_tab_courses">Cours</string>
     <string name="page_tab_releases">Sorties</string>

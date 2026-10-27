@@ -29,7 +29,6 @@ public class TestTubeDownloaderImpl implements TestTubeDownloader {
 	private final Context context;
 	private final StreamDownloader streamDL;
 	private final MediaMerger mediaMerger;
-	/** Small files (subtitles, thumbnails), a few at a time. */
 	private final ExecutorService executor = Executors.newFixedThreadPool(3, runnable -> {
 		Thread thread = new Thread(runnable, "testtube-download-file");
 		thread.setDaemon(true);

@@ -65,7 +65,8 @@ public final class PlayerUtils {
 		return sorted;
 	}
 
-	private static int streamHeight(@NonNull VideoStream stream) {
+	/** Height in pixels, read from the label ("1080p60") when the stream doesn't say. */
+	public static int streamHeight(@NonNull VideoStream stream) {
 		int height = stream.getHeight();
 		return height > 0 ? height : StringUtils.parseHeight(stream.getResolution());
 	}
@@ -110,18 +111,9 @@ public final class PlayerUtils {
 		return streams.get(0);
 	}
 
+	/** The first audio track, which is the one YouTube plays by default. */
 	@Nullable
-	public static AudioStream selectAudioStream(@Nullable List<AudioStream> streams, @Nullable String preferredInfo) {
-		if (streams == null || streams.isEmpty()) return null;
-		if (preferredInfo == null) return streams.get(0);
-
-		for (AudioStream as : streams) {
-			int bitrate = as.getAverageBitrate();
-			String bitrateStr = bitrate > 0 ? bitrate + "kbps" : "Unknown bitrate";
-			String info = String.format(Locale.getDefault(), "%s - %s - %s", as.getFormat(), as.getCodec(), bitrateStr);
-			if (info.equals(preferredInfo)) return as;
-		}
-
-		return streams.get(0);
+	public static AudioStream defaultAudioStream(@Nullable List<AudioStream> streams) {
+		return streams == null || streams.isEmpty() ? null : streams.get(0);
 	}
 }

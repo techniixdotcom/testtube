@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.testtube.app.R;
+import com.testtube.app.extractor.Originals;
 import com.testtube.app.player.queue.QueueItem;
 import com.testtube.app.util.ImageUtils;
 
@@ -155,12 +156,14 @@ public final class QueueAdapter extends RecyclerView.Adapter<QueueAdapter.ViewHo
 		void bind(@NonNull QueueItem item,
 		          @Nullable String playingId,
 		          @NonNull Actions actions) {
-			titleView.setText(item.getTitle() == null || item.getTitle().isBlank()
-							? item.getVideoUrl()
-							: item.getTitle());
-			authorView.setText(item.getAuthor() == null || item.getAuthor().isBlank()
+			// The creator's own names when known (queued from a list that showed translations)
+			Originals.Original original = Originals.get().find(item.getVideoId());
+			String title = original != null ? original.title() : item.getTitle();
+			String author = original != null && original.author() != null ? original.author() : item.getAuthor();
+			titleView.setText(title == null || title.isBlank() ? item.getVideoUrl() : title);
+			authorView.setText(author == null || author.isBlank()
 							? itemView.getContext().getString(R.string.queue_unknown_author)
-							: item.getAuthor());
+							: author);
 			ImageUtils.loadThumb(thumbnailView, item.getThumbnailUrl());
 			boolean playing = isPlaying(item, playingId);
 			itemView.setActivated(playing);

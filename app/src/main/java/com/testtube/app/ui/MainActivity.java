@@ -95,7 +95,6 @@ import java.util.regex.Pattern;
 @UnstableApi
 public final class MainActivity extends AppCompatActivity implements DownloadPermissionHost {
 	private static final String STATE_LAST_URL = "main.last_url";
-	/** The first web link in text shared from another app. */
 	private static final Pattern SHARED_URL = Pattern.compile("https?://[\\w./?=&%#-]+", Pattern.CASE_INSENSITIVE);
 	private final Handler handler = new Handler(Looper.getMainLooper());
 	private ActivityGraph graph;
@@ -132,7 +131,6 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	@Nullable
 	private PageScreen pageScreen;
 	private boolean navGuard;
-	/** The bottom tab whose screen is showing, to fade only when it changes. */
 	private int rootNavId = View.NO_ID;
 	@Nullable
 	private NativeBrowser nativeBrowser;
@@ -168,7 +166,6 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		return graph;
 	}
 
-	/** Applies choices from the welcome dialog or the logo menu that affect what is open now. */
 	private void onSettingsSaved() {
 		if (isFinishing() || isDestroyed()) return;
 		player.updateFloatingPlayer();
@@ -180,13 +177,11 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		onContentFiltersChanged();
 	}
 
-	/** Shorts were switched on or off: reload the lists so they show (or drop) them. */
 	private void onShortsSettingChanged() {
 		if (nativeBrowser != null) nativeBrowser.reloadAll();
 		updateTabs();
 	}
 
-	/** Blocked or AI channels changed: filter the lists that are already loaded again. */
 	private void onContentFiltersChanged() {
 		if (nativeBrowser != null) nativeBrowser.onFiltersChanged();
 		if (watchPanel != null) watchPanel.onFiltersChanged();
@@ -500,7 +495,6 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		}));
 	}
 
-	/** Followed channels changed outside the watch and channel screens (swipe, import). */
 	private void onFollowedChannelsChanged() {
 		if (nativeBrowser != null) nativeBrowser.reloadLocalSubscriptions();
 		if (watchPanel != null) watchPanel.onFollowChanged();
@@ -509,7 +503,6 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 
 	private static final int MAX_IMPORT_BYTES = 5_000_000;
 
-	/** Exports the followed channels to a CSV file picked by the user. */
 	private final ActivityResultLauncher<String> exportPicker =
 					registerForActivityResult(new ActivityResultContracts.CreateDocument("text/csv"), uri -> {
 						if (uri == null) return;
@@ -651,13 +644,11 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		if (changed && shown != null && shown.getVisibility() == View.VISIBLE) ViewUtils.fadeIn(shown);
 	}
 
-	/** Opens the Library tab, on a given page when there is one. */
 	private void showLibrary(@Nullable LibraryScreen.Page page) {
 		goTo(R.id.nav_library);
 		if (page != null && libraryScreen != null) libraryScreen.select(page);
 	}
 
-	/** The Shorts tab and its player are made on first use. */
 	private void buildShorts() {
 		if (shortsScreen != null || shortsContainer == null || shortsHost == null) return;
 		View view = getLayoutInflater().inflate(R.layout.view_shorts, shortsContainer, true);
@@ -686,7 +677,6 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		}
 	}
 
-	/** The Library (Queue, History, Downloads) is inflated on first use. */
 	private void buildLibrary() {
 		if (libraryScreen != null || libraryContainer == null) return;
 		View view = getLayoutInflater().inflate(R.layout.view_library, libraryContainer, true);
@@ -715,7 +705,6 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		libraryScreen.renderQueue(state.items(), state.videoId());
 	}
 
-	/** Dragging the video down to the bottom bar and the bar back up. */
 	private void setupWatchDrag(@NonNull View root) {
 		View playerView = findViewById(R.id.playerView);
 		View miniBar = findViewById(R.id.mini_bar);

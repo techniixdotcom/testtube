@@ -584,7 +584,8 @@ public final class YoutubeParsingHelper {
             try {
                 extractClientVersionFromHtmlSearchResultsPage();
             } catch (final Exception ignored) {
-                // TestTube: e.g. a consent page without ytInitialData; use the hardcoded version
+                // TestTube: e.g. a consent page without ytInitialData (EU cookie crap); use the
+                // hardcoded version
             }
         }
 

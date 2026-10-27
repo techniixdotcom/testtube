@@ -6,6 +6,7 @@ import androidx.annotation.Nullable;
 import com.google.gson.Gson;
 import com.testtube.app.extractor.potoken.TestTubePoTokenProvider;
 import com.testtube.app.filter.ContentFilters;
+import com.testtube.app.player.common.PlayerUtils;
 
 import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.InfoItem;
@@ -68,7 +69,7 @@ public final class YoutubeExtractor {
 	@NonNull
 	private final Gson gson;
 	@NonNull
-	private final AuthContextFactory auth;
+	private final NativeAuth auth;
 	@NonNull
 	private final ConcurrentMap<String, Task> tasks = new ConcurrentHashMap<>();
 	@NonNull
@@ -76,7 +77,7 @@ public final class YoutubeExtractor {
 
 	public YoutubeExtractor(@NonNull DownloaderImpl downloader,
 	                        @NonNull TestTubePoTokenProvider testtubePoTokenProvider,
-	                        @NonNull AuthContextFactory auth,
+	                        @NonNull NativeAuth auth,
 	                        @NonNull InfoCache cache,
 	                        @NonNull Executor executor,
 	                        @NonNull Gson gson,
@@ -98,7 +99,7 @@ public final class YoutubeExtractor {
 	                 @NonNull InfoCache cache,
 	                 @NonNull Executor executor,
 	                 @NonNull Gson gson,
-	                 @NonNull AuthContextFactory auth,
+	                 @NonNull NativeAuth auth,
 	                 @NonNull ContentFilters filters) {
 		this.filters = filters;
 		this.fetch = fetch;
@@ -270,6 +271,8 @@ public final class YoutubeExtractor {
 						copyList(orEmpty(streamInfo.getStreamSegments())),
 						copyList(orEmpty(streamInfo.getSubtitles())));
 		details.video().setLive(isLive(streamInfo.getStreamType()));
+		// The player has the title and channel name as written; lists showing this video use them too
+		Originals.get().remember(streamInfo.getId(), streamInfo.getName(), streamInfo.getUploaderName());
 		ensurePlayableSources(videoId, details.deliveries(), details.plan());
 		cache.putPlaybackDetails(videoId, details);
 		cache.putRelatedVideos(videoId, collectRelated(streamInfo, videoId));
@@ -401,7 +404,7 @@ public final class YoutubeExtractor {
 		}
 		List<VideoStream> result = new ArrayList<>(best.values());
 		result.sort((first, second) -> {
-			int height = Integer.compare(videoHeight(second), videoHeight(first));
+			int height = Integer.compare(PlayerUtils.streamHeight(second), PlayerUtils.streamHeight(first));
 			if (height != 0) return height;
 			int fps = Integer.compare(videoFps(second), videoFps(first));
 			if (fps != 0) return fps;
@@ -521,7 +524,7 @@ public final class YoutubeExtractor {
 	}
 
 	private boolean isBetterAudio(@NonNull AudioStream first, @NonNull AudioStream second) {
-		return audioBitrate(first) > audioBitrate(second);
+		return PlaybackPlanner.audioBitrate(first) > PlaybackPlanner.audioBitrate(second);
 	}
 
 	private int codecPriority(@Nullable String codec) {
@@ -534,20 +537,12 @@ public final class YoutubeExtractor {
 		return 0;
 	}
 
-	private int videoHeight(@NonNull VideoStream stream) {
-		return stream.getHeight();
-	}
-
 	private int videoFps(@NonNull VideoStream stream) {
 		return stream.getFps();
 	}
 
 	private int videoBitrate(@NonNull VideoStream stream) {
 		return stream.getBitrate();
-	}
-
-	private int audioBitrate(@NonNull AudioStream stream) {
-		return stream.getAverageBitrate() > 0 ? stream.getAverageBitrate() : stream.getBitrate();
 	}
 
 	@Nullable
@@ -582,7 +577,6 @@ public final class YoutubeExtractor {
 		return copy != null ? copy : value;
 	}
 
-	/** In-flight extraction shared by all callers asking for the same video. */
 	private final class Task {
 		@NonNull
 		private final ExtractionSession root;
@@ -592,7 +586,7 @@ public final class YoutubeExtractor {
 		private final AtomicInteger refs = new AtomicInteger();
 
 		private Task(@NonNull String videoId, boolean refresh, boolean background) {
-			this.root = new ExtractionSession(auth.create(WATCH_URL + videoId)).setBackground(background);
+			this.root = new ExtractionSession(auth.current(false)).setBackground(background);
 			this.base = CompletableFuture.supplyAsync(() -> {
 				try {
 					return load(videoId, root, refresh);

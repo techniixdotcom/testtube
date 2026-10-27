@@ -46,6 +46,7 @@ import com.testtube.app.downloader.service.DownloadService;
 import com.testtube.app.extractor.ExtractionSession;
 import com.testtube.app.extractor.PlaybackDetails;
 import com.testtube.app.extractor.YoutubeExtractor;
+import com.testtube.app.net.Failure;
 import com.testtube.app.util.DownloadStorageUtils;
 import com.testtube.app.util.ToastUtils;
 import com.testtube.app.util.ViewUtils;
@@ -532,7 +533,9 @@ public final class PlaylistDownloadDialog {
 				processedIndexes.add(playlistIndex);
 			} catch (Exception e) {
 				failedRows++;
-				postRowBatchStatus(playlistIndex, PlaylistDownloadItem.BatchResultStatus.FAILED, e.getMessage());
+				// The same translated reason the player gives ("This video is private.")
+				postRowBatchStatus(playlistIndex, PlaylistDownloadItem.BatchResultStatus.FAILED,
+								context.getString(Failure.of(e).message));
 				processedIndexes.add(playlistIndex);
 			} finally {
 				batchPreparedCount++;

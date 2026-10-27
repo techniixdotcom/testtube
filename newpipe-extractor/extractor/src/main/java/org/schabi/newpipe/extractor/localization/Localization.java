@@ -54,7 +54,7 @@ public class Localization implements Serializable {
 
     public Localization(@Nonnull final String languageCode, @Nullable final String countryCode) {
         // TestTube: the codes YouTube and the timeago patterns use (Android still returns "in"
-        // for Indonesian, newer JDKs "he" for Hebrew)
+        // for Indonesian, newer JDKs "he" for Hebrew, because why would anyone agree on this)
         this.languageCode = switch (languageCode) {
             case "in" -> "id";
             case "he" -> "iw";

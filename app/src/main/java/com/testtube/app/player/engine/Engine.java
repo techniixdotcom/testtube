@@ -217,10 +217,8 @@ public class Engine {
 	private String prefetchedFor;
 	@NonNull
 	private final StreamPreloader preloader;
-	/** Video being preloaded as the next one; read on the extraction threads. */
 	@Nullable
 	private volatile String preloadTarget;
-	/** Picks the streams a video will play with, the same way the player does. */
 	@Nullable
 	private volatile UnaryOperator<PlaybackDetails> planSelector;
 	/**
@@ -345,14 +343,12 @@ public class Engine {
 		return client == null || client.isBlank() ? UNKNOWN_CLIENT : client;
 	}
 
-	/** The video counts as fully watched and won't resume from its last position. */
 	private void markFinished() {
 		if (videoId == null) return;
 		prefs.clearProgress(videoId);
 		contentFilters.recordProgress(videoId, 1L, 1L);
 	}
 
-	/** What happens when a video ends: the next one plays, and a queued video leaves the queue. */
 	private void playNextAfterFinished() {
 		String endedId = videoId;
 		skipToNext(false);
@@ -380,19 +376,6 @@ public class Engine {
 	@NonNull
 	private DefaultTrackSelector trackSelector() {
 		return (DefaultTrackSelector) Objects.requireNonNull(player.getTrackSelector());
-	}
-
-	@Nullable
-	private static StreamCandidate findAudioCandidate(@NonNull StreamCatalog catalog,
-	                                                  @NonNull AudioStream stream) {
-		String content = stream.getContent();
-		for (StreamCandidate candidate : catalog.getAudioCandidates()) {
-			if (candidate.getAudioStream() != null
-							&& content.equals(candidate.getAudioStream().getContent())) {
-				return candidate;
-			}
-		}
-		return null;
 	}
 
 	public boolean isPlaying() {
@@ -523,7 +506,6 @@ public class Engine {
 		PlaybackPlan fallback = PlaybackPlanner.adaptiveFallbackPlan(
 						state.deliveries(),
 						prefs.getPreferredQuality(),
-						null,
 						this::isBlocked);
 		if (fallback == null) {
 			fallback = PlaybackPlanner.muxedFallbackPlan(
@@ -843,7 +825,6 @@ public class Engine {
 		startNext(pick);
 	}
 
-	/** Switches to the picked video right away. */
 	private void startNext(@NonNull Candidate pick) {
 		recordAuthor(pick.author());
 		tabManager.playInWatch(Constant.HOME_URL + "/watch?v=" + pick.id());
@@ -899,7 +880,6 @@ public class Engine {
 		return buffered >= duration - 1_000L || buffered - position >= PRELOAD_MIN_BUFFER_MS;
 	}
 
-	/** Near the end, picks the next video and preloads it. */
 	private void prefetchNext(@NonNull String sourceId) {
 		if (!loopMode.skipsToNextOnEnded()) return;
 		if (queueRepository.hasItems()) {
@@ -982,7 +962,6 @@ public class Engine {
 		playPreviousFromHistory();
 	}
 
-	/** Goes back to the previously played video. */
 	private void playPreviousFromHistory() {
 		String previous = history.pollLast();
 		while (previous != null && previous.equals(videoId)) {
@@ -1032,13 +1011,13 @@ public class Engine {
 		if (queueContext) {
 			boolean queuePrevEnabled = inQueue && !queueAtHead;
 			boolean queueBackEnabled = canGoBack && (!inQueue || queueAtHead);
-			return new QueueNav(true, true, true, queuePrevEnabled, queueBackEnabled);
+			return new QueueNav(true, queuePrevEnabled, queueBackEnabled);
 		}
 		if (playlistContext) {
 			boolean playlistPrevEnabled = !playlistAtHead || canGoBack;
-			return new QueueNav(false, true, true, false, playlistPrevEnabled);
+			return new QueueNav(true, false, playlistPrevEnabled);
 		}
-		return new QueueNav(false, true, false, false, canGoBack);
+		return new QueueNav(true, false, canGoBack);
 	}
 
 	@Nullable
@@ -1130,7 +1109,7 @@ public class Engine {
 	private void switchQuality(@NonNull String res, boolean reload) {
 		State state = state();
 		if (state == null) return;
-		PlaybackPlan plan = PlaybackPlanner.plan(state.deliveries(), res, null);
+		PlaybackPlan plan = PlaybackPlanner.plan(state.deliveries(), res);
 		if (isLiveMode(plan) && plan.getDelivery() != null) {
 			this.playbackPlan = plan;
 			applyPlaybackTrackMode();
@@ -1293,7 +1272,7 @@ public class Engine {
 		if (audio != null && content.equals(audio.getContent())) return;
 		long pos = player.getCurrentPosition();
 		boolean playWhenReady = player.getPlayWhenReady();
-		plan.setAudioCandidate(findAudioCandidate(state.catalog(), stream));
+		plan.setAudioCandidate(PlaybackPlanner.findAudioCandidate(state.catalog().getAudioCandidates(), stream));
 		player.setMediaSource(PlaybackSourceFactory.create(sources,
 						new PlaybackDetails(state.video(), state.catalog(), state.deliveries(), plan, segments, subtitles),
 						plan));

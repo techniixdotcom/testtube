@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Overrides Material's own value, so the bottom bar can be lower than its 80dp default -->
     <dimen name="m3_bottom_nav_min_height">0dp</dimen>
 </resources>

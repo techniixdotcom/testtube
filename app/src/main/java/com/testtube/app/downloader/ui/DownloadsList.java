@@ -345,7 +345,6 @@ public final class DownloadsList {
 		}
 	}
 
-	/** Runs an action on a record, or on each item of a playlist record. */
 	private void forEachTask(@NonNull DownloadRecord record, @NonNull TaskAction action) {
 		if (record.getType() == DownloadType.PLAYLIST) {
 			for (DownloadRecord child : repository.getChildrenSorted(record.getTaskId())) {
@@ -456,7 +455,6 @@ public final class DownloadsList {
 		void run(@NonNull String taskId);
 	}
 
-	/** A row to update or, with no record, to remove. */
 	private record RecordMutation(@NonNull String taskId, @Nullable DownloadRecord record) {
 		@NonNull
 		static RecordMutation upsert(@NonNull DownloadRecord record) {

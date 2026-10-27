@@ -32,9 +32,7 @@ public final class NetworkWatcher {
 	private final Handler main = new Handler(Looper.getMainLooper());
 	@NonNull
 	private final CopyOnWriteArrayList<Listener> listeners = new CopyOnWriteArrayList<>();
-	/** The settled type that listeners were told about. */
 	private volatile boolean mobile;
-	/** The latest type, possibly not settled yet. */
 	private volatile boolean pendingMobile;
 	@NonNull
 	private final Runnable settle = this::settle;

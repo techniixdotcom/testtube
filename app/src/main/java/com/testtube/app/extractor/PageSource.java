@@ -36,11 +36,11 @@ public final class PageSource {
 	}
 
 	/**
-	 * Channel tabs shown, in this order. Shorts only when they are switched on.
+	 * Channel tabs shown, in this order. Shorts only when they are switched on. The creator's
+	 * Playlists tab is left out.
 	 */
 	private static final List<String> TAB_ORDER = List.of(ChannelTabs.VIDEOS, ChannelTabs.SHORTS,
-					ChannelTabs.LIVESTREAMS, ChannelTabs.PLAYLISTS, ChannelTabs.PODCASTS, ChannelTabs.COURSES,
-					ChannelTabs.ALBUMS);
+					ChannelTabs.LIVESTREAMS, ChannelTabs.PODCASTS, ChannelTabs.COURSES, ChannelTabs.ALBUMS);
 
 	/** Banners narrower than this look blurry across a phone screen. */
 	private static final int BANNER_MIN_WIDTH = 1060;
@@ -264,7 +264,6 @@ public final class PageSource {
 		return page != null && Page.isValid(page) ? new Cursor(kind, playlistUrl, tab, page) : null;
 	}
 
-	/** Videos, playlists and channels of a page; Shorts and unavailable entries are skipped. */
 	@NonNull
 	private static List<FeedItem> items(@Nullable List<? extends InfoItem> items) {
 		List<FeedItem> out = new ArrayList<>();
@@ -280,7 +279,8 @@ public final class PageSource {
 
 	/**
 	 * Private or deleted playlist entry: no duration, views or date. The extractor only recognizes
-	 * these by their English titles.
+	 * these by their English titles, which is useless in any other language, so check the shit
+	 * that's missing instead.
 	 */
 	static boolean isUnavailable(@NonNull StreamInfoItem stream) {
 		StreamType type = stream.getStreamType();

@@ -68,7 +68,6 @@ public final class LibraryScreen {
 	private final RecyclerView queueList;
 	@NonNull
 	private final TextView queueEmpty;
-	/** Made when the Downloads tab is first opened. */
 	@Nullable
 	private DownloadsList downloads;
 	@NonNull
@@ -177,7 +176,6 @@ public final class LibraryScreen {
 		refreshPage();
 	}
 
-	/** Loads what the open tab shows; Downloads only listens for progress while it is open. */
 	private void refreshPage() {
 		if (page != Page.DOWNLOADS && downloads != null) downloads.stop();
 		if (visible) {

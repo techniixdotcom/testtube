@@ -32,6 +32,7 @@ import com.testtube.app.extractor.ExtractionSession;
 import com.testtube.app.extractor.FeedClient;
 import com.testtube.app.extractor.FeedItem;
 import com.testtube.app.extractor.LocalSubscriptions;
+import com.testtube.app.extractor.Originals;
 import com.testtube.app.extractor.PlaybackDetails;
 import com.testtube.app.extractor.VideoDetails;
 import com.testtube.app.extractor.YoutubeExtractor;
@@ -97,7 +98,6 @@ public final class ShortsScreen {
 	private final List<FeedItem> items = new ArrayList<>();
 	@NonNull
 	private final Set<String> seen = new HashSet<>();
-	/** Channel, title and picture of the Shorts that were opened, by video id. */
 	@NonNull
 	private final Map<String, VideoDetails> details = new HashMap<>();
 	@NonNull
@@ -110,9 +110,7 @@ public final class ShortsScreen {
 	private boolean exhausted;
 	private int emptyPages;
 
-	/** Adapter position of the Short on screen. */
 	private int current = RecyclerView.NO_POSITION;
-	/** Video id the engine is playing (or loading), null when nothing was started. */
 	@Nullable
 	private String startedId;
 	/** Bumped for every start, so late extractions for an earlier Short are dropped. */
@@ -291,7 +289,6 @@ public final class ShortsScreen {
 		message.setVisibility(View.VISIBLE);
 	}
 
-	/** Plays the Short the list snapped to. */
 	private void settle() {
 		View snapped = snapHelper.findSnapView(layoutManager);
 		if (snapped == null) return;
@@ -359,7 +356,6 @@ public final class ShortsScreen {
 		if (holder != null) holder.showError();
 	}
 
-	/** Extracts the next Short ahead of time, so swiping to it starts right away. */
 	private void prefetch(int position) {
 		if (position < 0 || position >= items.size()) return;
 		extractor.getInfo(items.get(position).url(), new ExtractionSession().setBackground(true));
@@ -473,7 +469,8 @@ public final class ShortsScreen {
 		}
 
 		void bind(@NonNull FeedItem item, int position) {
-			title.setText(item.title());
+			// Replaced by the player's (original) title once the Short loads
+			title.setText(Originals.get().apply(item).title());
 			loadThumbnail(item.videoId());
 			more.setOnClickListener(v -> host.showMenu(item));
 			VideoDetails known = details.get(item.videoId());
@@ -493,7 +490,6 @@ public final class ShortsScreen {
 			}
 		}
 
-		/** The vertical thumbnail of a Short, or the regular one when there is none. */
 		private void loadThumbnail(@Nullable String videoId) {
 			if (videoId == null) {
 				thumbnail.setImageDrawable(null);
@@ -533,7 +529,6 @@ public final class ShortsScreen {
 			bindFollow(name, LocalSubscriptions.channelIdOf(url));
 		}
 
-		/** Follows the channel locally, so its videos show up in Subscriptions. */
 		private void bindFollow(@Nullable String name, @Nullable String channelId) {
 			if (channelId == null) {
 				follow.setVisibility(View.GONE);

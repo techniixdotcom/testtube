@@ -3,7 +3,6 @@ package com.testtube.app.ui.feed;
 import android.content.Context;
 import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
-import android.icu.text.CompactDecimalFormat;
 import android.text.format.DateUtils;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -21,26 +20,26 @@ import com.testtube.app.AppSettings;
 import com.testtube.app.R;
 import com.testtube.app.extractor.AvatarCache;
 import com.testtube.app.extractor.FeedItem;
+import com.testtube.app.extractor.Originals;
 import com.testtube.app.filter.ContentFilters;
+import com.testtube.app.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
-/** Rows for Home, Subscriptions, search, channel and playlist pages and the watch screen. */
 final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	private static final int TYPE_VIDEO = 0;
 	private static final int TYPE_ENTITY = 1;
+	private static final int TYPE_VIDEO_COMPACT = 2;
 	private static final String SEPARATOR = " • ";
-	/** Rebinds only the uploader image of a row. */
 	private static final Object AVATAR_PAYLOAD = new Object();
+	private static final Object ORIGINAL_PAYLOAD = new Object();
 
 	/** How dark the darkest setting makes the images; a little stays visible. */
 	private static final float DARKEST = 0.1f;
-	/** How faint the text gets at the darkest setting. */
 	private static final float FAINTEST_TEXT = 0.35f;
 
 	@Nullable
@@ -87,16 +86,16 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	private final Map<String, Long> ids = new HashMap<>();
 	@NonNull
 	private final AvatarCache avatars = AvatarCache.get();
-	/** Rows whose channel image was looked up in the background get it as soon as it is known. */
 	@NonNull
 	private final AvatarCache.Listener avatarListener = this::onAvatarKnown;
 	@NonNull
+	private final Originals originals = Originals.get();
+	@NonNull
+	private final Originals.Listener originalsListener = this::onOriginalKnown;
+	@NonNull
 	private List<FeedItem> items = new ArrayList<>();
-	@Nullable
-	private CompactDecimalFormat compact;
-	@Nullable
-	private Locale compactLocale;
 	private boolean showAvatars;
+	private boolean compactRows;
 	private int attached;
 
 	FeedAdapter(@NonNull ContentFilters filters, @NonNull Listener listener) {
@@ -134,13 +133,23 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	}
 
 	/**
+	 * Small thumbnails with the title and details next to them, as on channel pages, instead of
+	 * full-width thumbnails.
+	 */
+	void setCompactRows(boolean compact) {
+		if (compactRows == compact) return;
+		compactRows = compact;
+		notifyDataSetChanged();
+	}
+
+	/**
 	 * The video shown in this row, or null for other rows (channels, playlists, the header).
 	 */
 	@Nullable
 	FeedItem itemAt(@NonNull RecyclerView.ViewHolder holder) {
 		if (!(holder instanceof VideoHolder) || holder.getBindingAdapter() != this) return null;
 		int position = holder.getBindingAdapterPosition();
-		return position >= 0 && position < items.size() ? items.get(position) : null;
+		return position >= 0 && position < items.size() ? originals.apply(items.get(position)) : null;
 	}
 
 	void refreshStates() {
@@ -150,7 +159,10 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	@Override
 	public void onAttachedToRecyclerView(@NonNull RecyclerView recyclerView) {
 		super.onAttachedToRecyclerView(recyclerView);
-		if (attached++ == 0) avatars.addListener(avatarListener);
+		if (attached++ == 0) {
+			avatars.addListener(avatarListener);
+			originals.addListener(originalsListener);
+		}
 	}
 
 	@Override
@@ -159,6 +171,7 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 		if (--attached <= 0) {
 			attached = 0;
 			avatars.removeListener(avatarListener);
+			originals.removeListener(originalsListener);
 		}
 	}
 
@@ -170,6 +183,12 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 							&& key.equals(AvatarCache.key(item.authorUrl()))) {
 				notifyItemChanged(i, AVATAR_PAYLOAD);
 			}
+		}
+	}
+
+	private void onOriginalKnown(@NonNull String videoId) {
+		for (int i = 0; i < items.size(); i++) {
+			if (videoId.equals(items.get(i).videoId())) notifyItemChanged(i, ORIGINAL_PAYLOAD);
 		}
 	}
 
@@ -191,7 +210,8 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
 	@Override
 	public int getItemViewType(int position) {
-		return items.get(position).kind() == FeedItem.Kind.VIDEO ? TYPE_VIDEO : TYPE_ENTITY;
+		if (items.get(position).kind() != FeedItem.Kind.VIDEO) return TYPE_ENTITY;
+		return compactRows ? TYPE_VIDEO_COMPACT : TYPE_VIDEO;
 	}
 
 	@NonNull
@@ -200,6 +220,9 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 		LayoutInflater inflater = LayoutInflater.from(parent.getContext());
 		if (viewType == TYPE_VIDEO) {
 			return new VideoHolder(inflater.inflate(R.layout.item_feed_video, parent, false));
+		}
+		if (viewType == TYPE_VIDEO_COMPACT) {
+			return new VideoHolder(inflater.inflate(R.layout.item_feed_video_compact, parent, false));
 		}
 		return new EntityHolder(inflater.inflate(R.layout.item_feed_entity, parent, false));
 	}
@@ -218,15 +241,18 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position,
 	                             @NonNull List<Object> payloads) {
 		if (!payloads.isEmpty() && holder instanceof VideoHolder video) {
-			boolean onlyAvatar = true;
+			boolean partial = true;
 			for (Object payload : payloads) {
-				if (payload != AVATAR_PAYLOAD) {
-					onlyAvatar = false;
+				if (payload != AVATAR_PAYLOAD && payload != ORIGINAL_PAYLOAD) {
+					partial = false;
 					break;
 				}
 			}
-			if (onlyAvatar) {
-				bindAvatar(video, items.get(position));
+			if (partial) {
+				FeedItem item = items.get(position);
+				if (payloads.contains(AVATAR_PAYLOAD)) bindAvatar(video, item);
+				// Whole row, so taps and the menu also get the original names
+				if (payloads.contains(ORIGINAL_PAYLOAD)) bindVideo(video, item);
 				return;
 			}
 		}
@@ -243,13 +269,16 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 		if (holder instanceof EntityHolder entity) Picasso.get().cancelRequest(entity.thumbnail);
 	}
 
-	private void bindVideo(@NonNull VideoHolder holder, @NonNull FeedItem item) {
+	private void bindVideo(@NonNull VideoHolder holder, @NonNull FeedItem listed) {
+		FeedItem item = originals.apply(listed);
+		// Not known yet: looked up, and the row updates when it arrives
+		if (originals.find(listed.videoId()) == null) originals.request(listed.videoId());
 		Context context = holder.itemView.getContext();
 		holder.title.setText(item.title());
 		List<String> meta = new ArrayList<>(3);
 		if (item.author() != null) meta.add(item.author());
 		if (!item.live() && item.count() >= 0) {
-			meta.add(context.getString(R.string.feed_views, compact(item.count())));
+			meta.add(context.getString(R.string.feed_views, StringUtils.compactCount(item.count())));
 		}
 		if (!item.live() && item.published() != null) meta.add(item.published());
 		holder.meta.setText(String.join(SEPARATOR, meta));
@@ -339,10 +368,10 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 		List<String> meta = new ArrayList<>(2);
 		if (item.kind() == FeedItem.Kind.CHANNEL) {
 			meta.add(context.getString(R.string.feed_channel));
-			if (item.count() >= 0) meta.add(context.getString(R.string.feed_subscribers, compact(item.count())));
+			if (item.count() >= 0) meta.add(context.getString(R.string.feed_subscribers, StringUtils.compactCount(item.count())));
 		} else {
 			meta.add(item.author() != null ? item.author() : context.getString(R.string.type_playlist));
-			if (item.count() >= 0) meta.add(context.getString(R.string.feed_videos, compact(item.count())));
+			if (item.count() >= 0) meta.add(context.getString(R.string.feed_videos, StringUtils.compactCount(item.count())));
 		}
 		holder.meta.setText(String.join(SEPARATOR, meta));
 		loadImage(holder.thumbnail, item.thumbnailUrl(), R.drawable.bg_thumbnail_placeholder);
@@ -362,16 +391,6 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 						.placeholder(placeholder)
 						.error(placeholder)
 						.into(view);
-	}
-
-	@NonNull
-	private String compact(long value) {
-		Locale locale = Locale.getDefault();
-		if (compact == null || !locale.equals(compactLocale)) {
-			compact = CompactDecimalFormat.getInstance(locale, CompactDecimalFormat.CompactStyle.SHORT);
-			compactLocale = locale;
-		}
-		return compact.format(value);
 	}
 
 	private static final class VideoHolder extends RecyclerView.ViewHolder {

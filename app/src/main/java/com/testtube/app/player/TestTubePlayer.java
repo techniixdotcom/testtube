@@ -17,14 +17,11 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 import androidx.core.content.ContextCompat;
-import androidx.media3.common.C;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
-import androidx.media3.common.Tracks;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.ui.DefaultTimeBar;
 
-import com.tencent.mmkv.MMKV;
 import com.testtube.app.AppSettings;
 import com.testtube.app.PlaybackService;
 import com.testtube.app.R;
@@ -61,8 +58,6 @@ import java.util.function.Consumer;
 
 @UnstableApi
 public class TestTubePlayer {
-	private static final String KEY_LAST_AUDIO_LANG = "last_audio_lang";
-	/** Buttons of the floating window, sent back to the app as broadcasts. */
 	private static final String ACTION_FLOATING_CONTROL = "com.testtube.app.action.FLOATING_CONTROL";
 	private static final String EXTRA_CONTROL = "control";
 	private static final int CONTROL_PREVIOUS = 1;
@@ -89,7 +84,6 @@ public class TestTubePlayer {
 	private final PlayerStateStore stateStore;
 	@NonNull
 	private final Executor executor;
-	private final MMKV kv = MMKV.defaultMMKV();
 	@Nullable
 	private PlaybackService playbackSvc;
 	@NonNull
@@ -118,7 +112,6 @@ public class TestTubePlayer {
 	private boolean inMiniPlayer;
 	@Nullable
 	private MiniBar miniBar;
-	/** The video in a window over the app, when minimizing goes there; made on first use. */
 	@Nullable
 	private FloatingWindow floatingWindow;
 	@Nullable
@@ -137,7 +130,6 @@ public class TestTubePlayer {
 	private NetworkWatcher network;
 	@NonNull
 	private final NetworkWatcher.Listener networkListener = mobile -> applyPreferredQuality();
-	/** Registered while the floating window is open. */
 	@Nullable
 	private BroadcastReceiver floatingControls;
 
@@ -193,11 +185,6 @@ public class TestTubePlayer {
 			}
 
 			@Override
-			public void onTracksChanged(@NonNull Tracks tracks) {
-				saveSelectedTrackLanguage(tracks);
-			}
-
-			@Override
 			public void onPlaybackStateChanged(int state) {
 				if (state == Player.STATE_READY) {
 					updateServiceProgress(engine.isPlaying());
@@ -230,19 +217,6 @@ public class TestTubePlayer {
 		int code = error.errorCode;
 		return code >= PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED && code < 5000
 						|| code >= PlaybackException.ERROR_CODE_DRM_UNSPECIFIED && code < 7000;
-	}
-
-	private void saveSelectedTrackLanguage(@NonNull Tracks tracks) {
-		for (Tracks.Group group : tracks.getGroups()) {
-			if (group.getType() != C.TRACK_TYPE_AUDIO || !group.isSelected()) continue;
-			for (int i = 0; i < group.length; i++) {
-				if (group.isTrackSelected(i)) {
-					String lang = group.getTrackFormat(i).language;
-					kv.encode(KEY_LAST_AUDIO_LANG, lang != null ? lang : "und");
-					return;
-				}
-			}
-		}
 	}
 
 	private void updateServiceProgress(boolean isPlaying) {
@@ -365,12 +339,13 @@ public class TestTubePlayer {
 						});
 	}
 
-	/** Picks the streams by the preferred quality and the last audio language. */
+	/**
+	 * Picks the streams by the preferred quality, always with the original audio track. A track
+	 * chosen in the menu only applies to that video.
+	 */
 	@NonNull
 	private PlaybackDetails withPreferredPlan(@NonNull PlaybackDetails details) {
-		String lang = kv.decodeString(KEY_LAST_AUDIO_LANG, "und");
-		String preferredQuality = prefs.getPreferredQuality();
-		PlaybackPlan plan = PlaybackPlanner.plan(details.deliveries(), preferredQuality, lang);
+		PlaybackPlan plan = PlaybackPlanner.plan(details.deliveries(), prefs.getPreferredQuality());
 		return new PlaybackDetails(
 						details.video(),
 						details.catalog(),
@@ -417,7 +392,8 @@ public class TestTubePlayer {
 
 	/**
 	 * After YouTube's bot check or a timeout, tries the video once more by itself when the pause is
-	 * over, so a short hiccup needs no tap. The person sees a short notice meanwhile.
+	 * over, so a short hiccup needs no tap. Nobody wants to mash retry because YouTube had a
+	 * moment. The person sees a short notice meanwhile.
 	 *
 	 * @return true if a retry was scheduled
 	 */
@@ -436,7 +412,6 @@ public class TestTubePlayer {
 		return true;
 	}
 
-	/** Loads a video again from scratch, e.g. after a failure. */
 	private void playAgain(@NonNull String videoId) {
 		queuedId = null;
 		play("https://www.youtube.com/watch?v=" + videoId);
@@ -607,7 +582,6 @@ public class TestTubePlayer {
 		refreshQueueNav();
 	}
 
-	/** Shows the minimized video in the form the settings ask for now. */
 	private void showMinimized() {
 		if (AppSettings.floatingPlayer()) {
 			miniBar().hide();
@@ -692,7 +666,6 @@ public class TestTubePlayer {
 		}
 	}
 
-	/** Closing the bar or the window stops the video. */
 	private void closeMinimized() {
 		Runnable close = onClose;
 		hide();

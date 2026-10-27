@@ -86,7 +86,6 @@ public final class ContentLanguage {
 		}
 	}
 
-	/** The locale's region, or the network/SIM country if it has none (e.g. es-419). */
 	@NonNull
 	private static String country(@NonNull Context context, @NonNull Locale locale) {
 		String country = locale.getCountry();
@@ -99,7 +98,7 @@ public final class ContentLanguage {
 					if (country == null || country.isEmpty()) country = phone.getSimCountryIso();
 				}
 			} catch (RuntimeException ignored) {
-				// Newer Android versions throw on devices without telephony
+				// Newer Android versions throw on devices without telephony. Yes, really. Just a getter.
 			}
 		}
 		return country == null ? "" : country.toUpperCase(Locale.ROOT);

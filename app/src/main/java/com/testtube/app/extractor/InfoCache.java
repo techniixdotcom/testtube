@@ -133,7 +133,6 @@ public final class InfoCache {
 		if (removed) store.trim();
 	}
 
-	/** Removes entries that old versions left in the default store. */
 	private static void removeLegacyEntries(@NonNull MMKV kv) {
 		String[] keys = kv.allKeys();
 		if (keys == null) return;

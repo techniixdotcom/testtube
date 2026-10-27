@@ -11,6 +11,8 @@ import androidx.annotation.Nullable;
 import com.google.gson.Gson;
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
+import com.grack.nanojson.JsonParser;
+import com.grack.nanojson.JsonParserException;
 import com.grack.nanojson.JsonWriter;
 import com.tencent.mmkv.MMKV;
 import com.testtube.app.AppSettings;
@@ -105,7 +107,6 @@ public final class FeedClient {
 					"mastheadRenderer", "bannerPromoRenderer", "primetimePromoRenderer",
 					"emergencyOnebox", "clarificationRenderer", "infoPanelContainerRenderer");
 
-	/** Where Shorts appear in a browse response. */
 	private static final Set<String> SHORTS_KEYS = Set.of(
 					"reelShelfRenderer", "reelItemRenderer", "shortsLockupViewModel");
 
@@ -243,7 +244,6 @@ public final class FeedClient {
 		return new Comment(commentAuthor(response), null, text, null, 0, false);
 	}
 
-	/** The account's name in the answer, from the newer or the older comment layout. */
 	@NonNull
 	private static String commentAuthor(@NonNull JsonObject response) {
 		JsonObject entity = findObject(response, "commentEntityPayload", 0);
@@ -259,7 +259,6 @@ public final class FeedClient {
 		return "";
 	}
 
-	/** The first object stored under {@code key} anywhere in {@code node}. */
 	@Nullable
 	private static JsonObject findObject(@Nullable Object node, @NonNull String key, int depth) {
 		if (depth > 32) return null;
@@ -373,7 +372,6 @@ public final class FeedClient {
 		return new FeedPage(items, next != null ? next : discoverToken(items), page.signedIn());
 	}
 
-	/** Continuation seeded with a few random videos of this page. */
 	@NonNull
 	private static String discoverToken(@NonNull List<FeedItem> shown) {
 		List<String> ids = new ArrayList<>();
@@ -404,7 +402,6 @@ public final class FeedClient {
 		return item.author() != null && known.contains(item.author().trim().toLowerCase(Locale.ROOT));
 	}
 
-	/** Ids and names of followed channels plus the account subscriptions seen so far. */
 	@NonNull
 	private static Set<String> knownChannels() {
 		Set<String> known = new HashSet<>();
@@ -487,7 +484,6 @@ public final class FeedClient {
 	private static final int RELATED_LOOKUPS = 4;
 	private static final long EARLY_WAIT_MS = 2_500L;
 	private static final int EARLY_MIN_VIDEOS = 20;
-	/** Max wait for the extractor fallback of failed channel feeds. */
 	private static final long FALLBACK_WAIT_MS = 8_000L;
 	private static final int MAX_FALLBACK_CHANNELS = 6;
 	/**
@@ -522,7 +518,6 @@ public final class FeedClient {
 		this.taste = taste;
 	}
 
-	/** Generic (localized) search topics for when the history is too thin. */
 	@NonNull
 	private volatile Supplier<List<String>> generalQueries = List::of;
 
@@ -632,7 +627,6 @@ public final class FeedClient {
 	private static final Map<String, CachedChannel> CHANNEL_CACHE = new ConcurrentHashMap<>();
 	private static final Gson CACHE_GSON = new Gson();
 
-	/** A channel's last videos from memory or, after a restart, from storage. */
 	@Nullable
 	private static CachedChannel cachedChannel(@NonNull String channelId) {
 		CachedChannel cached = CHANNEL_CACHE.get(channelId);
@@ -652,7 +646,6 @@ public final class FeedClient {
 		return cached;
 	}
 
-	/** Fetches and caches a channel feed, even if the caller stopped waiting. */
 	@NonNull
 	private static List<RssVideo> channelVideos(@NonNull LocalSubscriptions.Channel channel)
 					throws IOException, XmlPullParserException, ExtractionException {
@@ -759,6 +752,8 @@ public final class FeedClient {
 		for (RssVideo video : videos) {
 			if (items.size() >= limit) break;
 			if (video.shortForm() && !shorts) continue;
+			// A channel's own feed has the title and the channel name as the creator wrote them
+			Originals.get().remember(video.id(), video.title(), video.author());
 			items.add(new FeedItem(FeedItem.Kind.VIDEO, watchUrl(video.id()), video.id(), video.title(),
 							video.author(), mobile("https://www.youtube.com/channel/" + video.channelId()),
 							FeedItem.thumbnailFor(video.id()), -1, video.views(),
@@ -1348,7 +1343,32 @@ public final class FeedClient {
 		}, session);
 	}
 
-	/** Collects the videos of a browse response, whatever layout they are wrapped in. */
+	/**
+	 * A video's title and channel name as the creator wrote them. YouTube's oEmbed page gives
+	 * them untranslated, where search and browse give them in the app's language. Runs as
+	 * background work, so it waits for whatever the person is doing. Null when YouTube won't say
+	 * (embedding off, removed).
+	 */
+	@Nullable
+	public Originals.Original originals(@NonNull String videoId) throws IOException, ExtractionException {
+		ExtractionSession session = new ExtractionSession(auth.current(true)).setBackground(true);
+		return downloader.withExtractionSession(() -> {
+			org.schabi.newpipe.extractor.downloader.Response response = NewPipe.getDownloader()
+							.get("https://www.youtube.com/oembed?format=json&url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D"
+											+ videoId);
+			if (response.responseCode() != 200) return null;
+			try {
+				JsonObject json = JsonParser.object().from(response.responseBody());
+				String title = json.getString("title");
+				if (title == null || title.isBlank()) return null;
+				String author = json.getString("author_name");
+				return new Originals.Original(title, author == null || author.isBlank() ? null : author);
+			} catch (JsonParserException e) {
+				throw new IOException("unreadable oEmbed answer", e);
+			}
+		}, session);
+	}
+
 	private static final class Parser {
 		@NonNull
 		final List<FeedItem> items = new ArrayList<>();

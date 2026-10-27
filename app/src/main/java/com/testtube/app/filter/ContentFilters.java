@@ -261,7 +261,6 @@ public final class ContentFilters {
 		}
 	}
 
-	/** Channel paths and normalized names of the blocked channels. */
 	private record BlockedIndex(@NonNull Set<String> paths, @NonNull Set<String> names) {
 	}
 }

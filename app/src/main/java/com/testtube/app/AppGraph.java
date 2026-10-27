@@ -16,18 +16,17 @@ import com.testtube.app.downloader.core.TestTubeDownloader;
 import com.testtube.app.downloader.core.history.DownloadHistoryRepository;
 import com.testtube.app.downloader.core.impl.StreamDownloaderImpl;
 import com.testtube.app.downloader.core.impl.TestTubeDownloaderImpl;
-import com.testtube.app.extractor.AuthContextFactory;
 import com.testtube.app.extractor.AvatarCache;
 import com.testtube.app.extractor.DownloaderImpl;
 import com.testtube.app.extractor.ExtractionSessionScope;
 import com.testtube.app.extractor.FeedClient;
 import com.testtube.app.extractor.InfoCache;
 import com.testtube.app.extractor.NativeAuth;
+import com.testtube.app.extractor.Originals;
 import com.testtube.app.extractor.PageSource;
 import com.testtube.app.extractor.PlaylistSource;
 import com.testtube.app.extractor.YoutubeExtractor;
 import com.testtube.app.extractor.potoken.PoTokenBridge;
-import com.testtube.app.extractor.potoken.PoTokenContextStore;
 import com.testtube.app.extractor.potoken.PoTokenCoordinator;
 import com.testtube.app.extractor.potoken.PoTokenHost;
 import com.testtube.app.extractor.potoken.TestTubePoTokenProvider;
@@ -76,14 +75,12 @@ public final class AppGraph {
 	private DownloadHistoryRepository downloadHistory;
 	private StreamDownloader streamDownloader;
 	private TestTubeDownloader downloader;
-	private PoTokenContextStore poTokenContextStore;
 	private PoTokenBridge poTokenBridge;
 	private PoTokenHost poTokenHost;
 	private PoTokenCoordinator poTokenCoordinator;
 	private TestTubePoTokenProvider poTokenProvider;
 	private ExtractionSessionScope extractionSessionScope;
 	private DownloaderImpl extractorDownloader;
-	private AuthContextFactory authContextFactory;
 	private NativeAuth nativeAuth;
 	private FeedClient feedClient;
 	private UpdateManager updateManager;
@@ -266,7 +263,6 @@ public final class AppGraph {
 		executor().execute(() -> evictor.setMaxBytes(cache, limit));
 	}
 
-	/** A few random videos and titles from recent history, used to seed Home. */
 	@NonNull
 	private FeedClient.Taste historyTaste() {
 		List<WatchHistory.Entry> entries = new ArrayList<>(watchHistory().entries());
@@ -303,12 +299,6 @@ public final class AppGraph {
 	public synchronized TestTubeDownloader downloader() {
 		if (downloader == null) downloader = new TestTubeDownloaderImpl(context, streamDownloader());
 		return downloader;
-	}
-
-	@NonNull
-	public synchronized PoTokenContextStore poTokenContextStore() {
-		if (poTokenContextStore == null) poTokenContextStore = new PoTokenContextStore();
-		return poTokenContextStore;
 	}
 
 	@NonNull
@@ -365,14 +355,6 @@ public final class AppGraph {
 	}
 
 	@NonNull
-	public synchronized AuthContextFactory authContextFactory() {
-		if (authContextFactory == null) {
-			authContextFactory = new AuthContextFactory(poTokenContextStore(), nativeAuth());
-		}
-		return authContextFactory;
-	}
-
-	@NonNull
 	public synchronized NativeAuth nativeAuth() {
 		if (nativeAuth == null) nativeAuth = new NativeAuth(okHttpClient());
 		return nativeAuth;
@@ -392,6 +374,7 @@ public final class AppGraph {
 			feedClient.setTaste(this::historyTaste);
 			feedClient.setGeneralQueries(() -> Arrays.asList(context.getResources().getStringArray(R.array.discover_queries)));
 			AvatarCache.get().setLoader(feedClient::channelAvatar);
+			Originals.get().setLoader(feedClient::originals);
 		}
 		return feedClient;
 	}
@@ -423,7 +406,7 @@ public final class AppGraph {
 	@NonNull
 	public synchronized YoutubeExtractor youtubeExtractor() {
 		if (youtubeExtractor == null) {
-			youtubeExtractor = new YoutubeExtractor(extractorDownloader(), poTokenProvider(), authContextFactory(),
+			youtubeExtractor = new YoutubeExtractor(extractorDownloader(), poTokenProvider(), nativeAuth(),
 							infoCache(), executor(), gson(), contentFilters());
 		}
 		return youtubeExtractor;

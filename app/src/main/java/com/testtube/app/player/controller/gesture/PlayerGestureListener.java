@@ -48,7 +48,6 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 	private GestureMode gestureMode = GestureMode.NONE;
 	private boolean gesturing, swipeTriggered;
 	private long seekStartPos;
-	/** Brightness (0 to 1) or volume (stream steps) when the current swipe started. */
 	private float levelAtStart;
 
 	private int seekAccum;
@@ -377,7 +376,6 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 		controller.showHint(activity.getString(R.string.player_volume, Math.round(volume * 100f / max)), -1);
 	}
 
-	/** The window's own brightness if one was set, otherwise the system setting. */
 	private float currentBrightness() {
 		float window = activity.getWindow().getAttributes().screenBrightness;
 		if (window >= 0f) return window;
