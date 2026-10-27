@@ -56,6 +56,10 @@ Subscriptions come from one of two places. By default the app shows the latest v
 GPL-3.0. NewPipe Extractor is GPL-3.0-or-later.
 
 
+
+
 Peace and Love
+
 by
+
 techniix / cuteLiLi / QuacK / decoi
