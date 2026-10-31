@@ -80,22 +80,6 @@ public final class PlaybackPlanner {
 
 	@Nullable
 	public static PlaybackPlan muxedFallbackPlan(@NonNull DeliveryCatalog deliveries,
-	                                             @Nullable String preferredQuality) {
-		Delivery muxed = deliveries.first(PlaybackMode.MUXED);
-		if (muxed == null) {
-			return null;
-		}
-		VideoStream selected = PlayerUtils.selectVideoStream(muxed.muxedStreams(), preferredQuality);
-		PlaybackPlan plan = new PlaybackPlan();
-		plan.setStreamType(deliveries.getStreamType());
-		plan.setMode(PlaybackMode.MUXED);
-		plan.setDelivery(muxed);
-		plan.setMuxedCandidate(findVideoCandidate(muxed.getMuxed(), selected));
-		return plan.getMuxedCandidate() != null ? plan : null;
-	}
-
-	@Nullable
-	public static PlaybackPlan muxedFallbackPlan(@NonNull DeliveryCatalog deliveries,
 	                                             @Nullable String preferredQuality,
 	                                             @NonNull Predicate<StreamCandidate> blocked) {
 		Delivery muxed = deliveries.first(PlaybackMode.MUXED);

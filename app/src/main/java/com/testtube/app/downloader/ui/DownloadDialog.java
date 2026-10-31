@@ -7,6 +7,7 @@ import android.content.ServiceConnection;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.text.format.Formatter;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
@@ -527,7 +528,7 @@ public class DownloadDialog {
 	}
 
 	private String formatSize(long bytes) {
-		return bytes <= 0 ? "Unknown" : String.format(Locale.US, "%.1f MB", bytes / 1048576.0);
+		return bytes <= 0 ? context.getString(R.string.unknown) : Formatter.formatShortFileSize(context, bytes);
 	}
 
 	private void restoreSavedState() {

@@ -1,8 +1,11 @@
 package com.testtube.app.util;
 
+import android.app.Activity;
 import android.content.Context;
+import android.content.ContextWrapper;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
+import android.view.View;
 import android.widget.ImageView;
 
 import androidx.annotation.DrawableRes;
@@ -66,18 +69,37 @@ public final class ImageUtils {
 			view.setImageResource(placeholder);
 			return;
 		}
-		request(Glide.with(view), url, placeholder).into(view);
+		RequestManager glide = glide(view);
+		if (glide != null) request(glide, url, placeholder).into(view);
 	}
 
 	/** Tries {@code url} and, if it doesn't exist, {@code fallback} (vertical Shorts thumbnails). */
 	public static void loadWithFallback(@NonNull ImageView view, @NonNull String url, @NonNull String fallback) {
-		RequestManager glide = Glide.with(view);
-		request(glide, url, 0).error(request(glide, fallback, 0)).into(view);
+		RequestManager glide = glide(view);
+		if (glide != null) request(glide, url, 0).error(request(glide, fallback, 0)).into(view);
 	}
 
 	/** Stops a load into the view (a recycled row) and lets go of its picture. */
 	public static void clear(@NonNull ImageView view) {
-		Glide.with(view).clear(view);
+		RequestManager glide = glide(view);
+		if (glide != null) glide.clear(view);
+	}
+
+	/**
+	 * Glide for a view, or null when its screen is already gone: Glide throws for a destroyed
+	 * activity, and late callbacks (a list refreshing after the screen was rebuilt for a new
+	 * theme) would take the whole app down with it. Its requests ended with the screen anyway.
+	 */
+	@Nullable
+	private static RequestManager glide(@NonNull View view) {
+		Context context = view.getContext();
+		while (context instanceof ContextWrapper wrapper) {
+			if (context instanceof Activity activity) {
+				return activity.isDestroyed() ? null : Glide.with(view);
+			}
+			context = wrapper.getBaseContext();
+		}
+		return Glide.with(view);
 	}
 
 	/** Downloads a picture ahead of time, for rows that aren't on screen yet. */

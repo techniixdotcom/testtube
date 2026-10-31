@@ -32,13 +32,14 @@ public final class AppSettings {
 	private static final String KEY_WATCHED_DIM = "watched_dim_percent";
 	private static final String KEY_THEME = "app_theme";
 	private static final String KEY_WELCOME_VERSION = "welcome_version";
+	private static final String KEY_CLEAR_CACHE_ON_EXIT = "clear_cache_on_exit";
 	private static final int MIN_WATCHED_DIM = 20;
 	private static final int MAX_WATCHED_DIM = 90;
 	private static final int WATCHED_DIM_STEP = 5;
 	/** As dark as watched videos were before this became a setting. */
 	private static final int DEFAULT_WATCHED_DIM = 70;
 	/** Raised when the welcome dialog gets new choices, so everyone sees it once more. */
-	private static final int WELCOME_VERSION = 5;
+	private static final int WELCOME_VERSION = 6;
 
 	private static volatile boolean loaded;
 	private static volatile boolean shorts;
@@ -61,6 +62,7 @@ public final class AppSettings {
 	private static volatile int watchedDim = DEFAULT_WATCHED_DIM;
 	@NonNull
 	private static volatile Theme theme = Theme.SYSTEM;
+	private static volatile boolean clearCacheOnExit;
 
 	private AppSettings() {
 	}
@@ -334,6 +336,18 @@ public final class AppSettings {
 		return Math.max(MIN_WATCHED_DIM, Math.min(MAX_WATCHED_DIM, stepped));
 	}
 
+	/** Empty the video and picture caches when the app is closed (for phones short on space). Off by default. */
+	public static boolean clearCacheOnExit() {
+		load();
+		return clearCacheOnExit;
+	}
+
+	public static void setClearCacheOnExit(boolean clear) {
+		load();
+		clearCacheOnExit = clear;
+		MMKV.defaultMMKV().encode(KEY_CLEAR_CACHE_ON_EXIT, clear);
+	}
+
 	public static boolean welcomeShown() {
 		return MMKV.defaultMMKV().decodeInt(KEY_WELCOME_VERSION, 0) >= WELCOME_VERSION;
 	}
@@ -370,6 +384,7 @@ public final class AppSettings {
 			greyWatched = store.decodeBool(KEY_GREY_WATCHED, true);
 			watchedDim = clampDim(store.decodeInt(KEY_WATCHED_DIM, DEFAULT_WATCHED_DIM));
 			theme = GestureAction.parse(Theme.class, store.decodeString(KEY_THEME, null), Theme.SYSTEM);
+			clearCacheOnExit = store.decodeBool(KEY_CLEAR_CACHE_ON_EXIT, false);
 			loaded = true;
 		}
 	}

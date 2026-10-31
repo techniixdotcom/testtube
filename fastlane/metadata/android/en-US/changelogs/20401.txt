@@ -1,0 +1,5 @@
+- Light theme no longer turned dark by Android's expanded dark theme
+- Fixed a crash after switching the theme
+- New: Clear cache on exit
+- Paused videos don't keep the app running in the background
+- After an unexpected close, the error can be copied for a bug report

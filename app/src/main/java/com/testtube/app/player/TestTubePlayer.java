@@ -804,7 +804,6 @@ public class TestTubePlayer {
 		wasInPip = false;
 		onRestore = null;
 		onClose = null;
-		controller.release();
 		if (network != null) network.removeListener(networkListener);
 		activity.runOnUiThread(() -> {
 			listenToFloatingControls(false);

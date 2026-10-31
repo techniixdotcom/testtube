@@ -39,6 +39,7 @@
     <string name="lock_screen">Ekranı Kilitle</string>
     <string name="unlock_screen">Ekran kilidini aç</string>
     <string name="error_title">Hata</string>
+    <string name="crash_last_time">TestTube geçen sefer beklenmedik şekilde kapandı</string>
     <string name="copy">Kopyala</string>
     <string name="debug_info_copied">Hata ayıklama bilgileri kopyalandı</string>
     <string name="playback_end_next">Sıradakini oynat</string>
@@ -368,6 +369,8 @@
     <string name="setting_video_cache_summary">Büyük önbellek, hızlı başlangıç</string>
     <string name="setting_clear_cache">Önbelleği temizle</string>
     <string name="setting_clear_cache_summary">Video, resimler ve web verileri</string>
+    <string name="setting_clear_cache_on_exit">Çıkışta önbelleği temizle</string>
+    <string name="setting_clear_cache_on_exit_summary">Uygulama kapatılınca kayıtlı video ve resimler silinir</string>
     <string name="video_cache_large">Büyük (150 MB)</string>
     <string name="video_cache_medium">Orta (100 MB)</string>
     <string name="video_cache_small">Küçük (50 MB)</string>

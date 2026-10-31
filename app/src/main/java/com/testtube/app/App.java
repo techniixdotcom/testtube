@@ -15,6 +15,7 @@ import androidx.webkit.WebViewCompat;
 
 import com.tencent.mmkv.MMKV;
 import com.testtube.app.extractor.ContentLanguage;
+import com.testtube.app.util.CrashLog;
 import com.testtube.app.util.UserAgents;
 
 @UnstableApi
@@ -25,6 +26,7 @@ public class App extends Application {
 	@Override
 	public void onCreate() {
 		super.onCreate();
+		CrashLog.install(this);
 		MMKV.initialize(this);
 		// Before any screen is created, so the first one already has the chosen colours
 		AppCompatDelegate.setDefaultNightMode(AppSettings.theme().nightMode);

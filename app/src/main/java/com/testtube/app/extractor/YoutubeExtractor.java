@@ -126,11 +126,6 @@ public final class YoutubeExtractor {
 		return null;
 	}
 
-	private static boolean same(@Nullable Object first,
-	                            @Nullable Object second) {
-		return Objects.equals(first, second);
-	}
-
 	private static boolean isLive(@Nullable StreamType streamType) {
 		return streamType == StreamType.LIVE_STREAM
 						|| streamType == StreamType.AUDIO_LIVE_STREAM
@@ -281,9 +276,10 @@ public final class YoutubeExtractor {
 		ensureNotCancelled(session);
 
 		if (!refresh) {
+			// A fresh object from the stored JSON, nobody else holds it
 			PlaybackDetails cached = cache.getPlaybackDetails(videoId);
 			if (cached != null) {
-				return copy(cached, PlaybackDetails.class);
+				return cached;
 			}
 		}
 
@@ -336,7 +332,8 @@ public final class YoutubeExtractor {
 		} else if (!shortVideo) {
 			cache.putRelatedVideos(videoId, collectRelated(streamInfo.getRelatedItems(), videoId));
 		}
-		return copy(details, PlaybackDetails.class);
+		// Only Task hands it out, as a copy for each caller
+		return details;
 	}
 
 	/** Reads likes, suggestions and chapters once their request is back, and passes them on. */
@@ -374,7 +371,7 @@ public final class YoutubeExtractor {
 							cached.plan(), segments, cached.subtitles());
 			cache.putPlaybackDetails(videoId, updated);
 			Consumer<PlaybackDetails> listener = extrasListener;
-			if (listener != null) listener.accept(copy(updated, PlaybackDetails.class));
+			if (listener != null) listener.accept(updated);
 		}, executor);
 		extras.put(videoId, done);
 		done.whenComplete((ignored, error) -> extras.remove(videoId, done));
@@ -476,9 +473,9 @@ public final class YoutubeExtractor {
 	                       @NonNull StreamCandidate candidate) {
 		String url = candidate.getUrl();
 		for (StreamCandidate item : out) {
-			if (same(item.getKind(), candidate.getKind())
-							&& same(item.getSourceClient(), candidate.getSourceClient())
-							&& same(item.getUrl(), url)) {
+			if (Objects.equals(item.getKind(), candidate.getKind())
+							&& Objects.equals(item.getSourceClient(), candidate.getSourceClient())
+							&& Objects.equals(item.getUrl(), url)) {
 				return;
 			}
 		}

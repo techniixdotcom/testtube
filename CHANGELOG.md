@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.4.1
+
+- Light theme stays light on phones with Android 16's "expanded dark theme" (it was being inverted into an odd dark look)
+- Fixed a crash right after switching the theme
+- New: Clear cache on exit (Settings → Playback, also in the welcome dialog, which shows once more for it)
+- Paused videos no longer keep the app running in the background; the notification can be swiped away then
+- If the app ever closes unexpectedly, the next start shows the error to copy into a bug report
+
 ## 2.4.0
 
 - Videos start playing before likes, suggestions and chapters are in; those fill in a moment later
@@ -7,6 +15,10 @@
 - BotGuard and the connections to YouTube get set up shortly after start, not on the first tap
 - Home: first page shown right away, more loaded right after instead of before
 - Baseline profile covers Glide and OkHttp too
+- Requests waiting for a free slot start the moment one frees up instead of polling; the AI-list scan no longer holds a slot
+- Video details aren't copied through JSON twice more on every start
+- Offline copy of the lists is written in the background, not on the main thread
+- Download sizes in your language and units; removed unused code and duplicate helpers
 
 ## 2.3.1
 

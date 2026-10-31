@@ -3,8 +3,8 @@ package com.testtube.app.extractor;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.google.gson.Gson;
 import com.tencent.mmkv.MMKV;
+import com.testtube.app.util.Json;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -33,8 +33,6 @@ public final class LocalSubscriptions {
 	@NonNull
 	private final MMKV store;
 	@NonNull
-	private final Gson gson = new Gson();
-	@NonNull
 	private final List<Channel> channels = new ArrayList<>();
 
 	private LocalSubscriptions(@NonNull MMKV store) {
@@ -42,7 +40,7 @@ public final class LocalSubscriptions {
 		String json = store.decodeString(KEY, null);
 		if (json == null) return;
 		try {
-			Channel[] saved = gson.fromJson(json, Channel[].class);
+			Channel[] saved = Json.GSON.fromJson(json, Channel[].class);
 			if (saved == null) return;
 			for (Channel channel : saved) {
 				if (channel != null && channel.id() != null) {
@@ -127,7 +125,7 @@ public final class LocalSubscriptions {
 	}
 
 	private void save() {
-		store.encode(KEY, gson.toJson(channels));
+		store.encode(KEY, Json.GSON.toJson(channels));
 	}
 
 	/** Google Takeout subscriptions.csv format (readable by {@link #parseImport}). */

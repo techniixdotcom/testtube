@@ -77,6 +77,7 @@ import com.testtube.app.ui.library.LibraryScreen;
 import com.testtube.app.ui.queue.QueueAdapter;
 import com.testtube.app.ui.queue.QueueTouch;
 import com.testtube.app.update.UpdateManager;
+import com.testtube.app.util.CrashLog;
 import com.testtube.app.util.DeviceUtils;
 import com.testtube.app.util.PermissionUtils;
 import com.testtube.app.util.ToastUtils;
@@ -578,6 +579,8 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		if (bootstrapped) return;
 		bootstrapped = true;
 		goTo(R.id.nav_home);
+		String crash = AppSettings.welcomeShown() ? CrashLog.take(this) : null;
+		if (crash != null) ErrorDialog.show(this, getString(R.string.crash_last_time), crash);
 		if (!AppSettings.welcomeShown()) {
 			AppGraph app = AppGraph.of(this);
 			UpdateManager updates = app.updateManager();
@@ -1179,6 +1182,11 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		if (libraryScreen != null) libraryScreen.release();
 		if (serviceConnection != null) unbindService(serviceConnection);
 		if ((!isChangingConfigurations() || recreatingForTheme) && player != null) player.release();
+		// Closed for good (not rebuilt): the player above let go of the video cache by now
+		if (isFinishing() && !isChangingConfigurations() && AppSettings.clearCacheOnExit()) {
+			AppGraph app = AppGraph.of(this);
+			app.executor().execute(app::clearCaches);
+		}
 	}
 
 	@Override

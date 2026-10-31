@@ -56,6 +56,11 @@
             the light theme by itself (inverting cards, switches and icons in dialogs).
         -->
         <item name="android:forceDarkAllowed" tools:targetApi="29">false</item>
+        <!--
+            Android 16's "expanded dark theme" inverts every app whose theme says it is light, and
+            doesn't ask forceDarkAllowed. Light was picked on purpose in the settings, so it stays light.
+        -->
+        <item name="android:isLightTheme" tools:targetApi="29">false</item>
     </style>
 
     <style name="Theme.TestTube" parent="Base.Theme.TestTube" />

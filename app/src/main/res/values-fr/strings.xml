@@ -24,6 +24,7 @@
     <string name="lock_screen">Verrouiller l\'écran</string>
     <string name="unlock_screen">Déverrouiller l\'écran</string>
     <string name="error_title">Erreur</string>
+    <string name="crash_last_time">TestTube s\'est fermé de manière inattendue la dernière fois</string>
     <string name="copy">Copier</string>
     <string name="debug_info_copied">Infos de débogage copiées dans le presse-papiers</string>
     <string name="subtitles">Sous-titres</string>
@@ -367,6 +368,8 @@
     <string name="setting_video_cache_summary">Plus de cache, démarrage plus rapide</string>
     <string name="setting_clear_cache">Vider le cache</string>
     <string name="setting_clear_cache_summary">Vidéo, images et données web</string>
+    <string name="setting_clear_cache_on_exit">Vider le cache à la fermeture</string>
+    <string name="setting_clear_cache_on_exit_summary">Les vidéos et images enregistrées sont supprimées à la fermeture de l\'app</string>
     <string name="video_cache_large">Grand (150 Mo)</string>
     <string name="video_cache_medium">Moyen (100 Mo)</string>
     <string name="video_cache_small">Petit (50 Mo)</string>

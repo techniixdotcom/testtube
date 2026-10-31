@@ -749,9 +749,6 @@ public class Controller {
 		}
 	}
 
-	public void release() {
-	}
-
 	public void onPictureInPictureModeChanged(boolean isInPiP) {
 		final ControllerState.Mode previousState = state.mode();
 		state = isInPiP ? state.enterPip() : state.exitPip();

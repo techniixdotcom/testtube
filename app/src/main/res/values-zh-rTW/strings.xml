@@ -25,6 +25,7 @@
     <string name="lock_screen">鎖定螢幕</string>
     <string name="unlock_screen">解鎖螢幕</string>
     <string name="error_title">錯誤</string>
+    <string name="crash_last_time">TestTube 上次意外關閉</string>
     <string name="copy">複製</string>
     <string name="debug_info_copied">調試資訊已複製到剪貼板</string>
     <string name="playback_end_next">播完後播放下一個</string>
@@ -365,6 +366,8 @@
     <string name="setting_video_cache_summary">快取越大，啟動越快</string>
     <string name="setting_clear_cache">清除快取</string>
     <string name="setting_clear_cache_summary">影片、圖片和網頁資料</string>
+    <string name="setting_clear_cache_on_exit">結束時清除快取</string>
+    <string name="setting_clear_cache_on_exit_summary">關閉應用程式時刪除已儲存的影片和圖片</string>
     <string name="video_cache_large">大（150 MB）</string>
     <string name="video_cache_medium">中（100 MB）</string>
     <string name="video_cache_small">小（50 MB）</string>

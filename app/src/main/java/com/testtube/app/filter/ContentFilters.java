@@ -219,7 +219,7 @@ public final class ContentFilters {
 		String finalAltPath = altPath;
 		List<BlockedChannel> items = blockedChannels();
 		items.removeIf(item -> matches(item, display, finalPath) || matches(item, display, finalAltPath));
-		items.add(new BlockedChannel(display, path, altPath, System.currentTimeMillis()));
+		items.add(new BlockedChannel(display, path, altPath));
 		writeBlocked(items);
 		return true;
 	}

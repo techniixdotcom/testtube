@@ -37,6 +37,7 @@
     <string name="lock_screen">锁定屏幕</string>
     <string name="unlock_screen">解锁屏幕</string>
     <string name="error_title">错误</string>
+    <string name="crash_last_time">TestTube 上次意外关闭</string>
     <string name="copy">复制</string>
     <string name="debug_info_copied">调试信息已复制到剪贴板</string>
     <string name="playback_end_next">播完后播放下一首</string>
@@ -365,6 +366,8 @@
     <string name="setting_video_cache_summary">缓存越大，启动越快</string>
     <string name="setting_clear_cache">清除缓存</string>
     <string name="setting_clear_cache_summary">视频、图片和网页数据</string>
+    <string name="setting_clear_cache_on_exit">退出时清除缓存</string>
+    <string name="setting_clear_cache_on_exit_summary">关闭应用时删除已保存的视频和图片</string>
     <string name="video_cache_large">大（150 MB）</string>
     <string name="video_cache_medium">中（100 MB）</string>
     <string name="video_cache_small">小（50 MB）</string>

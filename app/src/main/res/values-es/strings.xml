@@ -39,6 +39,7 @@
     <string name="lock_screen">Bloquear pantalla</string>
     <string name="unlock_screen">Desbloquear pantalla</string>
     <string name="error_title">Error</string>
+    <string name="crash_last_time">TestTube se cerró inesperadamente la última vez</string>
     <string name="copy">Copiar</string>
     <string name="debug_info_copied">Información de depuración copiada al portapapeles</string>
     <string name="playback_end_next">Reproducir siguiente</string>
@@ -369,6 +370,8 @@
     <string name="setting_video_cache_summary">Más caché, inicio más rápido</string>
     <string name="setting_clear_cache">Borrar caché</string>
     <string name="setting_clear_cache_summary">Vídeo, imágenes y datos web</string>
+    <string name="setting_clear_cache_on_exit">Borrar caché al salir</string>
+    <string name="setting_clear_cache_on_exit_summary">Los vídeos y las imágenes guardados se eliminan al cerrar la app</string>
     <string name="video_cache_large">Grande (150 MB)</string>
     <string name="video_cache_medium">Mediana (100 MB)</string>
     <string name="video_cache_small">Pequeña (50 MB)</string>

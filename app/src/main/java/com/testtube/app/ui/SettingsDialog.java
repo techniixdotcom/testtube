@@ -136,6 +136,8 @@ final class SettingsDialog {
 						.setNegativeButton(R.string.cancel, null)
 						.setPositiveButton(R.string.clear, (dialog, which) -> clearCache(activity, cacheSize))
 						.show());
+		MaterialSwitch clearOnExit = form.toggle(playback, R.string.setting_clear_cache_on_exit,
+						R.string.setting_clear_cache_on_exit_summary, AppSettings.clearCacheOnExit());
 
 		ViewGroup gestures = form.section(R.string.settings_section_gestures);
 		MaterialSwitch customGestures = form.toggle(gestures, R.string.setting_gestures,
@@ -201,6 +203,7 @@ final class SettingsDialog {
 								AppSettings.setVideoCache(videoCache.value);
 								AppGraph.of(activity).applyVideoCacheSize();
 							}
+							AppSettings.setClearCacheOnExit(clearOnExit.isChecked());
 							AppSettings.setGesturesEnabled(customGestures.isChecked());
 							AppSettings.setGestures(left.value, right.value, horizontal.value, doubleTap.value);
 							AppSettings.setCommentingEnabled(commenting.isChecked());
@@ -224,12 +227,16 @@ final class SettingsDialog {
 		AppCompatDelegate.setDefaultNightMode(theme.nightMode);
 		boolean night = theme == AppSettings.Theme.DARK
 						|| theme == AppSettings.Theme.SYSTEM && isNight(Resources.getSystem().getConfiguration());
-		if (night == wasNight || activity.isFinishing() || activity.isDestroyed()) return;
-		if (activity instanceof MainActivity) {
-			((MainActivity) activity).recreateForTheme();
-		} else {
-			activity.recreate();
-		}
+		if (night == wasNight) return;
+		// Once the dialog is fully gone, not from inside its dismiss
+		activity.getWindow().getDecorView().post(() -> {
+			if (activity.isFinishing() || activity.isDestroyed()) return;
+			if (activity instanceof MainActivity main) {
+				main.recreateForTheme();
+			} else {
+				activity.recreate();
+			}
+		});
 	}
 
 	private static boolean isNight(@NonNull Configuration config) {

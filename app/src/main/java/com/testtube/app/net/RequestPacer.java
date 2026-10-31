@@ -128,6 +128,9 @@ public final class RequestPacer {
 		if (background) sleep(randomBetween(BACKGROUND_GAP_MIN_MS, BACKGROUND_GAP_MAX_MS), cancelled);
 		long foregroundDeadline = SystemClock.elapsedRealtime() + FOREGROUND_MAX_WAIT_MS;
 		while (true) {
+			if (cancelled != null && cancelled.getAsBoolean()) {
+				throw new InterruptedIOException("Request canceled while waiting");
+			}
 			long waitMs;
 			synchronized (LOCK) {
 				long now = SystemClock.elapsedRealtime();
@@ -148,7 +151,14 @@ public final class RequestPacer {
 				} else if (tokens < needed) {
 					waitMs = (long) Math.ceil((needed - tokens) / REFILL_PER_SECOND * 1000);
 				} else {
-					waitMs = POLL_MS;
+					// All slots taken: Slot.close() wakes this the moment one is free
+					try {
+						LOCK.wait(POLL_MS * 2);
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+						throw new InterruptedIOException("Interrupted while waiting to send a request");
+					}
+					continue;
 				}
 			}
 			sleep(Math.max(POLL_MS / 2, Math.min(waitMs, 500)), cancelled);

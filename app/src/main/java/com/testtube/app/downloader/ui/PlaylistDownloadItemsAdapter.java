@@ -1,5 +1,6 @@
 package com.testtube.app.downloader.ui;
 
+import android.text.format.DateUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -16,7 +17,6 @@ import com.testtube.app.util.ViewUtils;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 public final class PlaylistDownloadItemsAdapter extends RecyclerView.Adapter<PlaylistDownloadItemsAdapter.VH> {
 	@NonNull
@@ -128,7 +128,7 @@ public final class PlaylistDownloadItemsAdapter extends RecyclerView.Adapter<Pla
 				parts.add(item.getAuthor());
 			}
 			if (item.getDurationSeconds() > 0) {
-				parts.add(formatDuration(item.getDurationSeconds()));
+				parts.add(DateUtils.formatElapsedTime(item.getDurationSeconds()));
 			}
 			if (parts.isEmpty() && item.getFailureReason() != null && !item.getFailureReason().isBlank()) {
 				return item.getFailureReason();
@@ -177,17 +177,6 @@ public final class PlaylistDownloadItemsAdapter extends RecyclerView.Adapter<Pla
 				attr = com.google.android.material.R.attr.colorOnSurfaceVariant;
 			}
 			return ViewUtils.themeColor(itemView.getContext(), attr);
-		}
-
-		@NonNull
-		private String formatDuration(long durationSeconds) {
-			long hours = durationSeconds / 3600L;
-			long minutes = (durationSeconds % 3600L) / 60L;
-			long seconds = durationSeconds % 60L;
-			if (hours > 0) {
-				return String.format(Locale.US, "%d:%02d:%02d", hours, minutes, seconds);
-			}
-			return String.format(Locale.US, "%d:%02d", minutes, seconds);
 		}
 	}
 }

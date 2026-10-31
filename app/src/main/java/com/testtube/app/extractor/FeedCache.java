@@ -2,13 +2,15 @@ package com.testtube.app.extractor;
 
 import androidx.annotation.NonNull;
 
-import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.tencent.mmkv.MMKV;
+import com.testtube.app.util.Json;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 /** Last loaded list per feed, shown when a fresh load fails (e.g. offline). */
 public final class FeedCache {
@@ -16,18 +18,25 @@ public final class FeedCache {
 	private static final String PREFIX = "feed_cache_";
 	private static final Type LIST_TYPE = new TypeToken<List<FeedItem>>() {
 	}.getType();
-	private static final Gson GSON = new Gson();
+	private static final Executor WRITER = Executors.newSingleThreadExecutor(task -> {
+		Thread thread = new Thread(task, "feed-cache");
+		thread.setDaemon(true);
+		return thread;
+	});
 
 	private FeedCache() {
 	}
 
+	/** Rows are immutable, so a copy of the list can be written out off the main thread. */
 	public static void save(@NonNull String key, @NonNull List<FeedItem> items) {
 		List<FeedItem> kept = new ArrayList<>(items.subList(0, Math.min(items.size(), MAX_ITEMS)));
-		try {
-			MMKV.defaultMMKV().encode(PREFIX + key, GSON.toJson(kept, LIST_TYPE));
-		} catch (RuntimeException ignored) {
-			// The cache is only a convenience.
-		}
+		WRITER.execute(() -> {
+			try {
+				MMKV.defaultMMKV().encode(PREFIX + key, Json.GSON.toJson(kept, LIST_TYPE));
+			} catch (RuntimeException ignored) {
+				// The cache is only a convenience.
+			}
+		});
 	}
 
 	@NonNull
@@ -35,7 +44,7 @@ public final class FeedCache {
 		try {
 			String json = MMKV.defaultMMKV().decodeString(PREFIX + key, null);
 			if (json == null) return new ArrayList<>();
-			List<FeedItem> items = GSON.fromJson(json, LIST_TYPE);
+			List<FeedItem> items = Json.GSON.fromJson(json, LIST_TYPE);
 			return items == null ? new ArrayList<>() : new ArrayList<>(items);
 		} catch (RuntimeException e) {
 			return new ArrayList<>();

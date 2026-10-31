@@ -40,6 +40,7 @@ import com.testtube.app.player.engine.VideoCacheEvictor;
 import com.testtube.app.player.queue.QueueRepository;
 import com.testtube.app.player.sponsor.SponsorBlockManager;
 import com.testtube.app.update.UpdateManager;
+import com.testtube.app.util.Json;
 import com.testtube.app.util.NetworkWatcher;
 
 import okhttp3.Cache;
@@ -71,7 +72,6 @@ public final class AppGraph {
 	private final Context context;
 	private OkHttpClient okHttpClient;
 	private Executor executor;
-	private Gson gson;
 	private MMKV mmkv;
 	private SimpleCache simpleCache;
 	private VideoCacheEvictor cacheEvictor;
@@ -175,9 +175,8 @@ public final class AppGraph {
 	}
 
 	@NonNull
-	public synchronized Gson gson() {
-		if (gson == null) gson = new Gson();
-		return gson;
+	public Gson gson() {
+		return Json.GSON;
 	}
 
 	@NonNull
@@ -370,6 +369,7 @@ public final class AppGraph {
 		if (extractorDownloader == null) {
 			extractorDownloader = new DownloaderImpl(okHttpClient(), extractionSessionScope());
 			AiChannelList aiChannels = aiChannelList();
+			// Synchronous on purpose: the rows of this very response get filtered with what it taught
 			extractorDownloader.setResponseListener(response -> {
 				if (aiChannels.isEnabled()) aiChannels.learn(response);
 			});

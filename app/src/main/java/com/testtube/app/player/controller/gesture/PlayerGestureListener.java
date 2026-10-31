@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.media.AudioManager;
 import android.os.Handler;
 import android.provider.Settings;
+import android.text.format.DateUtils;
 import android.view.GestureDetector;
 import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
@@ -21,7 +22,6 @@ import com.testtube.app.player.TestTubePlayerView;
 import com.testtube.app.player.controller.Controller;
 import com.testtube.app.player.engine.Engine;
 
-import java.util.Locale;
 
 /**
  * Tap toggles the controls. The rest follows the gesture settings ({@link AppSettings}): by default
@@ -275,17 +275,7 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 		long offset = (long) (((e2.getX() - e1.getX()) / width) * 120000);
 		long pos = seekStartPos + offset;
 		engine.seekTo(pos);
-		controller.showHint(formatTime(pos), -1);
-	}
-
-	private String formatTime(long ms) {
-		if (ms < 0) ms = 0;
-		int seconds = (int) (ms / 1000) % 60;
-		int minutes = (int) ((ms / (1000 * 60)) % 60);
-		int hours = (int) ((ms / (1000 * 60 * 60)) % 24);
-		if (hours > 0)
-			return String.format(Locale.getDefault(), "%d:%02d:%02d", hours, minutes, seconds);
-		return String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds);
+		controller.showHint(DateUtils.formatElapsedTime(Math.max(0L, pos) / 1000L), -1);
 	}
 
 	private void handleMinimizeGesture(@NonNull MotionEvent e1, @NonNull MotionEvent e2) {

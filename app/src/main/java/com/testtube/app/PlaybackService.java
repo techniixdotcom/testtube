@@ -22,6 +22,7 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.ServiceCompat;
 import androidx.core.content.ContextCompat;
 import androidx.media.app.NotificationCompat.MediaStyle;
 import androidx.media.session.MediaButtonReceiver;
@@ -125,7 +126,8 @@ public class PlaybackService extends Service {
 	public int onStartCommand(@Nullable Intent intent, int flags, int startId) {
 		MediaSessionCompat session = mediaSession;
 		if (intent != null && session != null) MediaButtonReceiver.handleIntent(session, intent);
-		return START_STICKY;
+		// Nothing to bring back after the system stopped it: the video lives in the app
+		return START_NOT_STICKY;
 	}
 
 	public void initialize(@NonNull Engine engine) {
@@ -150,6 +152,13 @@ public class PlaybackService extends Service {
 			@Override
 			public void onSkipToPrevious() {
 				engine.skipToPrevious();
+			}
+
+			@Override
+			public void onStop() {
+				// The paused notification was swiped away
+				engine.pause();
+				hideNotification();
 			}
 
 			@Override
@@ -248,17 +257,7 @@ public class PlaybackService extends Service {
 						.build();
 		session.setMetadata(initialMetadata);
 		Notification initialNotification = buildNotification(lastIsPlayingState);
-		if (initialNotification != null && !shouldAbort()) {
-			try {
-				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-					startForeground(NOTIFICATION_ID, initialNotification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
-				} else {
-					startForeground(NOTIFICATION_ID, initialNotification);
-				}
-			} catch (Exception e) {
-				Log.e(TAG, "startForeground failed: " + e.getMessage());
-			}
-		}
+		if (initialNotification != null && !shouldAbort()) startInForeground(initialNotification);
 		try {
 			executorService.execute(() -> {
 				if (shouldAbort()) return;
@@ -285,6 +284,21 @@ public class PlaybackService extends Service {
 		}
 	}
 
+	private void startInForeground(@NonNull Notification notification) {
+		try {
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+				startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+			} else {
+				startForeground(NOTIFICATION_ID, notification);
+			}
+		} catch (Exception e) {
+			// Not allowed from the background on newer Android; the notification still shows
+			Log.e(TAG, "startForeground failed: " + e.getMessage());
+			NotificationManager manager = notificationManager;
+			if (manager != null) manager.notify(NOTIFICATION_ID, notification);
+		}
+	}
+
 	public void hideNotification() {
 		stopForeground(true);
 		if (notificationManager != null) notificationManager.cancel(NOTIFICATION_ID);
@@ -302,8 +316,16 @@ public class PlaybackService extends Service {
 		session.setPlaybackState(playbackState);
 		if (isPlaying != lastIsPlayingState) {
 			Notification updatedNotification = buildNotification(isPlaying);
-			if (updatedNotification != null && manager != null && !shouldAbort())
-				manager.notify(NOTIFICATION_ID, updatedNotification);
+			if (updatedNotification != null && manager != null && !shouldAbort()) {
+				if (isPlaying) {
+					startInForeground(updatedNotification);
+				} else {
+					// Paused: no reason to keep the app running in the background. The
+					// notification stays, can be swiped away now, and play brings it back.
+					ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH);
+					manager.notify(NOTIFICATION_ID, updatedNotification);
+				}
+			}
 		}
 		lastIsPlayingState = isPlaying;
 	}

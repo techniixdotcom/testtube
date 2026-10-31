@@ -24,6 +24,7 @@
     <string name="lock_screen">화면 잠금</string>
     <string name="unlock_screen">화면 잠금 해제</string>
     <string name="error_title">오류</string>
+    <string name="crash_last_time">지난번에 TestTube가 예기치 않게 종료되었습니다</string>
     <string name="copy">복사</string>
     <string name="debug_info_copied">디버그 정보가 클립보드에 복사되었습니다</string>
     <string name="subtitles">자막</string>
@@ -365,6 +366,8 @@
     <string name="setting_video_cache_summary">클수록 빠르게 시작</string>
     <string name="setting_clear_cache">캐시 지우기</string>
     <string name="setting_clear_cache_summary">동영상, 이미지, 웹 데이터</string>
+    <string name="setting_clear_cache_on_exit">종료 시 캐시 삭제</string>
+    <string name="setting_clear_cache_on_exit_summary">앱을 닫을 때 저장된 동영상과 이미지를 삭제합니다</string>
     <string name="video_cache_large">큼 (150 MB)</string>
     <string name="video_cache_medium">중간 (100 MB)</string>
     <string name="video_cache_small">작음 (50 MB)</string>

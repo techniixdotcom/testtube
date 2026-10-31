@@ -14,7 +14,6 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
-import okhttp3.ResponseBody;
 
 import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
@@ -129,6 +128,7 @@ public final class DownloaderImpl extends Downloader {
 			session.register(call::cancel);
 		}
 
+		org.schabi.newpipe.extractor.downloader.Response result;
 		try (Response response = call.execute()) {
 			if (youtube && !appClient) YoutubeCookies.store(url, response.headers("Set-Cookie"));
 			if (response.code() == 429) {
@@ -136,22 +136,8 @@ public final class DownloaderImpl extends Downloader {
 				throw new ReCaptchaException("ReCaptcha Challenge requested", url);
 			}
 
-			int responseCode = response.code();
-			String responseMessage = response.message();
-			final Map<String, List<String>> responseHeaders = response.headers().toMultimap();
-			ResponseBody responseBody = response.body();
-			String responseBodyString = responseBody.string();
-			Consumer<String> listener = responseListener;
-			if (listener != null) {
-				try {
-					listener.accept(responseBodyString);
-				} catch (RuntimeException e) {
-					// A listener must never break extraction
-					Log.w("DownloaderImpl", "response listener failed", e);
-				}
-			}
-
-			return new org.schabi.newpipe.extractor.downloader.Response(responseCode, responseMessage, responseHeaders, responseBodyString, url);
+			result = new org.schabi.newpipe.extractor.downloader.Response(response.code(), response.message(),
+							response.headers().toMultimap(), response.body().string(), url);
 		} catch (IOException e) {
 			if (session != null && session.isCancelled()) {
 				InterruptedIOException interrupted = new InterruptedIOException("Extraction canceled");
@@ -162,6 +148,17 @@ public final class DownloaderImpl extends Downloader {
 		} finally {
 			if (slot != null) slot.close();
 		}
+		// After the slot is free: scanning a big response shouldn't hold up other requests
+		Consumer<String> listener = responseListener;
+		if (listener != null) {
+			try {
+				listener.accept(result.responseBody());
+			} catch (RuntimeException e) {
+				// A listener must never break extraction
+				Log.w("DownloaderImpl", "response listener failed", e);
+			}
+		}
+		return result;
 	}
 
 	/** Retry-After in seconds (the form YouTube uses), as milliseconds; 0 when absent. */

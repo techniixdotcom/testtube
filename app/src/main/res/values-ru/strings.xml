@@ -24,6 +24,7 @@
     <string name="lock_screen">Заблокировать экран</string>
     <string name="unlock_screen">Разблокировать экран</string>
     <string name="error_title">Ошибка</string>
+    <string name="crash_last_time">В прошлый раз TestTube неожиданно закрылся</string>
     <string name="copy">Копировать</string>
     <string name="debug_info_copied">Отладочная информация скопирована в буфер обмена</string>
     <string name="subtitles">Субтитры</string>
@@ -368,6 +369,8 @@
     <string name="setting_video_cache_summary">Больше кэш — быстрее запуск</string>
     <string name="setting_clear_cache">Очистить кэш</string>
     <string name="setting_clear_cache_summary">Видео, изображения и веб-данные</string>
+    <string name="setting_clear_cache_on_exit">Очищать кэш при выходе</string>
+    <string name="setting_clear_cache_on_exit_summary">Сохранённые видео и изображения удаляются при закрытии приложения</string>
     <string name="video_cache_large">Большой (150 МБ)</string>
     <string name="video_cache_medium">Средний (100 МБ)</string>
     <string name="video_cache_small">Маленький (50 МБ)</string>

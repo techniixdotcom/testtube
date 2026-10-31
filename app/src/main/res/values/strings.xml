@@ -39,6 +39,7 @@
     <string name="lock_screen">Lock Screen</string>
     <string name="unlock_screen">Unlock screen</string>
     <string name="error_title">Error</string>
+    <string name="crash_last_time">TestTube closed unexpectedly last time</string>
     <string name="copy">Copy</string>
     <string name="debug_info_copied">Debug info copied to clipboard</string>
     <string name="playback_end_next">Play next</string>
@@ -350,6 +351,8 @@
     <string name="setting_video_cache_summary">Bigger cache, faster starts</string>
     <string name="setting_clear_cache">Clear cache</string>
     <string name="setting_clear_cache_summary">Video, pictures and web data</string>
+    <string name="setting_clear_cache_on_exit">Clear cache on exit</string>
+    <string name="setting_clear_cache_on_exit_summary">Saved video and pictures are deleted when you close the app</string>
     <string name="video_cache_large">Large (150 MB)</string>
     <string name="video_cache_medium">Medium (100 MB)</string>
     <string name="video_cache_small">Small (50 MB)</string>

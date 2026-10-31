@@ -8,7 +8,6 @@ import android.util.Xml;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.google.gson.Gson;
 import com.grack.nanojson.JsonArray;
 import com.grack.nanojson.JsonObject;
 import com.grack.nanojson.JsonParser;
@@ -18,6 +17,7 @@ import com.tencent.mmkv.MMKV;
 import com.testtube.app.AppSettings;
 import com.testtube.app.Constant;
 import com.testtube.app.net.RequestPacer;
+import com.testtube.app.util.Json;
 
 import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.InfoItem;
@@ -621,20 +621,10 @@ public final class FeedClient {
 
 	/**
 	 * Latest uploads of the locally followed channels, newest first. Next pages continue with
-	 * older uploads.
+	 * older uploads. On the first page {@code partial} gets the whole list again each time more
+	 * channels answered (on a worker thread).
 	 *
 	 * @param continuation {@code next} of the previous page, or null
-	 */
-	@NonNull
-	public Call localSubscriptions(@NonNull List<LocalSubscriptions.Channel> channels,
-	                               @Nullable Object continuation) {
-		return localSubscriptions(channels, continuation, false, null);
-	}
-
-	/**
-	 * Same as {@link #localSubscriptions(List, Object)}, but on the first page {@code partial} gets
-	 * the whole list again each time more channels answered (on a worker thread).
-	 *
 	 * @param force load every channel now (pull to refresh) instead of using recent results
 	 */
 	@NonNull
@@ -651,7 +641,6 @@ public final class FeedClient {
 
 	/** Recent results per channel, so reopening Subscriptions doesn't refetch everything. */
 	private static final Map<String, CachedChannel> CHANNEL_CACHE = new ConcurrentHashMap<>();
-	private static final Gson CACHE_GSON = new Gson();
 
 	@Nullable
 	private static CachedChannel cachedChannel(@NonNull String channelId) {
@@ -660,7 +649,7 @@ public final class FeedClient {
 		try {
 			String json = MMKV.mmkvWithID(CHANNEL_STORE_ID).decodeString(channelId, null);
 			if (json == null) return null;
-			cached = CACHE_GSON.fromJson(json, CachedChannel.class);
+			cached = Json.GSON.fromJson(json, CachedChannel.class);
 		} catch (RuntimeException e) {
 			return null;
 		}
@@ -680,7 +669,7 @@ public final class FeedClient {
 			CachedChannel cached = new CachedChannel(System.currentTimeMillis(), videos);
 			CHANNEL_CACHE.put(channel.id(), cached);
 			try {
-				MMKV.mmkvWithID(CHANNEL_STORE_ID).encode(channel.id(), CACHE_GSON.toJson(cached));
+				MMKV.mmkvWithID(CHANNEL_STORE_ID).encode(channel.id(), Json.GSON.toJson(cached));
 			} catch (RuntimeException ignored) {
 				// Only a cache
 			}
