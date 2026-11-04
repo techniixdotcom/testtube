@@ -48,6 +48,10 @@ Subscriptions come from one of two places. By default the app shows the latest v
 <img src="screens/4.jpeg" alt="" width="200">
 </p>
 
+<p align="center">
+<img src="screens/5.png">
+</p>
+
 
 ## License
 
