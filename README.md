@@ -1,7 +1,7 @@
-<h1 align="center">
-  <img src="testtube.png" height="72" alt="" />
+ <h1 align="center">
+
   <img src="screens/header.png" height="72" alt="TestTube" />
-  <img src="testtube.png" height="72" alt="" />
+
 </h1>
 
 <p align="center">
