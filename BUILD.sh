@@ -1061,6 +1061,19 @@ ensure_gh() {
 	gh auth status >/dev/null 2>&1 || die "The GitHub CLI isn't logged in. Run: gh auth login"
 }
 
+# Folders whose files on GitHub are made to match this source exactly (old files deleted).
+MIRRORED_DIRS=(app newpipe-extractor gradle)
+# Never deleted by --push-source, and left as GitHub has them when this folder has no copy.
+KEEP_ON_GITHUB=(README.md screens testtube.png .github)
+
+is_mirrored() {
+	local dir
+	for dir in "${MIRRORED_DIRS[@]}"; do
+		[[ "$1" == "$dir/"* ]] && return 0
+	done
+	return 1
+}
+
 # Files that must never leave this computer.
 SECRET_PATTERNS=('*.p12' '*.jks' '*.keystore' '*.pem' '*.key' 'signing.env' 'keystore.properties' 'local.properties')
 
@@ -1097,17 +1110,46 @@ push_source() {
 	log "Fetching $slug"
 	gh auth setup-git >/dev/null 2>&1 || true
 	git clone --quiet "https://github.com/$slug.git" "$clone" || die "Could not clone $slug"
-	# Everything in the repo is replaced by the current tree, as one normal commit on top of the
-	# history: files deleted here are deleted there, nothing is force-pushed.
-	find "$clone" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+	# One normal commit on top of the history, nothing is force-pushed. Only the code folders are
+	# mirrored exactly (a file deleted here is deleted there, or Gradle would still compile it);
+	# everything else is added or updated, never deleted. The README, the screenshots and the other
+	# things in KEEP_ON_GITHUB stay exactly as GitHub has them unless this folder has its own copy.
+	local dir
+	for dir in "${MIRRORED_DIRS[@]}"; do
+		rm -rf "${clone:?}/$dir"
+	done
 	copy_source_tree "$clone"
+	local path
+	for path in "${KEEP_ON_GITHUB[@]}"; do
+		if [[ ! -e "$ROOT/$path" ]] && (cd "$clone" && git cat-file -e "HEAD:$path" 2>/dev/null); then
+			rm -rf "${clone:?}/$path"
+			(cd "$clone" && git checkout --quiet HEAD -- "$path")
+		fi
+	done
 	(cd "$clone" && git add -A)
+	# Checked, not trusted: nothing outside the code folders may be deleted
+	local deleted bad=""
+	deleted="$(cd "$clone" && git diff --cached --name-only --diff-filter=D)"
+	while IFS= read -r path; do
+		[[ -n "$path" ]] || continue
+		is_mirrored "$path" || bad+="$path"$'\n'
+	done <<< "$deleted"
+	[[ -z "$bad" ]] || die "Stopped, nothing was pushed: this would delete or change on GitHub:"$'\n'"$bad"
 	if (cd "$clone" && git diff --cached --quiet); then
 		log "GitHub already has exactly this source; nothing to push"
 		return
 	fi
 	log "Changes compared with GitHub:"
 	(cd "$clone" && git diff --cached --stat | tail -n 25)
+	if [[ -n "$deleted" ]]; then
+		log "Deleted on GitHub because they're gone from the code here:"
+		printf '    %s\n' "${deleted//$'\n'/$'\n'    }"
+	fi
+	local kept
+	kept="$(cd "$clone" && git ls-files | while IFS= read -r f; do if [[ ! -e "$ROOT/$f" ]]; then printf '%s\n' "$f"; fi; done)"
+	if [[ -n "$kept" ]]; then
+		log "Kept as they are, only on GitHub: $(printf '%s' "$kept" | awk -F/ '{print $1}' | sort -u | tr '\n' ' ')"
+	fi
 	local message="TestTube $version"
 	if has_tty; then
 		local answer
