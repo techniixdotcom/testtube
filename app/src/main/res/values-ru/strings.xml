@@ -16,6 +16,7 @@
     <string name="action_play">Играть</string>
     <string name="action_previous">Перейти к предыдущему</string>
     <string name="action_next">Перейти к следующему</string>
+    <string name="action_quit">Выйти</string>
     <string name="segments">Сегменты</string>
     <string name="pip">Картинка в картинке</string>
     <string name="reset">Сброс</string>
@@ -309,6 +310,7 @@
     <string name="downloads_clear">Очистить загрузки</string>
     <string name="downloads_clear_confirm">Убрать все загрузки из списка? Скачанные файлы останутся на телефоне.</string>
     <string name="settings_title">Настройки</string>
+    <string name="settings_more">Ниже есть ещё настройки</string>
     <string name="settings_section_content">Контент</string>
     <string name="settings_section_appearance">Оформление</string>
     <string name="setting_theme">Тема</string>
@@ -374,6 +376,10 @@
     <string name="setting_clear_cache_summary">Видео, изображения и веб-данные</string>
     <string name="setting_clear_cache_on_exit">Очищать кэш при выходе</string>
     <string name="setting_clear_cache_on_exit_summary">Сохранённые видео и изображения удаляются при закрытии приложения</string>
+    <string name="setting_allow_hdr">Разрешить HDR</string>
+    <string name="setting_allow_hdr_summary">Выкл — воспроизводится SDR, это исправляет синюю кожу на Samsung и других телефонах</string>
+    <string name="setting_prefer_avc">Предпочитать H264</string>
+    <string name="setting_prefer_avc_summary">Для телефонов, где цвета всё ещё неправильные. До 1080p, расходует больше трафика</string>
     <string name="video_cache_large">Большой (150 МБ)</string>
     <string name="video_cache_medium">Средний (100 МБ)</string>
     <string name="video_cache_small">Маленький (50 МБ)</string>

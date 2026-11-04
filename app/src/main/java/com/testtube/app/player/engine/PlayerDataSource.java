@@ -1,5 +1,6 @@
 package com.testtube.app.player.engine;
 
+import android.content.Context;
 import android.net.Uri;
 
 import androidx.annotation.NonNull;
@@ -7,8 +8,8 @@ import androidx.annotation.Nullable;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.DataSource;
 import androidx.media3.datasource.DataSpec;
-import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.datasource.FileDataSource;
+import androidx.media3.datasource.HttpDataSource;
 import androidx.media3.datasource.cache.CacheDataSink;
 import androidx.media3.datasource.cache.CacheDataSource;
 import androidx.media3.datasource.cache.SimpleCache;
@@ -18,7 +19,7 @@ import androidx.media3.exoplayer.hls.HlsMediaSource;
 import androidx.media3.exoplayer.source.ProgressiveMediaSource;
 
 import com.testtube.app.Constant;
-import com.testtube.app.player.engine.datasource.YoutubeHttpDataSource;
+import com.testtube.app.player.engine.datasource.StreamHttp;
 
 import org.schabi.newpipe.extractor.services.youtube.dashmanifestcreators.YoutubeOtfDashManifestCreator;
 import org.schabi.newpipe.extractor.services.youtube.dashmanifestcreators.YoutubePostLiveStreamDvrDashManifestCreator;
@@ -32,20 +33,18 @@ final class PlayerDataSource {
 	@Nullable
 	private final SimpleCache cache;
 	@NonNull
-	private final DefaultHttpDataSource.Factory liveHttp;
+	private final HttpDataSource.Factory liveHttp;
 	@NonNull
-	private final YoutubeHttpDataSource.Factory ytDashHttp;
+	private final HttpDataSource.Factory ytDashHttp;
 	@NonNull
-	private final YoutubeHttpDataSource.Factory ytProgressiveHttp;
+	private final HttpDataSource.Factory ytProgressiveHttp;
 
-	PlayerDataSource(@Nullable SimpleCache cache) {
+	PlayerDataSource(@NonNull Context context, @Nullable SimpleCache cache) {
 		this.cache = cache;
-		liveHttp = new DefaultHttpDataSource.Factory()
-						.setUserAgent(Constant.USER_AGENT)
-						.setConnectTimeoutMs(30_000)
-						.setReadTimeoutMs(45_000);
-		ytDashHttp = youtubeFactory(true, true);
-		ytProgressiveHttp = youtubeFactory(false, true);
+		liveHttp = StreamHttp.plain(context, Constant.USER_AGENT, 30_000, 45_000);
+		// Web streaming URLs come from the desktop WEB client; VISIONOS ones get their own agent
+		ytDashHttp = StreamHttp.youtube(context, Constant.DESKTOP_USER_AGENT, 30_000, true, true);
+		ytProgressiveHttp = StreamHttp.youtube(context, Constant.DESKTOP_USER_AGENT, 30_000, false, true);
 		YoutubeProgressiveDashManifestCreator.getCache().setMaximumSize(MANIFEST_CACHE_SIZE);
 		YoutubeOtfDashManifestCreator.getCache().setMaximumSize(MANIFEST_CACHE_SIZE);
 		YoutubePostLiveStreamDvrDashManifestCreator.getCache().setMaximumSize(MANIFEST_CACHE_SIZE);
@@ -91,17 +90,6 @@ final class PlayerDataSource {
 	@Nullable
 	CacheDataSource.Factory preloadSource() {
 		return cache == null ? null : cacheFactory(cache, ytDashHttp);
-	}
-
-	@NonNull
-	private YoutubeHttpDataSource.Factory youtubeFactory(boolean rangeEnabled,
-	                                                     boolean rnEnabled) {
-		// Web streaming URLs come from the desktop WEB client; VISIONOS ones get their own agent
-		return new YoutubeHttpDataSource.Factory(Constant.DESKTOP_USER_AGENT)
-						.setConnectTimeoutMs(30_000)
-						.setReadTimeoutMs(30_000)
-						.setRangeParameterEnabled(rangeEnabled)
-						.setRnParameterEnabled(rnEnabled);
 	}
 
 	@NonNull

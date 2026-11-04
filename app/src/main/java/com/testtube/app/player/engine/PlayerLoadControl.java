@@ -9,14 +9,15 @@ class PlayerLoadControl {
 	private PlayerLoadControl() {
 	}
 
+	/** Starts after a second of video; after a stall it waits for 4 so it doesn't stall again at once. */
+	private static final int START_BUFFER_MS = 1_000;
+	private static final int REBUFFER_MS = 4_000;
+	private static final int MIN_BUFFER_MS = 15_000;
+	private static final int MAX_BUFFER_MS = 30_000;
+
 	static DefaultLoadControl create() {
 		return new DefaultLoadControl.Builder()
-						.setBufferDurationsMs(
-										15_000,
-										30_000,
-										1_500,
-										4_000
-						)
+						.setBufferDurationsMs(MIN_BUFFER_MS, MAX_BUFFER_MS, START_BUFFER_MS, REBUFFER_MS)
 						.setPrioritizeTimeOverSizeThresholds(true)
 						.build();
 	}

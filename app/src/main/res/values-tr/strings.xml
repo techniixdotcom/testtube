@@ -30,6 +30,7 @@
     <string name="action_replay">Baştan oynat</string>
     <string name="action_previous">Öncekine geç</string>
     <string name="action_next">Sıradakine geç</string>
+    <string name="action_quit">Çık</string>
 
     <string name="segments">Bölümler</string>
     <string name="pip">Resim içinde Resim (PiP)</string>
@@ -309,6 +310,7 @@
     <string name="downloads_clear">İndirilenleri temizle</string>
     <string name="downloads_clear_confirm">Tüm indirmeler listeden kaldırılsın mı? İndirilen dosyalar telefonunuzda kalır.</string>
     <string name="settings_title">Ayarlar</string>
+    <string name="settings_more">Aşağıda daha fazla ayar var</string>
     <string name="settings_section_content">İçerik</string>
     <string name="settings_section_appearance">Görünüm</string>
     <string name="setting_theme">Tema</string>
@@ -374,6 +376,10 @@
     <string name="setting_clear_cache_summary">Video, resimler ve web verileri</string>
     <string name="setting_clear_cache_on_exit">Çıkışta önbelleği temizle</string>
     <string name="setting_clear_cache_on_exit_summary">Uygulama kapatılınca kayıtlı video ve resimler silinir</string>
+    <string name="setting_allow_hdr">HDR\'ye izin ver</string>
+    <string name="setting_allow_hdr_summary">Kapalıyken SDR oynatılır; Samsung ve diğer telefonlarda mavi teni düzeltir</string>
+    <string name="setting_prefer_avc">H264\'ü tercih et</string>
+    <string name="setting_prefer_avc_summary">Renkleri hâlâ yanlış gösteren telefonlar için. En fazla 1080p, daha fazla veri kullanır</string>
     <string name="video_cache_large">Büyük (150 MB)</string>
     <string name="video_cache_medium">Orta (100 MB)</string>
     <string name="video_cache_small">Küçük (50 MB)</string>

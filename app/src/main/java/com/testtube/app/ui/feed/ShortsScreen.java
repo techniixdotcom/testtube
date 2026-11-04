@@ -61,7 +61,10 @@ public final class ShortsScreen {
 	/** Pages that bring nothing new before giving up for now. */
 	private static final int MAX_EMPTY_PAGES = 3;
 	private static final long PROGRESS_INTERVAL_MS = 250L;
-	/** Shorts extracted ahead of the one on screen; the first of them also loads its video. */
+	/**
+	 * Shorts extracted ahead of the one on screen. The first of them loads in the standby player,
+	 * the rest get their first seconds cached.
+	 */
 	private static final int PREFETCH_AHEAD = 3;
 	/** Some phones don't report the first frame of a player that loaded off screen. */
 	private static final long FIRST_FRAME_FALLBACK_MS = 200L;
@@ -125,6 +128,9 @@ public final class ShortsScreen {
 	/** The next Short, extracted, waiting for the current one to show before loading its video. */
 	@Nullable
 	private PlaybackDetails nextUp;
+	/** Shorts further ahead, extracted, waiting for the same thing before their start is cached. */
+	@NonNull
+	private final List<PlaybackDetails> warmUps = new ArrayList<>();
 
 	public ShortsScreen(@NonNull View root,
 	                    @NonNull FeedClient client,
@@ -209,6 +215,10 @@ public final class ShortsScreen {
 		PlaybackDetails next = nextUp;
 		nextUp = null;
 		if (next != null && active) engine.preload(next);
+		if (active) {
+			for (PlaybackDetails later : warmUps) engine.warm(later);
+		}
+		warmUps.clear();
 	}
 
 	/**
@@ -339,6 +349,7 @@ public final class ShortsScreen {
 		ShortHolder holder = holderAt(current);
 		if (holder != null) holder.showLoading();
 		nextUp = null;
+		warmUps.clear();
 		CompletableFuture<PlaybackDetails> extraction = extractor.getShort(item.url(), null, refresh);
 		if (!refresh) prefetchAhead();
 		extraction.whenComplete((result, error) -> handler.post(() -> {
@@ -378,8 +389,9 @@ public final class ShortsScreen {
 	}
 
 	/**
-	 * Extracts the next few Shorts right away, so swiping on doesn't wait for YouTube; the very next
-	 * one also gets its video loaded once the current one shows.
+	 * Extracts the next few Shorts right away, so swiping on doesn't wait for YouTube. Once the
+	 * current one shows, the very next one loads its video and the ones after it get their start
+	 * cached; before that they'd only slow it down.
 	 */
 	private void prefetchAhead() {
 		int from = current;
@@ -387,13 +399,19 @@ public final class ShortsScreen {
 			FeedItem item = items.get(from + i);
 			CompletableFuture<PlaybackDetails> extraction = extractor.getShort(item.url(),
 							new ExtractionSession().setBackground(true), false);
-			if (i != 1) continue;
+			boolean standby = i == 1;
 			long token = startToken;
 			extraction.whenComplete((result, error) -> handler.post(() -> {
 				if (error != null || result == null || token != startToken || !active) return;
 				details.put(item.videoId(), result.video());
-				if (firstFrameShown) engine.preload(result);
-				else nextUp = result;
+				if (standby) {
+					if (firstFrameShown) engine.preload(result);
+					else nextUp = result;
+				} else if (firstFrameShown) {
+					engine.warm(result);
+				} else {
+					warmUps.add(result);
+				}
 			}));
 		}
 	}

@@ -37,6 +37,8 @@ public final class AppSettings {
 	private static final String KEY_WELCOME_VERSION = "welcome_version";
 	private static final String KEY_CLEAR_CACHE_ON_EXIT = "clear_cache_on_exit";
 	private static final String KEY_SEARCH_ONLY_HOME = "search_only_home";
+	private static final String KEY_ALLOW_HDR = "allow_hdr";
+	private static final String KEY_PREFER_AVC = "prefer_avc";
 	private static final int MIN_WATCHED_DIM = 20;
 	private static final int MAX_WATCHED_DIM = 90;
 	private static final int WATCHED_DIM_STEP = 5;
@@ -68,6 +70,8 @@ public final class AppSettings {
 	private static volatile Theme theme = Theme.SYSTEM;
 	private static volatile boolean clearCacheOnExit;
 	private static volatile boolean searchOnlyHome;
+	private static volatile boolean allowHdr;
+	private static volatile boolean preferAvc;
 
 	private AppSettings() {
 	}
@@ -369,6 +373,37 @@ public final class AppSettings {
 		MMKV.defaultMMKV().encode(KEY_CLEAR_CACHE_ON_EXIT, clear);
 	}
 
+	/**
+	 * Play HDR video (VP9 profile 2, AV1 10-bit). Off by default: many phones, Samsung's above all,
+	 * show it with blue skin and washed-out colours, so SDR is played whenever it exists.
+	 */
+	public static boolean allowHdr() {
+		load();
+		return allowHdr;
+	}
+
+	public static void setAllowHdr(boolean allow) {
+		load();
+		allowHdr = allow;
+		MMKV.defaultMMKV().encode(KEY_ALLOW_HDR, allow);
+	}
+
+	/**
+	 * Only H.264 video when there is any: the decoder every phone gets right. Off by default, since
+	 * YouTube's H.264 stops at 1080p and needs more data than VP9; for phones that still show wrong
+	 * colours with HDR off.
+	 */
+	public static boolean preferAvc() {
+		load();
+		return preferAvc;
+	}
+
+	public static void setPreferAvc(boolean prefer) {
+		load();
+		preferAvc = prefer;
+		MMKV.defaultMMKV().encode(KEY_PREFER_AVC, prefer);
+	}
+
 	/** Home shows only the logo and a search bar, no suggested videos. Off by default. */
 	public static boolean searchOnlyHome() {
 		load();
@@ -419,6 +454,8 @@ public final class AppSettings {
 			theme = GestureAction.parse(Theme.class, store.decodeString(KEY_THEME, null), Theme.SYSTEM);
 			clearCacheOnExit = store.decodeBool(KEY_CLEAR_CACHE_ON_EXIT, false);
 			searchOnlyHome = store.decodeBool(KEY_SEARCH_ONLY_HOME, false);
+			allowHdr = store.decodeBool(KEY_ALLOW_HDR, false);
+			preferAvc = store.decodeBool(KEY_PREFER_AVC, false);
 			loaded = true;
 		}
 	}

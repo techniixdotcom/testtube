@@ -1,23 +1,30 @@
 package com.testtube.app.ui;
 
 import android.app.Activity;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.text.format.Formatter;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.webkit.WebView;
+import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.LayoutRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.StringRes;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.widget.NestedScrollView;
 
-import com.bumptech.glide.Glide;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.slider.Slider;
 import com.testtube.app.AppGraph;
@@ -30,6 +37,7 @@ import com.testtube.app.player.controller.gesture.GestureAction;
 import com.testtube.app.update.UpdateManager;
 import com.testtube.app.util.StringUtils;
 import com.testtube.app.util.ToastUtils;
+import com.testtube.app.util.ViewUtils;
 
 /**
  * The welcome dialog on the first start and the settings behind the TestTube logo. Both show the
@@ -140,6 +148,10 @@ final class SettingsDialog {
 						.show());
 		MaterialSwitch clearOnExit = form.toggle(playback, R.string.setting_clear_cache_on_exit,
 						R.string.setting_clear_cache_on_exit_summary, AppSettings.clearCacheOnExit());
+		MaterialSwitch allowHdr = form.toggle(playback, R.string.setting_allow_hdr,
+						R.string.setting_allow_hdr_summary, AppSettings.allowHdr());
+		MaterialSwitch preferAvc = form.toggle(playback, R.string.setting_prefer_avc,
+						R.string.setting_prefer_avc_summary, AppSettings.preferAvc());
 
 		ViewGroup gestures = form.section(R.string.settings_section_gestures);
 		MaterialSwitch customGestures = form.toggle(gestures, R.string.setting_gestures,
@@ -185,7 +197,7 @@ final class SettingsDialog {
 						? activity.getString(R.string.welcome_message)
 						: activity.getString(R.string.app_name) + " " + versionName(activity));
 
-		Dialogs.builder(activity, R.style.ThemeOverlay_TestTube_AlertDialog_Page)
+		AlertDialog settingsDialog = Dialogs.builder(activity, R.style.ThemeOverlay_TestTube_AlertDialog_Page)
 						.setCustomTitle(header)
 						.setView(view)
 						.setPositiveButton(welcome ? R.string.welcome_start : R.string.update_close, null)
@@ -208,6 +220,9 @@ final class SettingsDialog {
 								AppGraph.of(activity).applyVideoCacheSize();
 							}
 							AppSettings.setClearCacheOnExit(clearOnExit.isChecked());
+							// Next video on (the one playing keeps its streams)
+							AppSettings.setAllowHdr(allowHdr.isChecked());
+							AppSettings.setPreferAvc(preferAvc.isChecked());
 							AppSettings.setGesturesEnabled(customGestures.isChecked());
 							AppSettings.setGestures(left.value, right.value, horizontal.value, doubleTap.value);
 							AppSettings.setCommentingEnabled(commenting.isChecked());
@@ -220,6 +235,7 @@ final class SettingsDialog {
 							if (theme.value != previousTheme) applyTheme(activity, previousTheme, theme.value);
 						})
 						.show();
+		showMoreArrow(settingsDialog, view.findViewById(R.id.settings_scroll));
 	}
 
 	/**
@@ -245,11 +261,59 @@ final class SettingsDialog {
 		});
 	}
 
+	/**
+	 * A down arrow on the button row, centred, level with Close: there while more settings are
+	 * further down, gone at the end. Tapping it scrolls most of a screen down. It sits on the
+	 * button row so it never covers a setting; people kept missing everything below the fold,
+	 * damn it.
+	 */
+	private static void showMoreArrow(@NonNull AlertDialog dialog, @NonNull NestedScrollView scroll) {
+		FrameLayout content = dialog.findViewById(android.R.id.content);
+		Button close = dialog.getButton(DialogInterface.BUTTON_POSITIVE);
+		if (content == null || close == null) return;
+		Context context = content.getContext();
+		int size = ViewUtils.dpToPx(context, MORE_ARROW_DP);
+		int padding = ViewUtils.dpToPx(context, MORE_ARROW_PADDING_DP);
+		ImageView arrow = new ImageView(context);
+		arrow.setImageResource(R.drawable.ic_chevron_down);
+		arrow.setImageTintList(ColorStateList.valueOf(
+						ViewUtils.themeColor(context, androidx.appcompat.R.attr.colorPrimary)));
+		arrow.setPadding(padding, padding, padding, padding);
+		TypedValue ripple = new TypedValue();
+		if (context.getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, ripple, true)) {
+			arrow.setBackgroundResource(ripple.resourceId);
+		}
+		arrow.setContentDescription(context.getString(R.string.settings_more));
+		arrow.setVisibility(View.GONE);
+		content.addView(arrow, new FrameLayout.LayoutParams(size, size, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
+
+		// Level with Close: the two centres on one line, wherever the dialog ends up on screen
+		int[] closeAt = new int[2];
+		int[] contentAt = new int[2];
+		Runnable place = () -> {
+			close.getLocationInWindow(closeAt);
+			content.getLocationInWindow(contentAt);
+			arrow.setTranslationY(closeAt[1] - contentAt[1] + (close.getHeight() - size) / 2f);
+		};
+		Runnable update = () -> ViewUtils.animateViewAlpha(arrow,
+						scroll.canScrollVertically(1) ? 1f : 0f, View.GONE);
+		content.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> place.run());
+		scroll.setOnScrollChangeListener((NestedScrollView.OnScrollChangeListener)
+						(v, x, y, oldX, oldY) -> update.run());
+		// Rows that appear or grow (a switch showing more options) change what's left below
+		View.OnLayoutChangeListener relayout = (v, l, t, r, b, ol, ot, or, ob) -> update.run();
+		scroll.addOnLayoutChangeListener(relayout);
+		if (scroll.getChildCount() > 0) scroll.getChildAt(0).addOnLayoutChangeListener(relayout);
+		arrow.setOnClickListener(v -> scroll.smoothScrollBy(0, scroll.getHeight() * 4 / 5));
+	}
+
 	private static boolean isNight(@NonNull Configuration config) {
 		return (config.uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
 	}
 
 	private static final String PENDING_SIZE = "…";
+	private static final float MORE_ARROW_DP = 40f;
+	private static final float MORE_ARROW_PADDING_DP = 6f;
 
 	private static void showCacheSize(@NonNull Activity activity, @NonNull TextView view) {
 		AppGraph app = AppGraph.of(activity);
@@ -264,16 +328,9 @@ final class SettingsDialog {
 	 * caches in the background; downloads, history, the queue, sign-in and settings stay.
 	 */
 	private static void clearCache(@NonNull Activity activity, @NonNull TextView sizeView) {
-		try {
-			WebView web = new WebView(activity);
-			web.clearCache(true);
-			web.destroy();
-		} catch (RuntimeException e) {
-			// No WebView provider right now; the rest is still cleared
-		}
-		Glide.get(activity).clearMemory();
-		sizeView.setText(PENDING_SIZE);
 		AppGraph app = AppGraph.of(activity);
+		app.clearMainThreadCaches();
+		sizeView.setText(PENDING_SIZE);
 		app.executor().execute(() -> {
 			app.clearCaches();
 			long bytes = app.cacheSize();

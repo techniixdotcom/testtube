@@ -46,9 +46,9 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
@@ -341,6 +341,10 @@ public final class UpdateManager {
 		if (!dir.isDirectory() && !dir.mkdirs()) throw new IOException("cannot create " + dir);
 		File part = new File(dir, "testtube-update.apk.part");
 		File apk = new File(dir, "testtube-update.apk");
+		// GitHub works out a SHA-256 for every file uploaded to a release, by itself. Without one
+		// there's nothing to check the download against, so no update at all.
+		String expected = release.sha256();
+		if (expected == null || !expected.matches("[0-9a-f]{64}")) throw new IOException("release has no SHA-256");
 		Call call = client.newCall(new Request.Builder().url(release.apkUrl())
 						.header("User-Agent", "TestTube").build());
 		activeDownload = call;
@@ -349,6 +353,9 @@ public final class UpdateManager {
 			if (!response.isSuccessful() || body == null) throw new IOException("HTTP " + response.code());
 			if (!response.request().url().isHttps()) throw new IOException("download left https");
 			long total = body.contentLength() > 0 ? body.contentLength() : release.size();
+			if (release.size() > 0 && body.contentLength() > 0 && body.contentLength() != release.size()) {
+				throw new IOException("size mismatch");
+			}
 			MessageDigest digest = sha256();
 			byte[] buffer = new byte[16 * 1024];
 			long done = 0;
@@ -359,6 +366,8 @@ public final class UpdateManager {
 					out.write(buffer, 0, read);
 					digest.update(buffer, 0, read);
 					done += read;
+					// Never write more than the release said it holds
+					if (release.size() > 0 && done > release.size()) throw new IOException("download too large");
 					long now = System.currentTimeMillis();
 					if (now - lastReport > 100) {
 						lastReport = now;
@@ -367,9 +376,12 @@ public final class UpdateManager {
 				}
 			}
 			progress.onProgress(done, total);
-			if (release.sha256() != null && !release.sha256().equals(hex(digest.digest()))) {
-				throw new IOException("checksum mismatch");
-			}
+			if (!expected.equals(hex(digest.digest()))) throw new IOException("checksum mismatch");
+		} catch (IOException | RuntimeException e) {
+			// A half or wrong download must never be the thing that gets installed
+			//noinspection ResultOfMethodCallIgnored
+			part.delete();
+			throw e;
 		}
 		if (apk.exists() && !apk.delete()) throw new IOException("cannot replace old download");
 		if (!part.renameTo(apk)) throw new IOException("cannot finish download");
@@ -378,13 +390,16 @@ public final class UpdateManager {
 
 	private void install(Activity activity, File apk) {
 		PackageManager pm = activity.getPackageManager();
-		PackageInfo archive = pm.getPackageArchiveInfo(apk.getAbsolutePath(), PackageManager.GET_SIGNING_CERTIFICATES);
+		int flags = signatureFlags();
+		PackageInfo archive = pm.getPackageArchiveInfo(apk.getAbsolutePath(), flags);
 		try {
-			PackageInfo installed = pm.getPackageInfo(activity.getPackageName(), PackageManager.GET_SIGNING_CERTIFICATES);
+			PackageInfo installed = pm.getPackageInfo(activity.getPackageName(), flags);
 			if (archive == null || !activity.getPackageName().equals(archive.packageName)
 							|| PackageInfoCompat.getLongVersionCode(archive)
 							<= PackageInfoCompat.getLongVersionCode(installed)
 							|| !sameSigner(archive, installed)) {
+				//noinspection ResultOfMethodCallIgnored
+				apk.delete();
 				Toast.makeText(activity, R.string.update_failed, Toast.LENGTH_LONG).show();
 				return;
 			}
@@ -402,18 +417,45 @@ public final class UpdateManager {
 		}
 	}
 
+	@SuppressWarnings("deprecation")
+	private static int signatureFlags() {
+		return Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+						? PackageManager.GET_SIGNING_CERTIFICATES : PackageManager.GET_SIGNATURES;
+	}
+
 	/**
-	 * Whether the APK is signed with our key. The installer checks again; this just rejects
-	 * foreign files early.
+	 * Whether the APK is signed with exactly the key of the app that's installed, which is your
+	 * release key: an APK built or re-signed by anyone else is thrown away here, before Android's
+	 * installer even comes up. Compared by the SHA-256 of each signing certificate. The installer
+	 * checks the key again on its own.
 	 */
 	private static boolean sameSigner(PackageInfo archive, PackageInfo installed) {
-		// Signing info isn't available before API 28; the installer still checks it
-		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return true;
-		if (archive.signingInfo == null || installed.signingInfo == null) return false;
-		Signature[] downloaded = archive.signingInfo.getApkContentsSigners();
-		Signature[] current = installed.signingInfo.getApkContentsSigners();
-		return downloaded != null && current != null && downloaded.length > 0
-						&& new HashSet<>(Arrays.asList(downloaded)).equals(new HashSet<>(Arrays.asList(current)));
+		Set<String> downloaded = certificateHashes(archive);
+		return !downloaded.isEmpty() && downloaded.equals(certificateHashes(installed));
+	}
+
+	@SuppressWarnings("deprecation")
+	@NonNull
+	private static Set<String> certificateHashes(@NonNull PackageInfo info) {
+		Signature[] signers;
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+			// Several signers only for APKs signed by more than one key at once; a rotated key's
+			// history isn't accepted, the current one has to match
+			signers = info.signingInfo != null ? info.signingInfo.getApkContentsSigners() : null;
+		} else {
+			signers = info.signatures;
+		}
+		Set<String> hashes = new HashSet<>();
+		if (signers == null) return hashes;
+		try {
+			MessageDigest digest = sha256();
+			for (Signature signer : signers) {
+				if (signer != null) hashes.add(hex(digest.digest(signer.toByteArray())));
+			}
+		} catch (IOException e) {
+			hashes.clear();
+		}
+		return hashes;
 	}
 
 	private void deleteOldDownloads(Activity activity) {

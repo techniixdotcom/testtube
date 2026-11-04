@@ -1,5 +1,29 @@
 # Changelog
 
+## 3.0.2
+
+- New player notification, also on the lock screen: previous video, back 10 seconds, play/pause, forward 10 seconds, next video and Close. Expanded it shows the picture, title and channel too. Close stops the video, closes the app and clears the cache. The card is in the app's theme (Dark, Light or NiiX, with NiiX's pink and font), paused too on Android 14 and newer
+- Swiping the player notification away (in the notification shade or on the lock screen) closes the app, playing or paused, on screen or in the background. Android's own media player is gone: swiping that one only hid it and let the video play on. On Android 13 and older a playing notification stays pinned; pause first, or tap Close
+- Closing (swipe, Close, or recent apps) also takes TestTube out of the recent apps
+- The player notification stays visible on lock screens set to show only new notifications (GrapheneOS, Pixel)
+- Fixed: swiping TestTube away from the recent apps now stops the video. It used to keep playing with no way to stop it except opening the app again
+- Library: the touch highlight of the tabs follows their rounded corners too
+- Fixed: blue skin and washed-out colours on Samsung and some other phones (video tunneling is off)
+- New: Allow HDR video (Settings → Playback, off by default: SDR is played whenever there is one) and Prefer H264 video (off by default, for phones that still show wrong colours). A broken HDR stream falls straight back to H.264
+- Sign-in page can only go to Google's and YouTube's own sites
+- Opening downloads only shares the app's own Downloads/TestTube folder, nothing else in Downloads
+- Updates: refused without GitHub's SHA-256 of the file, the download has to match it exactly, and only an APK signed with the same key as the installed app is offered to Android's installer (now on every Android version, not just 9+)
+- About 240 KB smaller: the NiiX font only carries the characters text needs, and the unused ExtraBold weight is gone. It looks exactly the same
+
+## 3.0.1
+
+- Faster first video after a start: what's needed from YouTube's player script is kept between launches, so it's only downloaded again when YouTube changes it
+- Videos stream over HTTP/3 (QUIC) on phones with Android's built-in network stack (Android 14, or 11+ with system updates), like YouTube's own app; other phones work as before
+- Shorts: the two after the next one get their first seconds loaded too (unless Video cache is Small)
+- Thumbnails loaded ahead are used straight from memory instead of being decoded again
+- Leaner release build: only what really needs it is kept out of R8's optimisations
+- Low-RAM phones use half the memory for pictures without transparency
+
 ## 3.0.0
 
 - New look: one consistent style everywhere. Buttons, icons and labels share one colour; the long-press menu is a single list of actions with icons and names; fewer background shades
@@ -9,6 +33,7 @@
 - Swiping a video right now says "Add"
 - Download dialogs: Cancel is a plain button, the option buttons stay readable in every theme
 - Fixed: a comment without a name showed "null"
+- Loading spinners follow the theme
 
 ## 2.5.0
 

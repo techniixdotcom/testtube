@@ -55,6 +55,7 @@ import com.testtube.app.player.queue.QueueNav;
 import com.testtube.app.player.queue.QueueRepository;
 import com.testtube.app.player.sponsor.SponsorBlockManager;
 import com.testtube.app.util.StringUtils;
+import com.testtube.app.util.Timing;
 import com.testtube.app.util.ToastUtils;
 import com.testtube.app.util.UrlUtils;
 
@@ -218,6 +219,8 @@ public class Engine {
 	private static final long PRELOAD_ANYWAY_MS = 45_000L;
 	@Nullable
 	private String prefetchedFor;
+	/** When the video now loading was handed to the player, for the debug timing log. */
+	private long firstFrameStarted = Timing.OFF;
 	@NonNull
 	private final StreamPreloader preloader;
 	@Nullable
@@ -263,10 +266,12 @@ public class Engine {
 		this.tabManager = tabManager;
 		this.sponsor = sponsor;
 		this.queueRepository = queueRepository;
-		this.sources = new PlayerDataSource(simpleCache);
+		this.sources = new PlayerDataSource(context, simpleCache);
 		this.preloader = new StreamPreloader(sources.preloadSource());
 		DefaultTrackSelector trackSelector = new DefaultTrackSelector(context, new AdaptiveTrackSelection.Factory());
-		trackSelector.setParameters(params(trackSelector).setTunnelingEnabled(true).build());
+		// No tunneling: on Samsung (Exynos) and some Snapdragon firmware, tunneled video skips the
+		// GPU's colour handling and skin turns blue. Costs a little battery, worth it.
+		trackSelector.setParameters(params(trackSelector).setTunnelingEnabled(false).build());
 		this.player = new ExoPlayer.Builder(context)
 						.setTrackSelector(trackSelector)
 						.setLoadControl(PlayerLoadControl.create())
@@ -305,6 +310,13 @@ public class Engine {
 			@Override
 			public void onCues(@NonNull CueGroup cueGroup) {
 				playerView.cueing(cueGroup);
+			}
+
+			@Override
+			public void onRenderedFirstFrame() {
+				if (firstFrameStarted == Timing.OFF) return;
+				Timing.log("first frame", videoId, firstFrameStarted);
+				firstFrameStarted = Timing.OFF;
 			}
 		});
 		playerView.setPlayer(this.player);
@@ -451,6 +463,7 @@ public class Engine {
 		}
 
 		long duration = durationMs(video);
+		firstFrameStarted = Timing.start();
 		this.player.setMediaSource(PlaybackSourceFactory.create(sources, autoSubtitleFormat, details, plan));
 		this.player.setPlaybackParameters(new PlaybackParameters(1.0f));
 
@@ -522,7 +535,9 @@ public class Engine {
 			return false;
 		}
 		rememberFailedCandidates(state.plan(), reason == PlaybackRecoveryReason.HTTP_403);
-		PlaybackPlan fallback = PlaybackPlanner.adaptiveFallbackPlan(
+		// A broken HDR stream goes straight to the H.264 muxed one: another HDR variant would
+		// most likely fail (or play blue) the same way on that phone
+		PlaybackPlan fallback = isHdrPlan(state.plan()) ? null : PlaybackPlanner.adaptiveFallbackPlan(
 						state.deliveries(),
 						prefs.getPreferredQuality(),
 						this::isBlocked);
@@ -591,6 +606,17 @@ public class Engine {
 	private boolean isBlocked(@NonNull StreamCandidate candidate) {
 		return failedAdaptiveCandidates.contains(candidateKey(candidate))
 						|| failedClients.contains(clientKey(candidate));
+	}
+
+	/** Whether the video being played is HDR (VP9 profile 2, AV1 10-bit and up). */
+	private static boolean isHdrPlan(@NonNull PlaybackPlan plan) {
+		for (StreamCandidate candidate : new StreamCandidate[]{plan.getVideoCandidate(), plan.getMuxedCandidate()}) {
+			if (candidate != null && candidate.getVideoStream() != null
+							&& PlayerUtils.isLikelyHdr(candidate.getVideoStream().getCodec())) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	public void pause() {

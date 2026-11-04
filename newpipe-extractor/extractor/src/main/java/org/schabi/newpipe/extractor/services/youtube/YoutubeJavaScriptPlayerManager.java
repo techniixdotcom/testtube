@@ -26,12 +26,45 @@ import java.util.Objects;
  * timestamp and to deobfuscate streaming URLs' signature and/or throttling parameter of HTML5
  * clients.
  * </p>
+ *
+ * <p>
+ * Everything extracted from the player file can also be kept between launches with
+ * {@link #setPersistentCache(PersistentCache)}. Stored values are tied to the player file's URL,
+ * so a new player version is always extracted again, and the multi-megabyte player file is only
+ * downloaded when something for the current version is missing.
+ * </p>
+ *
+ * <p>
+ * All methods are synchronized: extractions run in parallel and used to share these caches with
+ * no locking at all.
+ * </p>
  */
 public final class YoutubeJavaScriptPlayerManager {
+
+    /**
+     * Storage that outlives the process, for values extracted from the player file.
+     */
+    public interface PersistentCache {
+        @Nullable
+        String read(@Nonnull String key);
+
+        void write(@Nonnull String key, @Nonnull String value);
+    }
+
+    private static final String KEY_SIGNATURE_TIMESTAMP = "signature_timestamp";
+    private static final String KEY_SIGNATURE_FUNCTION = "signature_function";
+    private static final String KEY_THROTTLING_FUNCTION = "throttling_function";
+    private static final char URL_SEPARATOR = '\n';
 
     @Nonnull
     private static final Map<String, String> CACHED_THROTTLING_PARAMETERS = new HashMap<>();
 
+    @Nullable
+    private static PersistentCache persistentCache;
+
+    @Nullable
+    private static String cachedPlayerUrl;
+    @Nullable
     private static String cachedJavaScriptPlayerCode;
 
     @Nullable
@@ -49,6 +82,16 @@ public final class YoutubeJavaScriptPlayerManager {
     private static ParsingException sigTimestampExtractionEx;
 
     private YoutubeJavaScriptPlayerManager() {
+    }
+
+    /**
+     * Sets where extracted values are kept between launches, or {@code null} to keep them in
+     * memory only.
+     *
+     * @param cache the storage to use
+     */
+    public static synchronized void setPersistentCache(@Nullable final PersistentCache cache) {
+        persistentCache = cache;
     }
 
     /**
@@ -76,7 +119,7 @@ public final class YoutubeJavaScriptPlayerManager {
      * signature timestamp failed
      */
     @Nonnull
-    public static Integer getSignatureTimestamp(@Nonnull final String videoId)
+    public static synchronized Integer getSignatureTimestamp(@Nonnull final String videoId)
             throws ParsingException {
         // Return the cached result if it is present
         if (cachedSignatureTimestamp != null) {
@@ -90,11 +133,22 @@ public final class YoutubeJavaScriptPlayerManager {
             throw sigTimestampExtractionEx;
         }
 
-        extractJavaScriptCodeIfNeeded(videoId);
+        resolvePlayerUrlIfNeeded(videoId);
+        final String stored = readStored(KEY_SIGNATURE_TIMESTAMP);
+        if (stored != null) {
+            try {
+                cachedSignatureTimestamp = Integer.valueOf(stored);
+                return cachedSignatureTimestamp;
+            } catch (final NumberFormatException ignored) {
+                // Garbage on disk, extract it again below
+            }
+        }
 
+        final String playerCode = playerCode(videoId);
+        final Integer signatureTimestamp;
         try {
-            cachedSignatureTimestamp = Integer.valueOf(
-                    YoutubeSignatureUtils.getSignatureTimestamp(cachedJavaScriptPlayerCode));
+            signatureTimestamp = Integer.valueOf(
+                    YoutubeSignatureUtils.getSignatureTimestamp(playerCode));
         } catch (final ParsingException e) {
             // Store the exception for future calls of this method, in order to improve performance
             sigTimestampExtractionEx = e;
@@ -102,12 +156,15 @@ public final class YoutubeJavaScriptPlayerManager {
         } catch (final NumberFormatException e) {
             sigTimestampExtractionEx =
                     new ParsingException("Could not convert signature timestamp to a number", e);
+            throw sigTimestampExtractionEx;
         } catch (final Exception e) {
             sigTimestampExtractionEx = new ParsingException("Could not get signature timestamp", e);
             throw e;
         }
 
-        return cachedSignatureTimestamp;
+        cachedSignatureTimestamp = signatureTimestamp;
+        writeStored(KEY_SIGNATURE_TIMESTAMP, signatureTimestamp.toString());
+        return signatureTimestamp;
     }
 
     /**
@@ -127,9 +184,9 @@ public final class YoutubeJavaScriptPlayerManager {
      * signature deobfuscation function failed
      */
     @Nonnull
-    public static String deobfuscateSignature(@Nonnull final String videoId,
-                                              @Nonnull final String obfuscatedSignature)
-            throws ParsingException {
+    public static synchronized String deobfuscateSignature(
+            @Nonnull final String videoId,
+            @Nonnull final String obfuscatedSignature) throws ParsingException {
         // If the signature deobfuscation function has been not extracted on a previous call, this
         // mean that we will fail to extract it on next calls too if the player code has been not
         // changed
@@ -138,12 +195,16 @@ public final class YoutubeJavaScriptPlayerManager {
             throw sigDeobFuncExtractionEx;
         }
 
-        extractJavaScriptCodeIfNeeded(videoId);
+        if (cachedSignatureDeobfuscationFunction == null) {
+            resolvePlayerUrlIfNeeded(videoId);
+            cachedSignatureDeobfuscationFunction = readStoredFunction(KEY_SIGNATURE_FUNCTION);
+        }
 
         if (cachedSignatureDeobfuscationFunction == null) {
+            final String playerCode = playerCode(videoId);
+            final String function;
             try {
-                cachedSignatureDeobfuscationFunction = YoutubeSignatureUtils.getDeobfuscationCode(
-                        cachedJavaScriptPlayerCode);
+                function = YoutubeSignatureUtils.getDeobfuscationCode(playerCode);
             } catch (final ParsingException e) {
                 // Store the exception for future calls of this method in order to improve
                 // performance
@@ -154,6 +215,8 @@ public final class YoutubeJavaScriptPlayerManager {
                         "Could not get signature parameter deobfuscation JavaScript function", e);
                 throw e;
             }
+            cachedSignatureDeobfuscationFunction = function;
+            writeStored(KEY_SIGNATURE_FUNCTION, function);
         }
 
         try {
@@ -204,7 +267,7 @@ public final class YoutubeJavaScriptPlayerManager {
      * throttling parameter deobfuscation function failed
      */
     @Nonnull
-    public static String getUrlWithThrottlingParameterDeobfuscated(
+    public static synchronized String getUrlWithThrottlingParameterDeobfuscated(
             @Nonnull final String videoId,
             @Nonnull final String streamingUrl) throws ParsingException {
         final String obfuscatedThrottlingParameter =
@@ -226,8 +289,6 @@ public final class YoutubeJavaScriptPlayerManager {
             return streamingUrl.replace(obfuscatedThrottlingParameter, cacheResult);
         }
 
-        extractJavaScriptCodeIfNeeded(videoId);
-
         // If the throttling parameter deobfuscation function has been not extracted on a previous
         // call, this mean that we will fail to extract it on next calls too if the player code has
         // been not changed
@@ -237,10 +298,15 @@ public final class YoutubeJavaScriptPlayerManager {
         }
 
         if (cachedThrottlingDeobfuscationFunction == null) {
+            resolvePlayerUrlIfNeeded(videoId);
+            cachedThrottlingDeobfuscationFunction = readStoredFunction(KEY_THROTTLING_FUNCTION);
+        }
+
+        if (cachedThrottlingDeobfuscationFunction == null) {
+            final String playerCode = playerCode(videoId);
+            final String function;
             try {
-                cachedThrottlingDeobfuscationFunction =
-                        YoutubeThrottlingParameterUtils.getDeobfuscationCode(
-                                cachedJavaScriptPlayerCode);
+                function = YoutubeThrottlingParameterUtils.getDeobfuscationCode(playerCode);
             } catch (final ParsingException e) {
                 // Store the exception for future calls of this method in order to improve
                 // performance
@@ -251,6 +317,8 @@ public final class YoutubeJavaScriptPlayerManager {
                         "Could not get throttling parameter deobfuscation JavaScript function", e);
                 throw e;
             }
+            cachedThrottlingDeobfuscationFunction = function;
+            writeStored(KEY_THROTTLING_FUNCTION, function);
         }
 
         try {
@@ -280,7 +348,7 @@ public final class YoutubeJavaScriptPlayerManager {
      *
      * @return the current cache size of throttling parameters
      */
-    public static int getThrottlingParametersCacheSize() {
+    public static synchronized int getThrottlingParametersCacheSize() {
         return CACHED_THROTTLING_PARAMETERS.size();
     }
 
@@ -288,17 +356,19 @@ public final class YoutubeJavaScriptPlayerManager {
      * Clear all caches.
      *
      * <p>
-     * This method will clear all cached JavaScript code and throttling parameters.
+     * This method will clear all cached JavaScript code and throttling parameters. Values kept
+     * between launches stay where they are, but they're only used again for the same player URL.
      * </p>
      *
      * <p>
      * The next time {@link #getSignatureTimestamp(String)},
      * {@link #deobfuscateSignature(String, String)} or
-     * {@link #getUrlWithThrottlingParameterDeobfuscated(String, String)} is called, the JavaScript
-     * code will be fetched again and the corresponding extraction methods will be ran.
+     * {@link #getUrlWithThrottlingParameterDeobfuscated(String, String)} is called, the player URL
+     * will be looked up again and the corresponding extraction methods will be ran.
      * </p>
      */
-    public static void clearAllCaches() {
+    public static synchronized void clearAllCaches() {
+        cachedPlayerUrl = null;
         cachedJavaScriptPlayerCode = null;
         cachedSignatureDeobfuscationFunction = null;
         cachedThrottlingDeobfuscationFunction = null;
@@ -324,23 +394,89 @@ public final class YoutubeJavaScriptPlayerManager {
      * be done using {@link #clearAllCaches()}.
      * </p>
      */
-    public static void clearThrottlingParametersCache() {
+    public static synchronized void clearThrottlingParametersCache() {
         CACHED_THROTTLING_PARAMETERS.clear();
     }
 
     /**
-     * Extract the JavaScript code if it isn't already cached.
-     *
-     * @param videoId the video ID used to get the JavaScript base player file (an empty one can be
-     *                passed, even it is not recommend in order to spoof better official YouTube
-     *                clients)
-     * @throws ParsingException if the extraction of the base JavaScript player file failed
+     * Looks up the current player file's URL once per process. It's a small request, and it's what
+     * tells us whether the values kept from an earlier launch still belong to the current player.
      */
-    private static void extractJavaScriptCodeIfNeeded(@Nonnull final String videoId)
+    private static void resolvePlayerUrlIfNeeded(@Nonnull final String videoId)
             throws ParsingException {
+        if (cachedPlayerUrl == null) {
+            cachedPlayerUrl = YoutubeJavaScriptExtractor.extractJavaScriptPlayerUrl(videoId);
+        }
+    }
+
+    /**
+     * The player file itself, downloaded the first time something has to be extracted from it.
+     */
+    @Nonnull
+    private static String playerCode(@Nonnull final String videoId) throws ParsingException {
+        resolvePlayerUrlIfNeeded(videoId);
         if (cachedJavaScriptPlayerCode == null) {
-            cachedJavaScriptPlayerCode = YoutubeJavaScriptExtractor.extractJavaScriptPlayerCode(
-                    videoId);
+            final YoutubeJavaScriptExtractor.PlayerCode player =
+                    YoutubeJavaScriptExtractor.extractJavaScriptPlayerCode(
+                            Objects.requireNonNull(cachedPlayerUrl), videoId);
+            // It may have come from the embed page's URL instead; what's stored has to match it
+            cachedPlayerUrl = player.url;
+            cachedJavaScriptPlayerCode = player.code;
+        }
+        return cachedJavaScriptPlayerCode;
+    }
+
+    /**
+     * A stored value, if one was saved for the current player URL.
+     */
+    @Nullable
+    private static String readStored(@Nonnull final String key) {
+        final PersistentCache cache = persistentCache;
+        final String playerUrl = cachedPlayerUrl;
+        if (cache == null || playerUrl == null) {
+            return null;
+        }
+        final String raw;
+        try {
+            raw = cache.read(key);
+        } catch (final RuntimeException ignored) {
+            return null;
+        }
+        final String prefix = playerUrl + URL_SEPARATOR;
+        if (raw == null || !raw.startsWith(prefix) || raw.length() == prefix.length()) {
+            return null;
+        }
+        return raw.substring(prefix.length());
+    }
+
+    /**
+     * A stored function, if one was saved for the current player URL and it still compiles.
+     */
+    @Nullable
+    private static String readStoredFunction(@Nonnull final String key) {
+        final String function = readStored(key);
+        if (function == null) {
+            return null;
+        }
+        try {
+            JavaScript.compileOrThrow(function);
+            return function;
+        } catch (final Exception ignored) {
+            // Corrupt on disk; extracting it again from the player file is the safe bet
+            return null;
+        }
+    }
+
+    private static void writeStored(@Nonnull final String key, @Nonnull final String value) {
+        final PersistentCache cache = persistentCache;
+        final String playerUrl = cachedPlayerUrl;
+        if (cache == null || playerUrl == null) {
+            return;
+        }
+        try {
+            cache.write(key, playerUrl + URL_SEPARATOR + value);
+        } catch (final RuntimeException ignored) {
+            // Keeping it for the next launch is a bonus; it's still cached in memory
         }
     }
 }

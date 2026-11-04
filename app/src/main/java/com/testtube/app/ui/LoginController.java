@@ -17,6 +17,9 @@ import com.tencent.mmkv.MMKV;
 import com.testtube.app.Constant;
 import com.testtube.app.R;
 
+import java.util.Locale;
+import java.util.regex.Pattern;
+
 /**
  * Google sign-in overlay. A plain WebView loads the account login page; the overlay closes once
  * it lands on YouTube or a Google session cookie exists. Cookies are shared through the default
@@ -116,8 +119,7 @@ public final class LoginController {
 					complete(container, onComplete);
 					return true;
 				}
-				// Sign-in pages are https only; intent:, file:, javascript: and plain http are refused.
-				return !url.regionMatches(true, 0, "https://", 0, 8);
+				return !isSignInUrl(url);
 			}
 		});
 		webView.loadUrl(LOGIN_URL);
@@ -165,6 +167,35 @@ public final class LoginController {
 
 	public boolean isShowing() {
 		return webView != null;
+	}
+
+	/** accounts.google.de, accounts.google.co.uk, accounts.google.com.br and so on, nothing longer. */
+	private static final Pattern GOOGLE_COUNTRY_SIGN_IN =
+					Pattern.compile("accounts\\.google\\.(?:co\\.|com\\.)?[a-z]{2,3}");
+
+	/**
+	 * Where the sign-in page may go: https only (no intent:, file:, javascript: or plain http), and
+	 * only Google's and YouTube's own sites, so a link inside it can't open some other site with the
+	 * session. Google and YouTube as a whole, not a short list of hosts: sign-in also passes the
+	 * consent page (EU), 2-step checks and recovery prompts, and the country domains
+	 * (accounts.google.de and so on).
+	 */
+	private static boolean isSignInUrl(@NonNull String url) {
+		if (!url.regionMatches(true, 0, "https://", 0, 8)) return false;
+		try {
+			String host = Uri.parse(url).getHost();
+			if (host == null) return false;
+			host = host.toLowerCase(Locale.ROOT);
+			return isDomainOrSubdomain(host, Constant.YOUTUBE_DOMAIN)
+							|| isDomainOrSubdomain(host, "google.com")
+							|| GOOGLE_COUNTRY_SIGN_IN.matcher(host).matches();
+		} catch (RuntimeException ignored) {
+			return false;
+		}
+	}
+
+	private static boolean isDomainOrSubdomain(@NonNull String host, @NonNull String domain) {
+		return host.equals(domain) || host.endsWith("." + domain);
 	}
 
 	private static boolean isYoutubeUrl(@NonNull String url) {

@@ -65,6 +65,7 @@
         <item name="ttSwipeBackground">@color/swipe_background</item>
         <item name="ttSwipeContent">@color/swipe_content</item>
         <item name="ttCommentAuthor">@color/on_surface_variant</item>
+        <item name="ttOnVideoAccent">@android:color/white</item>
 
         <!-- The system font, in the weights of Material's type scale -->
         <item name="ttFontRegular">sans-serif</item>
@@ -98,6 +99,9 @@
         player, the floating window and Shorts.
     -->
     <style name="ThemeOverlay.TestTube.OnVideo" parent="">
+        <!-- The player's buffering spinner takes this one -->
+        <item name="android:colorControlActivated">?attr/ttOnVideoAccent</item>
+        <item name="colorControlActivated">?attr/ttOnVideoAccent</item>
         <item name="colorControlNormal">#FFFFFF</item>
         <item name="colorControlHighlight">#33FFFFFF</item>
         <item name="android:colorControlHighlight">#33FFFFFF</item>
@@ -198,7 +202,7 @@
         <item name="android:layout_weight">1</item>
         <item name="android:layout_marginEnd">2dp</item>
         <item name="android:background">@drawable/bg_library_tab</item>
-        <item name="android:foreground">?attr/selectableItemBackground</item>
+        <item name="android:foreground">@drawable/fg_library_tab</item>
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>
         <item name="android:gravity">center</item>

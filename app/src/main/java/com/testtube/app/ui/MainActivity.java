@@ -47,6 +47,7 @@ import com.testtube.app.AppGraph;
 import com.testtube.app.AppSettings;
 import com.testtube.app.Constant;
 import com.testtube.app.PlaybackService;
+import com.testtube.app.QuitReceiver;
 import com.testtube.app.R;
 import com.testtube.app.downloader.service.DownloadService;
 import com.testtube.app.downloader.ui.DownloadDialog;
@@ -110,6 +111,11 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	private ActivityGraph graph;
 	private TabManager tabManager;
 	private TestTubePlayer player;
+	/** What the Quit button runs while this screen exists. */
+	@NonNull
+	private final Runnable quitApp = this::quitApp;
+	/** Quitting (or being swiped away) handles the cache itself; onDestroy shouldn't do it again. */
+	private boolean quitting;
 	private YoutubeExtractor youtubeExtractor;
 	private QueueRepository queueRepository;
 	private WatchHistory watchHistory;
@@ -212,6 +218,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		graph = new ActivityGraph(this, app);
 		tabManager = graph.tabManager;
 		player = graph.player;
+		QuitReceiver.setCloseScreens(quitApp);
 		youtubeExtractor = app.youtubeExtractor();
 		// After Home had its turn at the network
 		handler.postDelayed(app::warmUp, WARM_UP_DELAY_MS);
@@ -1227,6 +1234,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
+		QuitReceiver.clearCloseScreens(quitApp);
 		if (youtubeExtractor != null) youtubeExtractor.removeExtrasListener(extrasListener);
 		if (nativeBrowser != null) nativeBrowser.release();
 		if (shortsScreen != null) shortsScreen.release();
@@ -1235,7 +1243,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		if (serviceConnection != null) unbindService(serviceConnection);
 		if ((!isChangingConfigurations() || recreatingForTheme) && player != null) player.release();
 		// Closed for good (not rebuilt): the player above let go of the video cache by now
-		if (isFinishing() && !isChangingConfigurations() && AppSettings.clearCacheOnExit()) {
+		if (isFinishing() && !isChangingConfigurations() && !quitting && AppSettings.clearCacheOnExit()) {
 			AppGraph app = AppGraph.of(this);
 			app.executor().execute(app::clearCaches);
 		}
@@ -1250,6 +1258,18 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		Runnable action = pendingPermissionAction;
 		pendingPermissionAction = null;
 		if (action != null && PermissionUtils.allGranted(grantResults)) action.run();
+	}
+
+	/**
+	 * The Quit button, or the app swiped away from the recent apps: the sound stops right away, the
+	 * notification goes, and every screen of the app closes. onDestroy lets go of the player; the
+	 * cache is up to {@link QuitReceiver}.
+	 */
+	private void quitApp() {
+		quitting = true;
+		if (player != null) player.pause();
+		if (playbackService != null) playbackService.hideNotification();
+		finishAndRemoveTask();
 	}
 
 	/** Builds the screen again in the newly chosen colours. The open video stops and reopens. */

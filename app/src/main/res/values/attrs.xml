@@ -36,6 +36,8 @@
     <attr name="ttSwipeBackground" format="color" />
     <attr name="ttSwipeContent" format="color" />
 
+    <!-- Accent on top of the video, which is always dark: loading spinners. White, pink in NiiX -->
+    <attr name="ttOnVideoAccent" format="color" />
     <!-- The username above a comment -->
     <attr name="ttCommentAuthor" format="color" />
 

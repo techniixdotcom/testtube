@@ -1,0 +1,6 @@
+- New player notification: previous, back/forward 10 s, play/pause, next, Close, in the app's theme
+- Swiping the notification or the app away now closes it
+- About 240 KB smaller (trimmed NiiX font)
+- Library: rounded tab highlight
+- Fixed blue skin on Samsung; Allow HDR and Prefer H264 settings
+- Safer sign-in page and updates (SHA-256 + same signing key)

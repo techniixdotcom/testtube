@@ -2,6 +2,11 @@
 <!--
     JetBrains Mono 2.304, the typeface of niixa.org, for all text in the app.
     SIL Open Font License 1.1, see assets/licenses/JetBrainsMono-OFL.txt.
+
+    Trimmed to what text needs: Latin (with Turkish and Vietnamese), Greek, Cyrillic,
+    punctuation, currency, arrows, maths and common symbols, ligatures included. Box drawing,
+    block elements, Braille and the like were dropped; the odd title using them falls back to
+    the phone's font for just those characters. Nothing asks for ExtraBold, so it's gone too.
 -->
 <font-family xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
@@ -26,11 +31,4 @@
         app:font="@font/jetbrains_mono_bold"
         app:fontStyle="normal"
         app:fontWeight="700" />
-    <font
-        android:font="@font/jetbrains_mono_extrabold"
-        android:fontStyle="normal"
-        android:fontWeight="800"
-        app:font="@font/jetbrains_mono_extrabold"
-        app:fontStyle="normal"
-        app:fontWeight="800" />
 </font-family>

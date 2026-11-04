@@ -16,6 +16,7 @@
     <string name="action_play">再生</string>
     <string name="action_previous">前へ</string>
     <string name="action_next">次へ</string>
+    <string name="action_quit">終了</string>
     <string name="segments">セグメント</string>
     <string name="pip">ピクチャーインピクチャー</string>
     <string name="reset">リセット</string>
@@ -306,6 +307,7 @@
     <string name="downloads_clear">ダウンロードを消去</string>
     <string name="downloads_clear_confirm">一覧からすべてのダウンロードを削除しますか？ダウンロードしたファイルはスマートフォンに残ります。</string>
     <string name="settings_title">設定</string>
+    <string name="settings_more">下に他の設定があります</string>
     <string name="settings_section_content">コンテンツ</string>
     <string name="settings_section_appearance">外観</string>
     <string name="setting_theme">テーマ</string>
@@ -371,6 +373,10 @@
     <string name="setting_clear_cache_summary">動画、画像、ウェブデータ</string>
     <string name="setting_clear_cache_on_exit">終了時にキャッシュを消去</string>
     <string name="setting_clear_cache_on_exit_summary">アプリを閉じると保存された動画と画像を削除します</string>
+    <string name="setting_allow_hdr">HDRを許可</string>
+    <string name="setting_allow_hdr_summary">オフにするとSDRで再生し、Samsungなどの青い肌を修正します</string>
+    <string name="setting_prefer_avc">H264を優先</string>
+    <string name="setting_prefer_avc_summary">色がまだおかしい端末向け。最大1080pで、データ使用量が増えます</string>
     <string name="video_cache_large">大（150 MB）</string>
     <string name="video_cache_medium">中（100 MB）</string>
     <string name="video_cache_small">小（50 MB）</string>

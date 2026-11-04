@@ -30,6 +30,7 @@
     <string name="action_replay">Replay</string>
     <string name="action_previous">Skip to previous</string>
     <string name="action_next">Skip to next</string>
+    <string name="action_quit">Quit</string>
 
     <string name="segments">Segments</string>
     <string name="pip">Picture-in-Picture</string>
@@ -291,6 +292,7 @@
     <string name="downloads_clear">Clear downloads</string>
     <string name="downloads_clear_confirm">Remove every download from the list? Downloaded files stay on your phone.</string>
     <string name="settings_title">Settings</string>
+    <string name="settings_more">More settings below</string>
     <string name="settings_section_content">Content</string>
     <string name="settings_section_appearance">Appearance</string>
     <string name="setting_theme">Theme</string>
@@ -357,6 +359,10 @@
     <string name="setting_clear_cache_summary">Video, pictures and web data</string>
     <string name="setting_clear_cache_on_exit">Clear cache on exit</string>
     <string name="setting_clear_cache_on_exit_summary">Saved video and pictures are deleted when you close the app</string>
+    <string name="setting_allow_hdr">Allow HDR video</string>
+    <string name="setting_allow_hdr_summary">Off plays SDR instead, which fixes blue skin on Samsung and other phones</string>
+    <string name="setting_prefer_avc">Prefer H264 video</string>
+    <string name="setting_prefer_avc_summary">For phones that still show wrong colours. Up to 1080p and uses more data</string>
     <string name="video_cache_large">Large (150 MB)</string>
     <string name="video_cache_medium">Medium (100 MB)</string>
     <string name="video_cache_small">Small (50 MB)</string>

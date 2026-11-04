@@ -16,6 +16,7 @@
     <string name="action_play">Lecture</string>
     <string name="action_previous">Passer au précédent</string>
     <string name="action_next">Passer au suivant</string>
+    <string name="action_quit">Quitter</string>
     <string name="segments">Segments</string>
     <string name="pip">Image dans l\'image</string>
     <string name="reset">Réinitialiser</string>
@@ -308,6 +309,7 @@
     <string name="downloads_clear">Effacer les téléchargements</string>
     <string name="downloads_clear_confirm">Retirer tous les téléchargements de la liste ? Les fichiers téléchargés restent sur votre téléphone.</string>
     <string name="settings_title">Paramètres</string>
+    <string name="settings_more">Plus de paramètres en dessous</string>
     <string name="settings_section_content">Contenu</string>
     <string name="settings_section_appearance">Apparence</string>
     <string name="setting_theme">Thème</string>
@@ -373,6 +375,10 @@
     <string name="setting_clear_cache_summary">Vidéo, images et données web</string>
     <string name="setting_clear_cache_on_exit">Vider le cache à la fermeture</string>
     <string name="setting_clear_cache_on_exit_summary">Les vidéos et images enregistrées sont supprimées à la fermeture de l\'app</string>
+    <string name="setting_allow_hdr">Autoriser la vidéo HDR</string>
+    <string name="setting_allow_hdr_summary">Désactivé, lit en SDR, ce qui corrige la peau bleue sur Samsung et d\'autres téléphones</string>
+    <string name="setting_prefer_avc">Préférer la vidéo H264</string>
+    <string name="setting_prefer_avc_summary">Pour les téléphones aux couleurs encore fausses. Jusqu\'à 1080p, consomme plus de données</string>
     <string name="video_cache_large">Grand (150 Mo)</string>
     <string name="video_cache_medium">Moyen (100 Mo)</string>
     <string name="video_cache_small">Petit (50 Mo)</string>

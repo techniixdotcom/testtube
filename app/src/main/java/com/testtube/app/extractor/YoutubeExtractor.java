@@ -7,6 +7,7 @@ import com.google.gson.Gson;
 import com.testtube.app.extractor.potoken.TestTubePoTokenProvider;
 import com.testtube.app.filter.ContentFilters;
 import com.testtube.app.player.common.PlayerUtils;
+import com.testtube.app.util.Timing;
 
 import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.InfoItem;
@@ -289,12 +290,14 @@ public final class YoutubeExtractor {
 						? YoutubeStreamExtractor.NextMode.SKIP : YoutubeStreamExtractor.NextMode.LATER);
 		StreamInfo streamInfo;
 		YoutubeStreamExtractor later;
+		long started = Timing.start();
 		try {
 			streamInfo = fetch.fetch(videoId, session);
 		} finally {
 			YoutubeStreamExtractor.setNextMode(YoutubeStreamExtractor.NextMode.WAIT);
 			later = YoutubeStreamExtractor.takeLastLater();
 		}
+		Timing.log(shortVideo ? "extract short" : "extract video", videoId, started);
 		ensureNotCancelled(session);
 		Description description = streamInfo.getDescription();
 		Date uploadDate = streamInfo.getUploadDate() == null

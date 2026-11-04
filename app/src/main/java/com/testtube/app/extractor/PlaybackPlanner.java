@@ -5,6 +5,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.OptIn;
 import androidx.media3.common.util.UnstableApi;
 
+import com.testtube.app.AppSettings;
 import com.testtube.app.player.common.PlayerUtils;
 
 import org.schabi.newpipe.extractor.services.youtube.ItagItem;
@@ -52,11 +53,10 @@ public final class PlaybackPlanner {
 
 		Delivery adaptive = deliveries.first(PlaybackMode.ADAPTIVE);
 		if (adaptive != null) {
-			PlaybackPlan adaptivePlan = adaptivePlan(plan, adaptive, preferredQuality);
-			if (adaptivePlan.getVideoCandidate() != null && adaptivePlan.getAudioCandidate() != null) {
-				return adaptivePlan;
-			}
+			PlaybackPlan adaptivePlan = compatibleAdaptivePlan(plan, adaptive, preferredQuality);
+			if (adaptivePlan != null) return adaptivePlan;
 		}
+		// HDR only (with HDR off) or nothing complete: the muxed stream is H.264, always SDR
 
 		Delivery muxed = deliveries.first(PlaybackMode.MUXED);
 		if (muxed != null) {
@@ -109,12 +109,47 @@ public final class PlaybackPlanner {
 		}
 		List<StreamCandidate> video = adaptive.getVideo().stream()
 						.filter(candidate -> !blocked.test(candidate))
+						.filter(candidate -> AppSettings.allowHdr() || !isHdr(candidate))
 						.collect(Collectors.toList());
 		List<StreamCandidate> audio = adaptive.getAudio().stream()
 						.filter(candidate -> !blocked.test(candidate))
 						.collect(Collectors.toList());
 		PlaybackPlan plan = adaptivePlan(new PlaybackPlan(), adaptive, video, audio, preferredQuality);
 		return plan.getVideoCandidate() != null && plan.getAudioCandidate() != null ? plan : null;
+	}
+
+	/**
+	 * The adaptive plan within the video settings: only H.264 when "Prefer H.264" is on (if there is
+	 * any), never HDR while "Allow HDR" is off. Null when that leaves nothing complete to play.
+	 */
+	@Nullable
+	private static PlaybackPlan compatibleAdaptivePlan(@NonNull PlaybackPlan plan,
+	                                                   @NonNull Delivery adaptive,
+	                                                   @Nullable String preferredQuality) {
+		if (AppSettings.preferAvc()) {
+			List<StreamCandidate> avc = adaptive.getVideo().stream()
+							.filter(candidate -> candidate.getVideoStream() != null
+											&& PlayerUtils.isAvc(candidate.getVideoStream().getCodec()))
+							.collect(Collectors.toList());
+			if (!avc.isEmpty()) {
+				PlaybackPlan avcPlan = adaptivePlan(plan, adaptive, avc, adaptive.getAudio(), preferredQuality);
+				if (isComplete(avcPlan)) return avcPlan;
+			}
+		}
+		List<StreamCandidate> video = AppSettings.allowHdr() ? adaptive.getVideo() : adaptive.getVideo().stream()
+						.filter(candidate -> !isHdr(candidate))
+						.collect(Collectors.toList());
+		if (video.isEmpty()) return null;
+		PlaybackPlan adaptivePlan = adaptivePlan(plan, adaptive, video, adaptive.getAudio(), preferredQuality);
+		return isComplete(adaptivePlan) ? adaptivePlan : null;
+	}
+
+	private static boolean isComplete(@NonNull PlaybackPlan plan) {
+		return plan.getVideoCandidate() != null && plan.getAudioCandidate() != null;
+	}
+
+	private static boolean isHdr(@NonNull StreamCandidate candidate) {
+		return candidate.getVideoStream() != null && PlayerUtils.isLikelyHdr(candidate.getVideoStream().getCodec());
 	}
 
 	@Nullable

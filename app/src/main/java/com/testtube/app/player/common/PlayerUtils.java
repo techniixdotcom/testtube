@@ -4,6 +4,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.util.UnstableApi;
 
+import com.testtube.app.AppSettings;
 import com.testtube.app.player.engine.Engine;
 import com.testtube.app.util.StringUtils;
 
@@ -89,13 +90,43 @@ public final class PlayerUtils {
 
 	public static int getCodecPriority(@Nullable String codec) {
 		if (codec == null) return 0;
+		// With HDR off, an HDR stream loses to any SDR one of the same size
+		if (isLikelyHdr(codec) && !AppSettings.allowHdr()) return -1;
 		String lower = codec.toLowerCase(Locale.ROOT);
-		if (lower.startsWith("avc") || lower.startsWith("h264")) return 4;
+		if (isAvc(codec)) return 4;
 		if (lower.contains("vp9") || lower.contains("vp8")) return 3;
 		if (lower.contains("h265")) return 2;
 		if (lower.contains("av01")) return 1;
 
 		return 0;
+	}
+
+	/** H.264. YouTube never sends it as HDR. */
+	public static boolean isAvc(@Nullable String codec) {
+		if (codec == null) return false;
+		String lower = codec.toLowerCase(Locale.ROOT);
+		return lower.startsWith("avc") || lower.startsWith("h264");
+	}
+
+	/**
+	 * HDR (10 bits or more) going by the codec string: VP9 profile 2 or 3 ("vp09.02.…") or an AV1
+	 * bit depth of 10 or 12 ("av01.0.12M.10"). Read field by field, not by searching for ".10", which
+	 * an AV1 level like "10M" would match too. Anything unclear counts as SDR, so nothing playable
+	 * gets thrown out by mistake.
+	 */
+	public static boolean isLikelyHdr(@Nullable String codec) {
+		if (codec == null) return false;
+		String[] fields = codec.trim().toLowerCase(Locale.ROOT).split("\\.");
+		if (fields.length >= 2 && fields[0].equals("vp09")) {
+			return fields[1].equals("02") || fields[1].equals("03")
+							|| (fields.length >= 4 && isHighBitDepth(fields[3]));
+		}
+		if (fields.length >= 4 && fields[0].equals("av01")) return isHighBitDepth(fields[3]);
+		return false;
+	}
+
+	private static boolean isHighBitDepth(@NonNull String field) {
+		return field.equals("10") || field.equals("12");
 	}
 
 	@Nullable

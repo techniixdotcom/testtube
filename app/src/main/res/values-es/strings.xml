@@ -30,6 +30,7 @@
     <string name="action_replay">Volver a reproducir</string>
     <string name="action_previous">Anterior</string>
     <string name="action_next">Siguiente</string>
+    <string name="action_quit">Salir</string>
 
     <string name="segments">Segmentos</string>
     <string name="pip">Imagen en imagen (PiP)</string>
@@ -310,6 +311,7 @@
     <string name="downloads_clear">Borrar descargas</string>
     <string name="downloads_clear_confirm">¿Quitar todas las descargas de la lista? Los archivos descargados se quedan en tu teléfono.</string>
     <string name="settings_title">Ajustes</string>
+    <string name="settings_more">Más ajustes abajo</string>
     <string name="settings_section_content">Contenido</string>
     <string name="settings_section_appearance">Apariencia</string>
     <string name="setting_theme">Tema</string>
@@ -375,6 +377,10 @@
     <string name="setting_clear_cache_summary">Vídeo, imágenes y datos web</string>
     <string name="setting_clear_cache_on_exit">Borrar caché al salir</string>
     <string name="setting_clear_cache_on_exit_summary">Los vídeos y las imágenes guardados se eliminan al cerrar la app</string>
+    <string name="setting_allow_hdr">Permitir vídeo HDR</string>
+    <string name="setting_allow_hdr_summary">Desactivado reproduce SDR, lo que corrige la piel azul en Samsung y otros móviles</string>
+    <string name="setting_prefer_avc">Preferir vídeo H264</string>
+    <string name="setting_prefer_avc_summary">Para móviles que aún muestran colores raros. Hasta 1080p y gasta más datos</string>
     <string name="video_cache_large">Grande (150 MB)</string>
     <string name="video_cache_medium">Mediana (100 MB)</string>
     <string name="video_cache_small">Pequeña (50 MB)</string>

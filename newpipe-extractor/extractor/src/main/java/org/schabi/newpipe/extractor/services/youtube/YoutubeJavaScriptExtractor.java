@@ -41,39 +41,78 @@ final class YoutubeJavaScriptExtractor {
     }
 
     /**
-     * Extracts the JavaScript base player file.
+     * The JavaScript base player file, with the URL it came from.
+     */
+    static final class PlayerCode {
+        @Nonnull
+        final String url;
+        @Nonnull
+        final String code;
+
+        PlayerCode(@Nonnull final String url, @Nonnull final String code) {
+            this.url = url;
+            this.code = code;
+        }
+    }
+
+    /**
+     * Finds the URL of the current JavaScript base player file, from YouTube's IFrame resource
+     * or, if that fails, from an embed watch page. This is a small request: the player file
+     * itself is only needed when nothing is cached for this URL.
      *
-     * @param videoId the video ID used to get the JavaScript base player file (an empty one can be
-     *                passed, even it is not recommend in order to spoof better official YouTube
-     *                clients)
-     * @return the whole JavaScript base player file as a string
-     * @throws ParsingException if the extraction of the file failed
+     * @param videoId the video ID used to get the embed watch page (an empty one can be passed,
+     *                even it is not recommend in order to spoof better official YouTube clients)
+     * @return the absolute URL of the JavaScript base player file
+     * @throws ParsingException if no valid URL could be found
      */
     @Nonnull
-    static String extractJavaScriptPlayerCode(@Nonnull final String videoId)
+    static String extractJavaScriptPlayerUrl(@Nonnull final String videoId)
             throws ParsingException {
-        String url;
         try {
-            url = YoutubeJavaScriptExtractor.extractJavaScriptUrlWithIframeResource();
-            final String playerJsUrl = YoutubeJavaScriptExtractor.cleanJavaScriptUrl(url);
+            return checkedUrl(cleanJavaScriptUrl(extractJavaScriptUrlWithIframeResource()));
+        } catch (final Exception e) {
+            return checkedUrl(cleanJavaScriptUrl(extractJavaScriptUrlWithEmbedWatchPage(videoId)));
+        }
+    }
 
+    /**
+     * Downloads the JavaScript base player file at the given URL. If that fails, the URL from an
+     * embed watch page is tried as well, when it's a different one.
+     *
+     * @param playerUrl the URL returned by {@link #extractJavaScriptPlayerUrl(String)}
+     * @param videoId   the video ID used to get the embed watch page
+     * @return the player file and the URL it was actually downloaded from
+     * @throws ParsingException if the file could not be downloaded
+     */
+    @Nonnull
+    static PlayerCode extractJavaScriptPlayerCode(@Nonnull final String playerUrl,
+                                                  @Nonnull final String videoId)
+            throws ParsingException {
+        try {
+            return new PlayerCode(playerUrl, downloadJavaScriptCode(playerUrl));
+        } catch (final ParsingException e) {
+            final String fallbackUrl;
+            try {
+                fallbackUrl = checkedUrl(cleanJavaScriptUrl(
+                        extractJavaScriptUrlWithEmbedWatchPage(videoId)));
+            } catch (final ParsingException ignored) {
+                throw e;
+            }
+            if (fallbackUrl.equals(playerUrl)) {
+                throw e;
+            }
+            return new PlayerCode(fallbackUrl, downloadJavaScriptCode(fallbackUrl));
+        }
+    }
+
+    @Nonnull
+    private static String checkedUrl(@Nonnull final String playerJsUrl) throws ParsingException {
+        try {
             // Assert that the URL we extracted and built is valid
             new URL(playerJsUrl);
-
-            return YoutubeJavaScriptExtractor.downloadJavaScriptCode(playerJsUrl);
-        } catch (final Exception e) {
-            url = YoutubeJavaScriptExtractor.extractJavaScriptUrlWithEmbedWatchPage(videoId);
-            final String playerJsUrl = YoutubeJavaScriptExtractor.cleanJavaScriptUrl(url);
-
-            try {
-                // Assert that the URL we extracted and built is valid
-                new URL(playerJsUrl);
-            } catch (final MalformedURLException exception) {
-                throw new ParsingException(
-                        "The extracted and built JavaScript URL is invalid", exception);
-            }
-
-            return YoutubeJavaScriptExtractor.downloadJavaScriptCode(playerJsUrl);
+            return playerJsUrl;
+        } catch (final MalformedURLException e) {
+            throw new ParsingException("The extracted and built JavaScript URL is invalid", e);
         }
     }
 

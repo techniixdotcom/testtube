@@ -13,11 +13,13 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.cache.SimpleCache;
 import androidx.media3.exoplayer.ExoPlayer;
 
+import com.testtube.app.AppSettings;
 import com.testtube.app.R;
 import com.testtube.app.extractor.PlaybackDetails;
 import com.testtube.app.extractor.PlaybackPlan;
 import com.testtube.app.extractor.PlaybackPlanner;
 import com.testtube.app.util.StringUtils;
+import com.testtube.app.util.Timing;
 
 import java.util.function.Supplier;
 
@@ -26,12 +28,15 @@ import java.util.function.Supplier;
  * history or mini player, but it builds the streams the same way.
  * <p>
  * Two players take turns: while one plays, the other already loads the next Short, so a swipe
- * just switches over instead of starting from nothing.
+ * just switches over instead of starting from nothing. The Shorts after that get their first
+ * seconds cached, so even fast swiping lands on something that starts at once.
  */
 @UnstableApi
 public final class ShortsEngine {
 	/** Shorts don't change quality while playing; more than this mostly costs time to start. */
 	private static final int MAX_HEIGHT = 720;
+	/** Seconds cached of each Short further ahead: enough to start, little enough to waste. */
+	private static final long WARM_SECONDS = 6L;
 
 	/** Called on the main thread, for the player that's on screen only. */
 	public interface Listener {
@@ -47,6 +52,8 @@ public final class ShortsEngine {
 	@NonNull
 	private final PlayerDataSource sources;
 	@NonNull
+	private final StreamPreloader warmer;
+	@NonNull
 	private final String autoSubtitleFormat;
 	@NonNull
 	private final Supplier<String> quality;
@@ -59,9 +66,14 @@ public final class ShortsEngine {
 	private String standbyId;
 	@Nullable
 	private Listener listener;
+	/** When the Short now loading was handed to the player, for the debug timing log. */
+	private long firstFrameStarted = Timing.OFF;
+	@Nullable
+	private String firstFrameFor;
 
 	public ShortsEngine(@NonNull Context context, @Nullable SimpleCache cache, @NonNull Supplier<String> quality) {
-		this.sources = new PlayerDataSource(cache);
+		this.sources = new PlayerDataSource(context, cache);
+		this.warmer = new StreamPreloader(sources.preloadSource(), WARM_SECONDS);
 		this.autoSubtitleFormat = context.getString(R.string.subtitle_auto_generated);
 		this.quality = quality;
 		this.player = build(context);
@@ -88,7 +100,12 @@ public final class ShortsEngine {
 		exo.addListener(new Player.Listener() {
 			@Override
 			public void onRenderedFirstFrame() {
-				if (exo == player && listener != null) listener.onFirstFrame();
+				if (exo != player) return;
+				if (firstFrameStarted != Timing.OFF) {
+					Timing.log("first frame short", firstFrameFor, firstFrameStarted);
+					firstFrameStarted = Timing.OFF;
+				}
+				if (listener != null) listener.onFirstFrame();
 			}
 
 			@Override
@@ -137,6 +154,8 @@ public final class ShortsEngine {
 			player = standby;
 			standby = previous;
 			standbyId = null;
+			// Its first frame is already there, nothing to time
+			firstFrameStarted = Timing.OFF;
 			previous.stop();
 			previous.clearMediaItems();
 			player.seekTo(0L);
@@ -145,6 +164,8 @@ public final class ShortsEngine {
 			if (listener != null && size.width > 0) listener.onVideoSize(size);
 			return true;
 		}
+		firstFrameStarted = Timing.start();
+		firstFrameFor = id;
 		player.setMediaSource(PlaybackSourceFactory.create(sources, autoSubtitleFormat, details, plan(details)));
 		player.prepare();
 		player.setPlayWhenReady(true);
@@ -164,6 +185,16 @@ public final class ShortsEngine {
 		standbyId = id;
 		standby.setPlayWhenReady(false);
 		standby.prepare();
+	}
+
+	/**
+	 * Caches the first seconds of a Short further down the feed. Skipped when the video cache
+	 * setting says not to load ahead.
+	 */
+	public void warm(@NonNull PlaybackDetails details) {
+		String id = details.video().getId();
+		if (id == null || id.equals(standbyId) || !AppSettings.videoCache().preloadsNext) return;
+		warmer.enqueue(id, plan(details));
 	}
 
 	@NonNull
@@ -202,6 +233,7 @@ public final class ShortsEngine {
 	public void release() {
 		listener = null;
 		standbyId = null;
+		warmer.release();
 		player.release();
 		standby.release();
 	}

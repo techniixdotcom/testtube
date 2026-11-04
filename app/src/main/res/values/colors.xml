@@ -93,4 +93,7 @@
     <!-- Launcher icon -->
     <color name="ic_launcher_background">#000000</color>
     <color name="ic_launcher_play">#E5251E</color>
+
+    <!-- Buttons of the player notification: light on the dark notification background -->
+    <color name="notification_control">#E6FFFFFF</color>
 </resources>

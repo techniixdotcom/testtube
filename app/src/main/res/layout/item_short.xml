@@ -24,7 +24,7 @@
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:layout_gravity="center"
-        android:indeterminateTint="@android:color/white"
+        android:indeterminateTint="?attr/ttOnVideoAccent"
         android:visibility="gone" />
 
     <ImageView

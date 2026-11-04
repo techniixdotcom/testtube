@@ -8,3 +8,17 @@ HSPLokhttp3/**->**(**)**
 Lokhttp3/**;
 HSPLokio/**->**(**)**
 Lokio/**;
+HSPLandroidx/media3/**->**(**)**
+Landroidx/media3/**;
+HSPLorg/mozilla/javascript/**->**(**)**
+Lorg/mozilla/javascript/**;
+HSPLcom/google/gson/**->**(**)**
+Lcom/google/gson/**;
+HSPLcom/tencent/mmkv/**->**(**)**
+Lcom/tencent/mmkv/**;
+HSPLcom/google/protobuf/**->**(**)**
+Lcom/google/protobuf/**;
+HSPLcom/grack/nanojson/**->**(**)**
+Lcom/grack/nanojson/**;
+HSPLorg/jsoup/**->**(**)**
+Lorg/jsoup/**;

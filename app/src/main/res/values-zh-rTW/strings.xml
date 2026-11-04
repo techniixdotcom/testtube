@@ -17,6 +17,7 @@
     <string name="action_replay">重新播放</string>
     <string name="action_previous">上一個</string>
     <string name="action_next">下一個</string>
+    <string name="action_quit">結束</string>
     <string name="segments">片段</string>
     <string name="pip">畫中畫</string>
     <string name="reset">重置</string>
@@ -306,6 +307,7 @@
     <string name="downloads_clear">清除下載</string>
     <string name="downloads_clear_confirm">要從清單中移除所有下載嗎？已下載的檔案會保留在手機上。</string>
     <string name="settings_title">設定</string>
+    <string name="settings_more">下方還有更多設定</string>
     <string name="settings_section_content">內容</string>
     <string name="settings_section_appearance">外觀</string>
     <string name="setting_theme">主題</string>
@@ -371,6 +373,10 @@
     <string name="setting_clear_cache_summary">影片、圖片和網頁資料</string>
     <string name="setting_clear_cache_on_exit">結束時清除快取</string>
     <string name="setting_clear_cache_on_exit_summary">關閉應用程式時刪除已儲存的影片和圖片</string>
+    <string name="setting_allow_hdr">允許 HDR</string>
+    <string name="setting_allow_hdr_summary">關閉時播放 SDR，可修正三星等手機上的皮膚偏藍</string>
+    <string name="setting_prefer_avc">優先 H264</string>
+    <string name="setting_prefer_avc_summary">適用於顏色仍然異常的手機。最高 1080p，耗費更多流量</string>
     <string name="video_cache_large">大（150 MB）</string>
     <string name="video_cache_medium">中（100 MB）</string>
     <string name="video_cache_small">小（50 MB）</string>

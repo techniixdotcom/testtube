@@ -2,7 +2,9 @@ package com.testtube.app;
 
 import android.content.Context;
 import android.util.Log;
+import android.webkit.WebView;
 
+import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
 import androidx.annotation.WorkerThread;
 import androidx.media3.common.util.UnstableApi;
@@ -25,6 +27,7 @@ import com.testtube.app.extractor.InfoCache;
 import com.testtube.app.extractor.NativeAuth;
 import com.testtube.app.extractor.Originals;
 import com.testtube.app.extractor.PageSource;
+import com.testtube.app.extractor.PlayerFunctionStore;
 import com.testtube.app.extractor.PlaylistSource;
 import com.testtube.app.extractor.YoutubeExtractor;
 import com.testtube.app.extractor.potoken.PoTokenBridge;
@@ -37,11 +40,14 @@ import com.testtube.app.history.WatchHistory;
 import com.testtube.app.player.PlayerStateStore;
 import com.testtube.app.player.common.PlayerPreferences;
 import com.testtube.app.player.engine.VideoCacheEvictor;
+import com.testtube.app.player.engine.datasource.StreamHttp;
 import com.testtube.app.player.queue.QueueRepository;
 import com.testtube.app.player.sponsor.SponsorBlockManager;
 import com.testtube.app.update.UpdateManager;
 import com.testtube.app.util.Json;
 import com.testtube.app.util.NetworkWatcher;
+
+import org.schabi.newpipe.extractor.services.youtube.YoutubeJavaScriptPlayerManager;
 
 import okhttp3.Cache;
 import okhttp3.ConnectionPool;
@@ -155,6 +161,7 @@ public final class AppGraph {
 			});
 		}
 		background.execute(() -> poTokenCoordinator().warmUp());
+		background.execute(() -> StreamHttp.warmUp(context));
 	}
 
 	@NonNull
@@ -227,6 +234,22 @@ public final class AppGraph {
 	 * the disk; the WebView's cache and the pictures in memory have to be cleared on the main
 	 * thread by the caller.
 	 */
+	/**
+	 * The part of clearing the cache that has to run on the main thread: the WebViews' cache and
+	 * the pictures in memory. {@link #clearCaches()} does the rest.
+	 */
+	@MainThread
+	public void clearMainThreadCaches() {
+		try {
+			WebView web = new WebView(context);
+			web.clearCache(true);
+			web.destroy();
+		} catch (RuntimeException e) {
+			// No WebView provider right now; the rest is still cleared
+		}
+		Glide.get(context).clearMemory();
+	}
+
 	@WorkerThread
 	public void clearCaches() {
 		SimpleCache video = simpleCache();
@@ -439,6 +462,8 @@ public final class AppGraph {
 		if (youtubeExtractor == null) {
 			youtubeExtractor = new YoutubeExtractor(extractorDownloader(), poTokenProvider(), nativeAuth(),
 							infoCache(), executor(), gson(), contentFilters());
+			// Before anything is extracted, so even the first video can use the stored functions
+			YoutubeJavaScriptPlayerManager.setPersistentCache(new PlayerFunctionStore(context));
 		}
 		return youtubeExtractor;
 	}

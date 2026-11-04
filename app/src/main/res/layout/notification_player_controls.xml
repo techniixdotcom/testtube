@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The buttons of the player notification, on their own (collapsed, also on the lock screen) and
+    at the bottom of the expanded one. Android draws it, not the app: only plain views and fixed
+    colours here, no theme attributes of the app.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <ImageView
+        android:id="@+id/notification_previous"
+        style="@style/NotificationControl"
+        android:contentDescription="@string/action_previous"
+        android:src="@drawable/ic_previous" />
+
+    <ImageView
+        android:id="@+id/notification_back"
+        style="@style/NotificationControl"
+        android:contentDescription="@string/action_seek_back_10"
+        android:src="@drawable/ic_seek_back_10" />
+
+    <ImageView
+        android:id="@+id/notification_play_pause"
+        style="@style/NotificationControl"
+        android:contentDescription="@string/action_pause"
+        android:padding="8dp"
+        android:src="@drawable/ic_pause" />
+
+    <ImageView
+        android:id="@+id/notification_forward"
+        style="@style/NotificationControl"
+        android:contentDescription="@string/action_seek_forward_10"
+        android:src="@drawable/ic_seek_forward_10" />
+
+    <ImageView
+        android:id="@+id/notification_next"
+        style="@style/NotificationControl"
+        android:contentDescription="@string/action_next"
+        android:src="@drawable/ic_next" />
+
+    <ImageView
+        android:id="@+id/notification_close"
+        style="@style/NotificationControl"
+        android:contentDescription="@string/close"
+        android:src="@drawable/ic_quit" />
+</LinearLayout>

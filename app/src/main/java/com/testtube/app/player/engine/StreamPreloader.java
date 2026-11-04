@@ -20,27 +20,38 @@ import org.schabi.newpipe.extractor.stream.Stream;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 
 /**
  * Downloads the start of the next video into the player cache while the current one plays, so the
- * next one starts without buffering. Playback reads the cache with the same keys.
+ * next one starts without buffering. Playback reads the cache with the same keys. Shorts use
+ * {@link #enqueue} instead, to have the start of several upcoming ones ready at once.
  */
 @UnstableApi
 final class StreamPreloader {
 	private static final String TAG = "StreamPreloader";
-	/** Seconds of the next video to have ready. */
+	/** Seconds of the next video to have ready, unless told otherwise. */
 	private static final long PRELOAD_SECONDS = 30L;
+	/** Caps and fallbacks for {@link #PRELOAD_SECONDS}; shorter preloads get their share. */
 	private static final long MAX_VIDEO_BYTES = 12L * 1024 * 1024;
 	private static final long MAX_AUDIO_BYTES = 2L * 1024 * 1024;
 	/** For streams without a known bitrate. */
 	private static final long DEFAULT_VIDEO_BYTES = 4L * 1024 * 1024;
 	private static final long DEFAULT_AUDIO_BYTES = 512L * 1024;
+	/** Queued videos remembered, so the same one isn't downloaded twice. */
+	private static final int MAX_QUEUED = 16;
 
 	@Nullable
 	private final CacheDataSource.Factory cache;
+	private final long seconds;
+	@NonNull
+	private final Set<String> queued = new LinkedHashSet<>();
 	@NonNull
 	private final ExecutorService executor = Executors.newSingleThreadExecutor(runnable -> {
 		Thread thread = new Thread(runnable, "testtube-preload");
@@ -58,7 +69,16 @@ final class StreamPreloader {
 
 	/** @param cache the player cache, or null when there is none (nothing is preloaded then) */
 	StreamPreloader(@Nullable CacheDataSource.Factory cache) {
+		this(cache, PRELOAD_SECONDS);
+	}
+
+	/**
+	 * @param cache   the player cache, or null when there is none (nothing is preloaded then)
+	 * @param seconds how much of the start of each video to cache
+	 */
+	StreamPreloader(@Nullable CacheDataSource.Factory cache, long seconds) {
 		this.cache = cache;
+		this.seconds = seconds;
 	}
 
 	/** Starts caching the streams the plan of {@code details} plays. Any earlier preload stops. */
@@ -75,11 +95,31 @@ final class StreamPreloader {
 			videoId = id;
 			token = generation;
 		}
-		executor.execute(() -> {
-			for (DataSpec spec : specs) {
-				if (!write(factory, spec, token, id)) return;
+		run(factory, specs, token, id);
+	}
+
+	/**
+	 * Queues the start of a video behind whatever is loading already; nothing gets stopped. Each
+	 * video is only queued once. {@link #preload} and {@link #cancel} drop the queue.
+	 *
+	 * @param plan the streams playback will pick, so the cache keys match
+	 */
+	void enqueue(@NonNull String id, @NonNull PlaybackPlan plan) {
+		CacheDataSource.Factory factory = cache;
+		if (factory == null) return;
+		List<DataSpec> specs = specsFor(plan);
+		if (specs.isEmpty()) return;
+		long token;
+		synchronized (lock) {
+			if (!queued.add(id)) return;
+			if (queued.size() > MAX_QUEUED) {
+				Iterator<String> oldest = queued.iterator();
+				oldest.next();
+				oldest.remove();
 			}
-		});
+			token = generation;
+		}
+		run(factory, specs, token, id);
 	}
 
 	/** Stops the running preload; what was cached so far stays. */
@@ -93,6 +133,19 @@ final class StreamPreloader {
 	void release() {
 		cancel();
 		executor.shutdownNow();
+	}
+
+	private void run(@NonNull CacheDataSource.Factory factory, @NonNull List<DataSpec> specs, long token,
+	                 @NonNull String id) {
+		try {
+			executor.execute(() -> {
+				for (DataSpec spec : specs) {
+					if (!write(factory, spec, token, id)) return;
+				}
+			});
+		} catch (RejectedExecutionException released) {
+			// A late call after release(); there's no player left to preload for
+		}
 	}
 
 	/** @return false when this preload was replaced or cancelled */
@@ -120,6 +173,7 @@ final class StreamPreloader {
 
 	private void stopLocked() {
 		generation++;
+		queued.clear();
 		if (writer != null) {
 			writer.cancel();
 			writer = null;
@@ -127,7 +181,7 @@ final class StreamPreloader {
 	}
 
 	@NonNull
-	private static List<DataSpec> specsFor(@Nullable PlaybackPlan plan) {
+	private List<DataSpec> specsFor(@Nullable PlaybackPlan plan) {
 		List<DataSpec> specs = new ArrayList<>();
 		if (plan == null || plan.getMode() == null) return specs;
 		switch (plan.getMode()) {
@@ -154,8 +208,8 @@ final class StreamPreloader {
 		return candidate != null ? candidate.getAudioStream() : null;
 	}
 
-	private static void addSpec(@NonNull List<DataSpec> specs, @Nullable Stream stream,
-	                            long defaultBytes, long maxBytes) {
+	private void addSpec(@NonNull List<DataSpec> specs, @Nullable Stream stream,
+	                     long defaultBytes, long maxBytes) {
 		if (stream == null || stream.getContent() == null || stream.getContent().isBlank()) return;
 		Uri uri = Uri.parse(stream.getContent().trim());
 		String scheme = uri.getScheme();
@@ -167,11 +221,12 @@ final class StreamPreloader {
 						.build());
 	}
 
-	/** The first {@link #PRELOAD_SECONDS} at the stream's bitrate, always with its index. */
-	private static long preloadBytes(@Nullable ItagItem itag, long defaultBytes, long maxBytes) {
-		if (itag == null) return defaultBytes;
-		long bytes = itag.getBitrate() > 0 ? itag.getBitrate() / 8L * PRELOAD_SECONDS : defaultBytes;
-		bytes = Math.min(bytes, maxBytes);
+	/** The first {@link #seconds} at the stream's bitrate, always with its index. */
+	private long preloadBytes(@Nullable ItagItem itag, long defaultBytes, long maxBytes) {
+		long fallback = Math.max(1L, defaultBytes * seconds / PRELOAD_SECONDS);
+		if (itag == null) return fallback;
+		long bytes = itag.getBitrate() > 0 ? itag.getBitrate() / 8L * seconds : fallback;
+		bytes = Math.min(bytes, Math.max(1L, maxBytes * seconds / PRELOAD_SECONDS));
 		// The DASH index sits at the start; playback can't begin without it
 		if (itag.getIndexEnd() > 0) bytes = Math.max(bytes, itag.getIndexEnd() + 1L);
 		long length = itag.getContentLength();

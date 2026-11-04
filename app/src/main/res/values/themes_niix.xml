@@ -65,6 +65,7 @@
         <!-- The logo and Add / Follow on a swiped row, in the pink -->
         <item name="ttSwipeContent">@color/niix_accent</item>
         <item name="ttCommentAuthor">@color/niix_accent</item>
+        <item name="ttOnVideoAccent">@color/niix_accent</item>
 
         <!-- JetBrains Mono everywhere, like niixa.org: the default, every type role and the app's own -->
         <item name="android:fontFamily">@font/jetbrains_mono</item>

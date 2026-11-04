@@ -1,0 +1,4 @@
+- Faster first video after a start: YouTube's player script is kept between launches
+- Videos stream over HTTP/3 where Android has it built in (Android 14, or 11+ with updates)
+- Shorts: the two after the next one start loading too (unless Video cache is Small)
+- Leaner release build, less memory for pictures on low-RAM phones

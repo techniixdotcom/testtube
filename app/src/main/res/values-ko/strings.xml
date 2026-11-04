@@ -16,6 +16,7 @@
     <string name="action_play">재생</string>
     <string name="action_previous">이전</string>
     <string name="action_next">다음</string>
+    <string name="action_quit">종료</string>
     <string name="segments">세그먼트</string>
     <string name="pip">PIP 모드</string>
     <string name="reset">초기화</string>
@@ -306,6 +307,7 @@
     <string name="downloads_clear">다운로드 지우기</string>
     <string name="downloads_clear_confirm">목록에서 모든 다운로드를 삭제할까요? 다운로드한 파일은 휴대전화에 그대로 남습니다.</string>
     <string name="settings_title">설정</string>
+    <string name="settings_more">아래에 설정이 더 있습니다</string>
     <string name="settings_section_content">콘텐츠</string>
     <string name="settings_section_appearance">화면</string>
     <string name="setting_theme">테마</string>
@@ -371,6 +373,10 @@
     <string name="setting_clear_cache_summary">동영상, 이미지, 웹 데이터</string>
     <string name="setting_clear_cache_on_exit">종료 시 캐시 삭제</string>
     <string name="setting_clear_cache_on_exit_summary">앱을 닫을 때 저장된 동영상과 이미지를 삭제합니다</string>
+    <string name="setting_allow_hdr">HDR 허용</string>
+    <string name="setting_allow_hdr_summary">끄면 SDR로 재생하여 삼성 등에서 피부가 파랗게 보이는 문제를 고칩니다</string>
+    <string name="setting_prefer_avc">H264 우선</string>
+    <string name="setting_prefer_avc_summary">색이 여전히 이상한 휴대전화용. 최대 1080p이며 데이터를 더 사용합니다</string>
     <string name="video_cache_large">큼 (150 MB)</string>
     <string name="video_cache_medium">중간 (100 MB)</string>
     <string name="video_cache_small">작음 (50 MB)</string>

@@ -6,13 +6,9 @@ package com.testtube.app.player.engine.datasource;
 
 import static androidx.media3.datasource.DefaultHttpDataSource.DEFAULT_CONNECT_TIMEOUT_MILLIS;
 import static androidx.media3.datasource.DefaultHttpDataSource.DEFAULT_READ_TIMEOUT_MILLIS;
-import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.getVisionOsUserAgent;
-import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.isVisionOsStreamingUrl;
-import static org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper.isWebStreamingUrl;
 
 import android.net.Uri;
 import android.util.Log;
-import android.webkit.CookieManager;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -55,7 +51,6 @@ public final class YoutubeHttpDataSource extends BaseDataSource implements HttpD
 	private static final int MAX_REDIRECTS = 20;
 	private static final int HTTP_STATUS_TEMPORARY_REDIRECT = 307;
 	private static final int HTTP_STATUS_PERMANENT_REDIRECT = 308;
-	private static final byte[] POST_BODY = new byte[]{0x78, 0};
 	private final boolean allowCrossProtocolRedirects;
 	private final boolean rangeParameterEnabled;
 	private final boolean rnParameterEnabled;
@@ -283,17 +278,9 @@ public final class YoutubeHttpDataSource extends BaseDataSource implements HttpD
 
 	@NonNull
 	private HttpURLConnection makeConnection(@NonNull URL url, long position, long length, boolean allowGzip, boolean followRedirects, final Map<String, String> requestParameters) throws IOException {
-		String requestUrl = url.toString();
-
-		boolean isVideoPlaybackUrl = url.getPath().startsWith("/videoplayback");
-		if (isVideoPlaybackUrl && rnParameterEnabled && !requestUrl.contains("&rn=")) {
-			requestUrl += "&rn=" + requestNumber;
-			++requestNumber;
-		}
-
-		if (rangeParameterEnabled && isVideoPlaybackUrl && (position != 0 || length != C.LENGTH_UNSET)) {
-			requestUrl += "&range=" + position + (length != C.LENGTH_UNSET ? "-" + (position + length - 1) : "-");
-		}
+		boolean isVideoPlaybackUrl = YoutubeRequests.isVideoPlayback(url.getPath());
+		String requestUrl = YoutubeRequests.requestUrl(url.toString(), isVideoPlaybackUrl, rangeParameterEnabled,
+						position, length, rnParameterEnabled ? () -> requestNumber++ : null);
 		HttpURLConnection conn = (HttpURLConnection) new URL(requestUrl).openConnection();
 		conn.setConnectTimeout(connectTimeoutMillis);
 		conn.setReadTimeout(readTimeoutMillis);
@@ -303,14 +290,7 @@ public final class YoutubeHttpDataSource extends BaseDataSource implements HttpD
 			requestHeaders.putAll(defaultRequestProperties.getSnapshot());
 		requestHeaders.putAll(requestProperties.getSnapshot());
 		requestHeaders.putAll(requestParameters);
-
-		// Cookies only go to YouTube's own video and site hosts.
-		String host = Uri.parse(requestUrl).getHost();
-		if (host != null && (host.endsWith(".googlevideo.com") || host.equals("youtube.com") || host.endsWith(".youtube.com"))) {
-			String cookies = CookieManager.getInstance().getCookie(requestUrl);
-			if (cookies != null && !cookies.isEmpty())
-				requestHeaders.put(HttpHeaders.COOKIE, cookies);
-		}
+		requestHeaders.putAll(YoutubeRequests.headers(requestUrl, userAgent));
 
 		for (final Map.Entry<String, String> property : requestHeaders.entrySet())
 			conn.setRequestProperty(property.getKey(), property.getValue());
@@ -320,32 +300,15 @@ public final class YoutubeHttpDataSource extends BaseDataSource implements HttpD
 			if (rangeHeader != null) conn.setRequestProperty(HttpHeaders.RANGE, rangeHeader);
 		}
 
-		if (isWebStreamingUrl(requestUrl)) {
-			conn.setRequestProperty(HttpHeaders.ORIGIN, "https://www.youtube.com");
-			conn.setRequestProperty(HttpHeaders.REFERER, "https://www.youtube.com");
-			conn.setRequestProperty(HttpHeaders.SEC_FETCH_DEST, "empty");
-			conn.setRequestProperty(HttpHeaders.SEC_FETCH_MODE, "cors");
-			conn.setRequestProperty(HttpHeaders.SEC_FETCH_SITE, "cross-site");
-		}
-
 		conn.setRequestProperty(HttpHeaders.TE, "trailers");
-		conn.setRequestProperty(HttpHeaders.ACCEPT, "*/*");
-
-		// googlevideo checks that stream requests come from the same client that requested the
-		// player response, so the matching client user agent must be sent.
-		if (isVisionOsStreamingUrl(requestUrl))
-			conn.setRequestProperty(HttpHeaders.USER_AGENT, getVisionOsUserAgent(null));
-		else
-			conn.setRequestProperty(HttpHeaders.USER_AGENT, userAgent);
-
 		conn.setRequestProperty(HttpHeaders.ACCEPT_ENCODING, allowGzip ? "gzip" : "identity");
 		conn.setInstanceFollowRedirects(followRedirects);
 		if (isVideoPlaybackUrl) {
 			conn.setRequestMethod("POST");
 			conn.setDoOutput(true);
-			conn.setFixedLengthStreamingMode(POST_BODY.length);
+			conn.setFixedLengthStreamingMode(YoutubeRequests.POST_BODY.length);
 			try (OutputStream os = conn.getOutputStream()) {
-				os.write(POST_BODY);
+				os.write(YoutubeRequests.POST_BODY);
 			}
 		} else {
 			conn.setRequestMethod("GET");
