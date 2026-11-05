@@ -1,25 +1,34 @@
 #!/usr/bin/env bash
 # BUILD.sh -- everything around building and releasing TestTube, from one place.
 #
-# Run it without arguments for a menu, or pick an action directly:
+# Run it with no arguments for the menu, or use one of these directly. The menu and the options
+# are the same in the BUILD.sh of TestTube, NiiX and niixfliix, wherever an option fits the app.
 #
-#   ./BUILD.sh --release           build the signed release APK (dist/testtube<version>.apk)
-#   ./BUILD.sh --publish           build it and publish it to GitHub Releases (APK + SHA256SUMS.txt),
-#                                  checked so the app's own updater will accept it
-#   ./BUILD.sh --upload-only       publish the APK that is already in dist/, without building
-#   ./BUILD.sh --debug             build a debug APK (Android's own debug key, installs next to
-#                                  the release app as "com.testtube.app.debug")
-#   ./BUILD.sh --install-only      install the APK in dist/ on the phone connected over USB
-#   ./BUILD.sh --test              run the unit tests
-#   ./BUILD.sh --set-version       set the version name and code for the next release
-#   ./BUILD.sh --push-source       put the current source on GitHub as a normal commit (no release)
-#   ./BUILD.sh --source-zip        pack the source into dist/, without keys, logs or build output
-#   ./BUILD.sh --key-info          show the signing key's fingerprint and where it is kept
-#   ./BUILD.sh --backup-key DIR    copy the signing key to DIR (a USB stick, for example)
-#   ./BUILD.sh --import-key DIR    use the signing key in DIR from now on
-#   ./BUILD.sh --write-checksums   record the SHA-256 of every library; Gradle refuses any that change
-#   ./BUILD.sh --fix-permissions   give the project folder back to you after a run with sudo
-#   ./BUILD.sh --clean             delete all build output
+#   ./BUILD.sh --release                  Build the signed release APK (dist/testtube<version>.apk).
+#   ./BUILD.sh --publish                  Build it and publish it to GitHub Releases (APK and
+#                                         SHA256SUMS.txt), checked so the app's updater accepts it.
+#   ./BUILD.sh --upload-only              Publish the APK already in dist/, without building.
+#   ./BUILD.sh --debug                    Build a debug APK (Android's own debug key; installs next
+#                                         to the release app as "com.testtube.app.debug").
+#   ./BUILD.sh --install                  Install the APK in dist/ on the phone connected over USB.
+#   ./BUILD.sh --test                     Run the test suite.
+#   ./BUILD.sh --audit-zip                Pack the source into dist/, without keys, logs or build
+#                                         output, for a reviewer.
+#   ./BUILD.sh --write-dependency-hashes  Record the SHA-256 of every library and build; Gradle then
+#                                         refuses any library that changes.
+#   ./BUILD.sh --push-source              Put the current source on GitHub as a normal commit (no
+#                                         release). README, screenshots and logo there are kept.
+#   ./BUILD.sh --set-version              Set the version name and code for the next release.
+#   ./BUILD.sh --create-keys              Create the signing key (the first release build also does).
+#   ./BUILD.sh --show-keys                Show the signing keys' fingerprints and where they are.
+#   ./BUILD.sh --import-key DIR           Use the TestTube signing key in DIR from now on.
+#   ./BUILD.sh --use-shared-key           Switch TestTube to the Android key all your apps share
+#                                         (~/.keys/android, made the first time), for good;
+#                                         installed copies update to it normally.
+#   ./BUILD.sh --backup-keys[=DIR]        Copy all signing keys (~/.keys) to DIR/.keys (a USB stick,
+#                                         for example) and check the copy.
+#   ./BUILD.sh --clean                    Delete all build output.
+#   ./BUILD.sh --fix-permissions          Give the project folder back to you after a run with sudo.
 #
 # Options that go with the build actions:
 #   --install       after building, install on the connected phone; picks the signing key that
@@ -33,7 +42,8 @@
 # before, build-errors.log with only the errors when a build fails.
 #
 # Environment:
-#   TESTTUBE_HOME          where the JDK, Android SDK and signing key are kept (default ~/.testtube)
+#   KEYS_HOME              where all signing keys are kept (default ~/.keys)
+#   TESTTUBE_HOME          where the JDK and Android SDK are kept (default ~/.testtube)
 #   TESTTUBE_RELEASE_TAG   tag to publish as, instead of v<version from app/build.gradle.kts>
 #
 # Publishing needs the GitHub CLI ("gh"); it is installed and logged in on first use. The repo is
@@ -45,13 +55,29 @@ umask 022
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TESTTUBE_HOME_OVERRIDE="${TESTTUBE_HOME:-}"
+KEYS_HOME_OVERRIDE="${KEYS_HOME:-}"
 TESTTUBE_HOME="${TESTTUBE_HOME:-$HOME/.testtube}"
 JDK_MAJOR=21
 JDK_DIR="$TESTTUBE_HOME/jdk-$JDK_MAJOR"
 SDK_DIR="$TESTTUBE_HOME/android-sdk"
-SIGNING_DIR="$TESTTUBE_HOME/signing"
+# Every signing key, for all apps, lives in ~/.keys (see README.txt there and scripts/android-keys.sh).
+KEYS_HOME="${KEYS_HOME:-$HOME/.keys}"
+if [[ ! -f "$ROOT/scripts/android-keys.sh" ]]; then
+	printf 'error: scripts/android-keys.sh is missing. Unzip the whole project into an empty folder.\n' >&2
+	exit 1
+fi
+# shellcheck source=scripts/android-keys.sh
+source "$ROOT/scripts/android-keys.sh"
+ANDROID_KEYS="$AK_SHARED_DIR"
+SHARED_KEYSTORE="$AK_SHARED_KS"
+SHARED_ENV="$AK_SHARED_ENV"
+# TestTube's own key, and lineage.bin once it switched to the shared key
+SIGNING_DIR="$KEYS_HOME/testtube"
 SIGNING_ENV="$SIGNING_DIR/signing.env"
 KEYSTORE="$SIGNING_DIR/testtube-release.p12"
+LINEAGE="$SIGNING_DIR/lineage.bin"
+# Where versions before 3.0.2 kept it; moved to ~/.keys on the first run
+LEGACY_SIGNING_DIR="$TESTTUBE_HOME/signing"
 DIST_DIR="$ROOT/dist"
 LOG_FILE="$ROOT/build.log"
 GRADLE_FILE="$ROOT/app/build.gradle.kts"
@@ -60,9 +86,9 @@ UPDATE_MANAGER="$ROOT/app/src/main/java/com/testtube/app/update/UpdateManager.ja
 APP_ID="com.testtube.app"
 TMP_DIR=""
 
-log() { printf '\033[1;32m[TestTube]\033[0m %s\n' "$*"; }
-warn() { printf '\033[1;33m[TestTube] WARNING:\033[0m %s\n' "$*" >&2; }
-die() { printf '\033[1;31m[TestTube] ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
+log() { printf '==> %s\n' "$*"; }
+warn() { printf 'warning: %s\n' "$*" >&2; }
+die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 
 # Everything printed goes through tee into build.log, and that pipe can hold a question back so
 # the terminal shows nothing while the script waits for an answer. Questions go straight to the
@@ -129,7 +155,7 @@ cleanup() {
 }
 on_error() {
 	local code=$?
-	printf '\033[1;31m[TestTube] Failed (exit %s) at line %s. Full log: %s\033[0m\n' "$code" "$1" "$LOG_FILE" >&2
+	printf 'error: failed (exit %s) at line %s. Full log: %s\n' "$code" "$1" "$LOG_FILE" >&2
 	exit "$code"
 }
 trap cleanup EXIT
@@ -160,32 +186,7 @@ set_mode() {
 
 show_menu() {
 	local choice
-	ask "$(cat <<'EOF'
-What would you like to do?
-  Build
-   1) Build the signed release APK
-   2) Build the signed release APK and install it on the connected phone
-   3) Build a debug APK
-   4) Install the APK in dist/ on the connected phone
-  Release
-   5) Build the release APK and publish it to GitHub Releases
-   6) Publish the APK already in dist/ to GitHub Releases
-   7) Set the version for the next release
-   8) Put the current source on GitHub (no release)
-   9) Pack the source into a zip (no keys or build output)
-  Check
-  10) Run the unit tests
-  11) Record library checksums (Gradle then refuses any library that changes)
-  Signing key
-  12) Show the signing key's fingerprint
-  13) Back up the signing key to another folder
-  14) Use a signing key from another folder
-  Maintenance
-  15) Delete all build output
-  16) Give the project folder back to you (after a run with sudo)
-Enter a number [1-16]:
-EOF
-) " choice
+	ask "$(printf 'What would you like to do?\n  1) Build a signed release APK\n  2) Build a signed release APK and publish it to GitHub Releases\n  3) Publish an already-built release APK to GitHub Releases\n  4) Build a debug APK (no signing key needed)\n  5) Install the built APK to a connected phone (shows the real error if it fails)\n  6) Run the test suite\n  7) Package a source archive for a reviewer (no keys)\n  8) Record dependency hashes (supply-chain verification)\n  9) Push source to GitHub (no release)\n 10) Set the version for the next release\n 11) Create signing keys (once, before your first signed build)\n 12) Show the signing keys\n 13) Use a signing key from another folder\n 14) Switch to the shared Android key (one key for all apps)\n 15) Back up all signing keys (~/.keys)\n 16) Delete all build output\n 17) Give the project folder back to you (after a run with sudo)\nEnter a number [1-17]: ')" choice
 	apply_choice "$choice"
 	MENU_CHOICE="$choice"
 }
@@ -193,22 +194,23 @@ EOF
 apply_choice() {
 	case "$1" in
 		1) set_mode build ;;
-		2) set_mode build; INSTALL=1 ;;
-		3) set_mode build; VARIANT="debug" ;;
-		4) set_mode install-only ;;
-		5) set_mode publish ;;
-		6) set_mode upload-only ;;
-		7) set_mode set-version ;;
-		8) set_mode push-source ;;
-		9) set_mode source-zip ;;
-		10) set_mode test ;;
-		11) set_mode build; WRITE_CHECKSUMS=1 ;;
+		2) set_mode publish ;;
+		3) set_mode upload-only ;;
+		4) set_mode build; VARIANT="debug" ;;
+		5) set_mode install-only ;;
+		6) set_mode test ;;
+		7) set_mode source-zip ;;
+		8) set_mode build; WRITE_CHECKSUMS=1 ;;
+		9) set_mode push-source ;;
+		10) set_mode set-version ;;
+		11) set_mode create-keys ;;
 		12) set_mode key-info ;;
-		13) set_mode backup-key ;;
-		14) set_mode import-key ;;
-		15) set_mode clean ;;
-		16) set_mode fix-permissions ;;
-		*) die "'$1' isn't one of the options" ;;
+		13) set_mode import-key ;;
+		14) set_mode use-shared-key ;;
+		15) set_mode backup-key ;;
+		16) set_mode clean ;;
+		17) set_mode fix-permissions ;;
+		*) die "'$1' isn't one of the options above." ;;
 	esac
 }
 
@@ -228,13 +230,17 @@ for arg in "$@"; do
 		--test) set_mode test ;;
 		--set-version) set_mode set-version ;;
 		--push-source) set_mode push-source ;;
-		--source-zip) set_mode source-zip ;;
-		--key-info) set_mode key-info ;;
+		--audit-zip|--source-zip) set_mode source-zip ;;
+		--create-keys) set_mode create-keys ;;
+		--show-keys|--key-info) set_mode key-info ;;
+		--use-shared-key) set_mode use-shared-key ;;
+		--backup-keys) set_mode backup-key ;;
+		--backup-keys=*) set_mode backup-key; BACKUP_KEY="${arg#--backup-keys=}" ;;
 		--backup-key) set_mode backup-key; EXPECT="BACKUP_KEY" ;;
 		--backup-key=*) set_mode backup-key; BACKUP_KEY="${arg#--backup-key=}" ;;
 		--import-key) EXPECT="IMPORT_KEY" ;;
 		--import-key=*) IMPORT_KEY="${arg#--import-key=}" ;;
-		--write-checksums) WRITE_CHECKSUMS=1 ;;
+		--write-dependency-hashes|--write-checksums) WRITE_CHECKSUMS=1 ;;
 		--fix-permissions) set_mode fix-permissions ;;
 		--install) INSTALL=1 ;;
 		--reinstall) INSTALL=1; REINSTALL=1 ;;
@@ -253,6 +259,11 @@ fi
 # --clean on its own deletes the build output; with a build it cleans first.
 if [[ "$CLEAN" -eq 1 && -z "$MODE" ]]; then
 	MODE="clean"
+fi
+# --install on its own installs the APK already built (as in the other apps' BUILD.sh); with a
+# build it installs what was just built.
+if [[ "$INSTALL" -eq 1 && "$WRITE_CHECKSUMS" -eq 0 && -z "$MODE" ]]; then
+	MODE="install-only"
 fi
 if [[ -z "$MODE" ]]; then
 	if [[ $# -eq 0 ]] && has_tty; then
@@ -306,6 +317,17 @@ fix_permissions() {
 	if [[ -d "$user_testtube_home/signing" ]]; then
 		chmod 700 "$user_testtube_home/signing"
 		find "$user_testtube_home/signing" -type f -exec chmod 600 {} +
+	fi
+	local user_keys_home="${KEYS_HOME_OVERRIDE:-$home/.keys}"
+	if [[ -d "$user_keys_home" ]]; then
+		log "Giving $user_keys_home back to user $uid (only you can open it)"
+		if [[ "$(id -u)" -eq 0 ]]; then
+			chown -R "$uid:$gid" "$user_keys_home"
+		elif find "$user_keys_home" ! -user "$uid" -print -quit 2>/dev/null | grep -q . && command -v sudo >/dev/null 2>&1; then
+			sudo chown -R "$uid:$gid" "$user_keys_home"
+		fi
+		find "$user_keys_home" -type d -exec chmod 700 {} +
+		find "$user_keys_home" -type f -exec chmod 600 {} +
 	fi
 	log "Done. You can now move, change and delete the project folder normally."
 }
@@ -533,30 +555,93 @@ protected_exists() {
 	[[ "$(id -u)" -ne 0 ]] && command -v sudo >/dev/null 2>&1 && sudo test -e "$1"
 }
 
+# The password in a signing.env: TESTTUBE_KEYSTORE_PASSWORD= (TestTube's own) or KEYSTORE_PASSWORD=
+# (the shared key and other apps).
 signing_password_from() {
-	local line value
+	local line value=""
 	while IFS= read -r line; do
-		if [[ "$line" =~ ^TESTTUBE_KEYSTORE_PASSWORD=([0-9A-Za-z]+)$ ]]; then
-			value="${BASH_REMATCH[1]}"
+		if [[ "$line" =~ ^(TESTTUBE_)?KEYSTORE_PASSWORD=([^[:space:]]+)$ ]]; then
+			value="${BASH_REMATCH[2]}"
 		fi
 	done
-	[[ -n "${value:-}" ]] || return 1
+	[[ -n "$value" ]] || return 1
 	printf '%s' "$value"
 }
 
-write_signing_env() {
-	(umask 077; {
-		printf 'TESTTUBE_KEYSTORE_PASSWORD=%s\n' "$1"
-		printf 'TESTTUBE_KEY_ALIAS=testtube\n'
-	} > "$SIGNING_ENV")
-	chmod 600 "$SIGNING_ENV"
+# The key alias in a signing.env, or the one given as default.
+signing_alias_from() {
+	local line value="$1"
+	while IFS= read -r line; do
+		if [[ "$line" =~ ^(TESTTUBE_)?KEY_ALIAS=([A-Za-z0-9._-]+)$ ]]; then
+			value="${BASH_REMATCH[2]}"
+		fi
+	done
+	printf '%s' "$value"
 }
 
-# The key's SHA-256 fingerprint as keytool prints it (AA:BB:...), or nothing.
+# Writes a signing.env: file, password, alias, and the variable prefix (TESTTUBE_ or nothing).
+write_env_file() {
+	(umask 077; {
+		printf '%sKEYSTORE_PASSWORD=%s\n' "$4" "$2"
+		printf '%sKEY_ALIAS=%s\n' "$4" "$3"
+	} > "$1")
+	chmod 600 "$1"
+}
+
+write_signing_env() {
+	write_env_file "$SIGNING_ENV" "$1" testtube TESTTUBE_
+}
+
+# The key's SHA-256 fingerprint as keytool prints it (AA:BB:...), or nothing: keystore, password, alias.
 key_fingerprint() {
 	TESTTUBE_FP_PASSWORD="$2" "$JDK_DIR/bin/keytool" -list -v -keystore "$1" -storetype PKCS12 \
-		-storepass:env TESTTUBE_FP_PASSWORD -alias testtube 2>/dev/null \
+		-storepass:env TESTTUBE_FP_PASSWORD -alias "${3:-testtube}" 2>/dev/null \
 		| awk -F': ' '/SHA256:/ {print $2; exit}' || true
+}
+
+# The same, lower case without colons, as apksigner prints it: keystore, its signing.env, default alias.
+keystore_digest() {
+	local password alias
+	password="$(read_protected "$2" | signing_password_from)" || return 1
+	alias="$(read_protected "$2" | signing_alias_from "$3")"
+	local copy="$TMP_DIR/candidate.p12"
+	(umask 077; read_protected "$1" > "$copy") || return 1
+	key_fingerprint "$copy" "$password" "$alias" | tr -d ':' | tr 'A-F' 'a-f'
+	rm -f "$copy"
+}
+
+# ~/.keys holds every signing key, for all apps, and only you can open it (scripts/android-keys.sh).
+secure_keys_home() {
+	mkdir -p "$SIGNING_DIR"
+	ak_secure || die "Could not set up $KEYS_HOME"
+}
+
+# Moves TestTube's key to ~/.keys/testtube from where earlier versions kept it.
+migrate_keys() {
+	local legacy
+	for legacy in "$KEYS_HOME/android/old/testtube" "$LEGACY_SIGNING_DIR"; do
+		[[ -f "$legacy/testtube-release.p12" ]] || continue
+		ak_move_dir "$legacy" "$SIGNING_DIR" || die "Could not move TestTube's signing key from $legacy to $SIGNING_DIR"
+		rmdir "$KEYS_HOME/android/old" 2>/dev/null || true
+		log "Moved TestTube's signing key from $legacy to $SIGNING_DIR"
+	done
+}
+
+rotated() {
+	[[ -f "$LINEAGE" ]]
+}
+
+shared_key_exists() {
+	ak_shared_exists
+}
+
+# The digest updates have to carry: the shared key once TestTube has switched to it, its own until then.
+release_digest() {
+	if rotated; then
+		keystore_digest "$SHARED_KEYSTORE" "$SHARED_ENV" release
+	else
+		keystore_digest "$KEYSTORE" "$SIGNING_ENV" testtube
+	fi
 }
 
 load_signing_key() {
@@ -567,9 +652,21 @@ load_signing_key() {
 	export TESTTUBE_KEY_ALIAS="testtube"
 	export TESTTUBE_KEY_PASSWORD="$password"
 	local fingerprint
-	fingerprint="$(key_fingerprint "$KEYSTORE" "$password")"
+	fingerprint="$(key_fingerprint "$KEYSTORE" "$password" testtube)"
 	[[ -n "$fingerprint" ]] || die "The signing key in $SIGNING_DIR cannot be opened with its password"
-	log "Signing key fingerprint (SHA-256): $fingerprint"
+	if rotated; then
+		shared_key_exists || die "TestTube uses the shared Android key, but $SHARED_KEYSTORE is missing. Restore ~/.keys from your backup."
+		local shared_password shared_alias
+		shared_password="$(signing_password_from < "$SHARED_ENV")" || die "$SHARED_ENV is damaged"
+		shared_alias="$(signing_alias_from release < "$SHARED_ENV")"
+		local shared
+		shared="$(key_fingerprint "$SHARED_KEYSTORE" "$shared_password" "$shared_alias")"
+		[[ -n "$shared" ]] || die "The shared Android key in $ANDROID_KEYS cannot be opened with its password"
+		log "Signing with the shared Android key (SHA-256): $shared"
+		log "  and TestTube's original key for Android 8 (SHA-256): $fingerprint"
+	else
+		log "Signing key fingerprint (SHA-256): $fingerprint"
+	fi
 }
 
 import_signing_key() {
@@ -578,9 +675,9 @@ import_signing_key() {
 	protected_exists "$source/signing.env" || die "No signing.env in $source"
 	local password
 	password="$(read_protected "$source/signing.env" | signing_password_from)" || die "Could not read the password from $source/signing.env"
-	mkdir -p "$SIGNING_DIR"
-	chmod 700 "$SIGNING_DIR"
+	secure_keys_home
 	if [[ -e "$KEYSTORE" || -e "$SIGNING_ENV" ]]; then
+		rotated && die "TestTube already switched to the shared Android key; replacing its original key would break updates for Android 8 phones"
 		local backup
 		backup="$SIGNING_DIR/replaced-$(date +%Y%m%d-%H%M%S)"
 		mkdir -p "$backup"
@@ -592,14 +689,18 @@ import_signing_key() {
 	(umask 077; read_protected "$source/testtube-release.p12" > "$KEYSTORE")
 	chmod 600 "$KEYSTORE"
 	write_signing_env "$password"
+	if protected_exists "$source/lineage.bin"; then
+		(umask 077; read_protected "$source/lineage.bin" > "$LINEAGE")
+		chmod 600 "$LINEAGE"
+	fi
 	log "Imported the signing key from $source"
 }
 
 ensure_signing_key() {
-	mkdir -p "$SIGNING_DIR"
-	chmod 700 "$SIGNING_DIR"
+	migrate_keys
+	secure_keys_home
 	if [[ -f "$KEYSTORE" && -f "$SIGNING_ENV" ]]; then
-		log "Using existing signing key $KEYSTORE"
+		log "Using TestTube's signing key in $SIGNING_DIR"
 	elif [[ -f "$KEYSTORE" || -f "$SIGNING_ENV" ]]; then
 		die "Signing key files in $SIGNING_DIR are incomplete. Restore them from your backup, or delete that folder to create a new key (a new key cannot update an installed TestTube)."
 	else
@@ -620,41 +721,103 @@ ensure_signing_key() {
 				-dname "CN=TestTube, O=TestTube")
 			chmod 600 "$KEYSTORE"
 			write_signing_env "$password"
-			warn "Back up $SIGNING_DIR (menu option 13). Without it future builds cannot update the installed app."
+			warn "Back up $KEYS_HOME (option 15). Without it future builds cannot update the installed app."
 		fi
 	fi
 	load_signing_key
 }
 
 show_key_info() {
+	migrate_keys
 	[[ -f "$KEYSTORE" && -f "$SIGNING_ENV" ]] || die "No signing key yet in $SIGNING_DIR. The first release build creates one."
 	load_signing_key
-	log "Kept in: $SIGNING_DIR"
-	log "Every update has to be signed with this key; the app refuses anything else."
+	log "All keys are kept in: $KEYS_HOME"
+	if rotated; then
+		log "TestTube uses the shared Android key. Phones with TestTube signed by its original key update"
+		log "to it by themselves; Android 8 phones keep checking the original key."
+	elif shared_key_exists; then
+		log "There is a shared Android key in $ANDROID_KEYS that TestTube doesn't use yet (option 14)."
+	fi
+	log "Every update has to be signed with these keys; the app refuses anything else."
 }
 
+# Copies the whole ~/.keys folder to DIR/.keys and checks every file.
 backup_signing_key() {
-	[[ -f "$KEYSTORE" && -f "$SIGNING_ENV" ]] || die "No signing key yet in $SIGNING_DIR. The first release build creates one."
+	migrate_keys
+	if [[ ! -d "$KEYS_HOME" ]] || ! find "$KEYS_HOME" -type f \( -name '*.p12' -o -name '*.jks' -o -name '*.pem' \) -print -quit | grep -q .; then
+		die "No keys yet in $KEYS_HOME. The first release build creates TestTube's."
+	fi
 	local target="$BACKUP_KEY"
 	if [[ -z "$target" ]]; then
-		ask "Folder to copy the signing key to (a USB stick, for example): " target
+		ask "Folder to copy all signing keys to (a USB stick, for example): " target
 	fi
 	[[ -n "$target" ]] || die "No folder given"
 	target="${target%/}"
 	case "$target" in
-		"$ROOT"|"$ROOT"/*) die "Not inside the project folder: it gets zipped and pushed, and the key would go with it" ;;
+		"$ROOT"|"$ROOT"/*) die "Not inside the project folder: it gets zipped and pushed, and the keys would go with it" ;;
 	esac
-	mkdir -p "$target"
-	if [[ -e "$target/testtube-release.p12" || -e "$target/signing.env" ]]; then
-		confirm "$target already holds a TestTube key. Replace it?" n || die "Nothing copied"
+	ak_backup "$target" || die "Nothing was backed up"
+}
+
+# ---- One Android key for all apps ---------------------------------------------------------------
+
+# Points scripts/android-keys.sh at this toolchain.
+key_tools() {
+	AK_KEYTOOL="$JDK_DIR/bin/keytool"
+	AK_JAVA_HOME="$JDK_DIR"
+	AK_APKSIGNER="$(apksigner_bin)"
+}
+
+# The first TestTube version whose updater accepts a change of key.
+ROTATION_AWARE_CODE=30002
+APP_MIN_SDK=26
+
+# Switches TestTube to the shared Android key, for good (see scripts/android-keys.sh).
+switch_to_shared_key() {
+	setup_toolchain
+	ensure_signing_key
+	ensure_build_tools
+	key_tools
+	if rotated; then
+		log "TestTube already uses the shared Android key"
+		return
 	fi
-	(umask 077
-		cp "$KEYSTORE" "$target/testtube-release.p12"
-		cp "$SIGNING_ENV" "$target/signing.env")
-	chmod 600 "$target/testtube-release.p12" "$target/signing.env" 2>/dev/null || true
-	[[ "$(sha256_of "$KEYSTORE")" == "$(sha256_of "$target/testtube-release.p12")" ]] || die "The copy in $target doesn't match. Check the drive and try again."
-	log "Signing key copied to $target and checked"
-	log "Keep it somewhere safe and private: anyone with these two files can sign TestTube updates"
+	# People whose TestTube is older than 3.0.2 have an updater that only takes the exact old key.
+	# Android itself accepts the switch, so they'd have to download the APK by hand once.
+	local slug published="" code=""
+	if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+		slug="$(repo_slug || true)"
+		[[ -n "$slug" ]] && published="$(gh api "repos/$slug/releases/latest" --jq .tag_name 2>/dev/null || true)"
+		code="$(version_code_for "${published#v}")"
+	fi
+	if [[ -z "$code" ]]; then
+		warn "Couldn't check GitHub. Only switch once a release from 3.0.2 on, signed with the old key, is out: older versions' in-app updater refuses the new key."
+	elif (( code < ROTATION_AWARE_CODE )); then
+		warn "The latest release on GitHub is $published. Its in-app updater refuses a new key, so people would have to download the next update by hand."
+		warn "Better: first publish 3.0.2 or newer with the old key (option 2), give people time to update, then switch."
+	else
+		log "The latest release on GitHub ($published) already accepts the switch"
+	fi
+	local password
+	password="$(signing_password_from < "$SIGNING_ENV")"
+	ak_switch TestTube "$KEYSTORE" "$password" "$password" testtube "$LINEAGE" || die "TestTube was not switched"
+	log "Back up $KEYS_HOME now (option 15)."
+}
+
+# Re-signs a release APK with TestTube's own key and the shared one, and checks it.
+sign_rotated() {
+	local apk="$1" password
+	key_tools
+	password="$(signing_password_from < "$SIGNING_ENV")"
+	ak_sign "$apk" "$KEYSTORE" "$password" "$password" testtube "$LINEAGE" || die "Could not sign $(basename "$apk") with the shared key"
+	check_rotated "$apk"
+	log "Signed with the shared Android key (Android 9+) and TestTube's own key (Android 8)"
+}
+
+# A switched APK: Android 8 sees TestTube's own key, Android 9 and newer the shared one.
+check_rotated() {
+	key_tools
+	ak_check "$1" "$(keystore_digest "$KEYSTORE" "$SIGNING_ENV" testtube)" "$APP_MIN_SDK" || die "$(basename "$1") isn't signed the way the switch needs"
 }
 
 pin_gradle_checksum() {
@@ -705,9 +868,9 @@ extract_errors() {
 		echo
 		grep -nE '(^|[[:space:]])error:|^e: |cannot find symbol|incompatible types|FAILED$|\* What went wrong|Execution failed|Caused by:|AAPT|BUILD FAILED|expected:<|AssertionError' -A4 "$src" 2>/dev/null | head -n 250 || true
 	} > "$out"
-	printf '\033[1;31m[TestTube] ---- What went wrong ----\033[0m\n'
+	printf -- '---- What went wrong ----\n'
 	head -n 70 "$out"
-	printf '\033[1;31m[TestTube] -------------------------\033[0m\n'
+	printf -- '-------------------------\n'
 	log "Errors only: $out"
 }
 
@@ -898,6 +1061,9 @@ collect_apk() {
 	APK_OUT="$out"
 	[[ -f "$out" ]] || die "APK not found at $out"
 	ensure_build_tools
+	if [[ "$VARIANT" == "release" ]] && rotated; then
+		sign_rotated "$out"
+	fi
 	JAVA_HOME="$JDK_DIR" "$(apksigner_bin)" verify "$out"
 	log "Signature verified"
 	local built
@@ -944,7 +1110,7 @@ key_digest() {
 
 key_folders() {
 	local base
-	for base in "$SIGNING_DIR" "/root/.testtube/signing"; do
+	for base in "$SIGNING_DIR" "$LEGACY_SIGNING_DIR" "/root/.testtube/signing"; do
 		if [[ -d "$base" ]]; then
 			find "$base" -maxdepth 2 -name testtube-release.p12 -exec dirname {} \; 2>/dev/null || true
 		elif [[ "$base" == /root/* && "$(id -u)" -ne 0 ]] && command -v sudo >/dev/null 2>&1; then
@@ -971,6 +1137,13 @@ match_installed_key() {
 	if [[ "$current" == "$wanted" ]]; then
 		log "The current signing key matches the installed app"
 		return
+	fi
+	if shared_key_exists && [[ "$(keystore_digest "$SHARED_KEYSTORE" "$SHARED_ENV" release || true)" == "$wanted" ]]; then
+		if rotated; then
+			log "The installed app already uses the shared Android key"
+			return
+		fi
+		die "The phone's TestTube uses the shared Android key, but $LINEAGE is missing, so this build can't update it. Restore ~/.keys from your backup."
 	fi
 	log "Looking for the matching signing key on this computer (your password may be needed)"
 	local dir
@@ -1018,7 +1191,7 @@ install_apk() {
 		die "The phone's TestTube was signed with a different key. Run ./BUILD.sh --reinstall to replace it (its settings, history and login are lost)"
 	fi
 	if grep -q 'INSTALL_FAILED_VERSION_DOWNGRADE' <<< "$output"; then
-		die "The phone has a newer TestTube than this build. Set a higher version first (menu option 7)"
+		die "The phone has a newer TestTube than this build. Set a higher version first (option 10)"
 	fi
 	die "Installation failed"
 }
@@ -1034,7 +1207,7 @@ find_dist_apk() {
 	elif [[ -f "$debug" ]]; then
 		APK_OUT="$debug"
 	else
-		die "No APK for version $version in $DIST_DIR. Build it first (menu option 1)"
+		die "No APK for version $version in $DIST_DIR. Build it first (option 1)"
 	fi
 	log "APK: $APK_OUT"
 }
@@ -1162,7 +1335,8 @@ push_source() {
 	email="$(git config --global user.email 2>/dev/null || true)"
 	if [[ -z "$name" || -z "$email" ]]; then
 		local login
-		login="$(gh api user --jq .login 2>/dev/null || echo testtube)"
+		login="$(gh api user --jq .login 2>/dev/null || true)"
+		login="${login:-testtube}"
 		name="${name:-$login}"
 		email="${email:-$login@users.noreply.github.com}"
 	fi
@@ -1190,9 +1364,14 @@ publish_release() {
 	[[ -f "$KEYSTORE" && -f "$SIGNING_ENV" ]] || die "No signing key in $SIGNING_DIR to check the APK against"
 	local signed expected
 	signed="$(apk_digest "$APK_OUT")"
-	expected="$(key_digest "$SIGNING_DIR" || true)"
-	[[ -n "$signed" && "$signed" == "$expected" ]] || die "$apk_name isn't signed with your signing key ($SIGNING_DIR). The app would refuse it as an update."
-	log "Signed with your key"
+	expected="$(release_digest || true)"
+	[[ -n "$signed" && "$signed" == "$expected" ]] || die "$apk_name isn't signed with your signing key ($KEYS_HOME). The app would refuse it as an update."
+	if rotated; then
+		check_rotated "$APK_OUT"
+		log "Signed with the shared Android key, and TestTube's own key for Android 8"
+	else
+		log "Signed with your key"
+	fi
 	local built
 	built="$(apk_version_name "$APK_OUT")"
 	[[ -z "$built" || "$built" == "v$version" ]] || die "$apk_name is version '$built', not v$version"
@@ -1203,7 +1382,7 @@ publish_release() {
 		local latest
 		latest="$(gh api "repos/$slug/releases/latest" --jq .tag_name 2>/dev/null || true)"
 		if [[ -n "$latest" && "$latest" != "$tag" ]] && ! version_newer "${tag#v}" "${latest#v}"; then
-			die "$tag isn't newer than $latest, the latest release on GitHub. Set a new version first (menu option 7)"
+			die "$tag isn't newer than $latest, the latest release on GitHub. Set a new version first (option 10)"
 		fi
 	fi
 
@@ -1318,7 +1497,7 @@ clean_outputs() {
 	log "Deleting build output"
 	rm -rf "$DIST_DIR" "$ROOT/build" "$ROOT/app/build" "$ROOT/.gradle" "$ROOT/.kotlin" \
 		"$ROOT/newpipe-extractor/.gradle" "$ROOT/newpipe-extractor/build" "$ROOT/newpipe-extractor/extractor/build"
-	log "Done. The next build starts from scratch (the JDK, SDK and signing key stay in $TESTTUBE_HOME)."
+	log "Done. The next build starts from scratch (the JDK and SDK stay in $TESTTUBE_HOME, the keys in $KEYS_HOME)."
 }
 
 # Files removed in newer versions. Unzipping over an old copy leaves them behind, and Gradle
@@ -1387,7 +1566,7 @@ main() {
 			ensure_build_tools
 			VARIANT="release"
 			APK_OUT="$(apk_path_for "$(read_version_name)")"
-			[[ -f "$APK_OUT" ]] || die "No release APK for version $(read_version_name) at $APK_OUT. Build it first (menu option 1)"
+			[[ -f "$APK_OUT" ]] || die "No release APK for version $(read_version_name) at $APK_OUT. Build it first (option 1)"
 			publish_release
 			;;
 		install-only)
@@ -1414,9 +1593,17 @@ main() {
 			setup_toolchain
 			show_key_info
 			;;
+		use-shared-key)
+			switch_to_shared_key
+			;;
 		backup-key)
 			ensure_system_tools
 			backup_signing_key
+			;;
+		create-keys)
+			setup_toolchain
+			ensure_signing_key
+			log "Kept in $SIGNING_DIR. Back them up with option 15."
 			;;
 		import-key)
 			setup_toolchain

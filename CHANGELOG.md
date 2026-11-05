@@ -12,7 +12,7 @@
 - New: Allow HDR video (Settings → Playback, off by default: SDR is played whenever there is one) and Prefer H264 video (off by default, for phones that still show wrong colours). A broken HDR stream falls straight back to H.264
 - Sign-in page can only go to Google's and YouTube's own sites
 - Opening downloads only shares the app's own Downloads/TestTube folder, nothing else in Downloads
-- Updates: refused without GitHub's SHA-256 of the file, the download has to match it exactly, and only an APK signed with the same key as the installed app is offered to Android's installer (now on every Android version, not just 9+)
+- Updates: refused without GitHub's SHA-256 of the file, the download has to match it exactly, and only an APK signed with the same key as the installed app is offered to Android's installer (now on every Android version, not just 9+). A switch to a new signing key is accepted only the way Android itself allows it: the new key has to carry the old key's signed approval
 - About 240 KB smaller: the NiiX font only carries the characters text needs, and the unused ExtraBold weight is gone. It looks exactly the same
 
 ## 3.0.1

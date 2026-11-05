@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
+import android.content.pm.SigningInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Handler;
@@ -19,6 +20,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.FileProvider;
 import androidx.core.content.pm.PackageInfoCompat;
@@ -424,27 +426,51 @@ public final class UpdateManager {
 	}
 
 	/**
-	 * Whether the APK is signed with exactly the key of the app that's installed, which is your
-	 * release key: an APK built or re-signed by anyone else is thrown away here, before Android's
-	 * installer even comes up. Compared by the SHA-256 of each signing certificate. The installer
-	 * checks the key again on its own.
+	 * Whether the APK is signed with the key of the app that's installed, which is your release
+	 * key: an APK built or re-signed by anyone else is thrown away here, before Android's installer
+	 * even comes up. Compared by the SHA-256 of each signing certificate. The installer checks the
+	 * key again on its own.
+	 * <p>
+	 * One change of key is allowed, the way Android allows it (key rotation, APK Signature Scheme
+	 * v3, Android 9 and newer): an APK signed with a new key that carries the installed key's own
+	 * signed approval of that new key. Only whoever holds the installed key can make that approval,
+	 * and from then on only the new key is accepted. Android 8 never changes key, so there the APK
+	 * has to be signed with the installed key, which rotated APKs still are for those versions.
 	 */
 	private static boolean sameSigner(PackageInfo archive, PackageInfo installed) {
-		Set<String> downloaded = certificateHashes(archive);
-		return !downloaded.isEmpty() && downloaded.equals(certificateHashes(installed));
+		Set<String> installedNow = currentSigners(installed);
+		Set<String> downloadedNow = currentSigners(archive);
+		if (installedNow.isEmpty() || downloadedNow.isEmpty()) return false;
+		if (downloadedNow.equals(installedNow)) return true;
+		return Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && rotatedFrom(archive, installedNow);
 	}
 
+	/** The certificates the package is signed with now. */
 	@SuppressWarnings("deprecation")
 	@NonNull
-	private static Set<String> certificateHashes(@NonNull PackageInfo info) {
-		Signature[] signers;
+	private static Set<String> currentSigners(@NonNull PackageInfo info) {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-			// Several signers only for APKs signed by more than one key at once; a rotated key's
-			// history isn't accepted, the current one has to match
-			signers = info.signingInfo != null ? info.signingInfo.getApkContentsSigners() : null;
-		} else {
-			signers = info.signatures;
+			// Several signers only for APKs signed by more than one key at once; then all must match
+			return hashes(info.signingInfo != null ? info.signingInfo.getApkContentsSigners() : null);
 		}
+		return hashes(info.signatures);
+	}
+
+	/**
+	 * Whether the APK's single key took over from {@code installedNow}: its signing history, which
+	 * each earlier key signed for the next, includes the installed key.
+	 */
+	@RequiresApi(Build.VERSION_CODES.P)
+	private static boolean rotatedFrom(@NonNull PackageInfo archive, @NonNull Set<String> installedNow) {
+		SigningInfo info = archive.signingInfo;
+		if (info == null || info.hasMultipleSigners() || !info.hasPastSigningCertificates()) return false;
+		if (installedNow.size() != 1) return false;
+		Set<String> history = hashes(info.getSigningCertificateHistory());
+		return history.size() > 1 && history.containsAll(installedNow);
+	}
+
+	@NonNull
+	private static Set<String> hashes(@Nullable Signature[] signers) {
 		Set<String> hashes = new HashSet<>();
 		if (signers == null) return hashes;
 		try {
