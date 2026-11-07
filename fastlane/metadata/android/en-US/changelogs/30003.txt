@@ -1,0 +1,3 @@
+- Fixed: Clear cache on exit now works, also when the app is swiped away before a video plays
+- Anything a closed app couldn't clear is cleared on the next start
+- Leaving with Back also clears web data and pictures in memory

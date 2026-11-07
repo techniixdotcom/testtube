@@ -1,5 +1,10 @@
 # Changelog
 
+## 3.0.3
+
+- Fixed: Clear cache on exit didn't work. Swiping TestTube away before a video had played never cleared anything, and when it did start Android usually closed the app before it finished. Now the app stays open until the cache is empty, and anything a closed app couldn't clear (swiped away, force-stopped, crashed) is cleared the next time it starts
+- Leaving with Back now also clears the web data and the pictures kept in memory when Clear cache on exit is on
+
 ## 3.0.2
 
 - New player notification, also on the lock screen: previous video, back 10 seconds, play/pause, forward 10 seconds, next video and Close. Expanded it shows the picture, title and channel too. Close stops the video, closes the app and clears the cache. The card is in the app's theme (Dark, Light or NiiX, with NiiX's pink and font), paused too on Android 14 and newer
