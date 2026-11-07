@@ -40,6 +40,8 @@ public class App extends Application {
 		}
 		ContentLanguage.apply(this);
 		graph = new AppGraph(this);
+		// "Clear cache on exit" when the last run was swiped away or killed before it could
+		graph.clearCacheLeftFromLastRun();
 		initUserAgent();
 	}
 

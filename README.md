@@ -1,7 +1,5 @@
 <h1 align="center">
-  
   <img src="screens/header.png" height="72" alt="TestTube" />
-  
 </h1>
 
 <p align="center">
@@ -37,30 +35,8 @@ Requires Android 8.0 or newer. Download the APK from
 [Releases](https://github.com/techniixdotcom/testtube/releases); the app checks for updates
 itself after that.
 
-## How it works
-
-Almost everything is native: the player, Home, Subscriptions, search, channel and playlist pages
-(every channel tab), History, the queue, the screen under the video (description, comments and
-suggestions) and the downloader are drawn by the app itself and get their data directly from
-YouTube through the NewPipe Extractor. That makes it faster, smoother and fully under our control.
-
-Only two small web views are left: the Google sign-in page, which can only open Google's and
-YouTube's own sites, and the live chat of live streams. There is no YouTube website layer, no
-injected scripts and no page bridge.
-
-## Privacy
-
-- **No analytics, crash reporting or ads.** History, the queue and the channels you follow stay on
-  the phone, and Android backups are off.
-- **SponsorBlock** only gets the first 4 characters of a SHA-256 hash of the video ID
-  (sponsor.ajay.app), so it can't tell which video you're watching. There are no dislike-count
-  lookups.
-- **Hide AI videos** (off by default) downloads the community AiSList from
-  raw.githubusercontent.com once a day. Nothing about you is sent.
-- **Update checks** ask GitHub (api.github.com) for new releases 5 seconds after the app starts,
-  including test versions if "Pre-releases" is on, and updates download from github.com. Nothing
-  about you is sent. To switch checks off, tap the TestTube logo on Home and turn off "Check for
-  updates automatically" under Updates.
+How it works, how to build it, and the full documentation:
+[`docs/HOW-IT-WORKS.md`](docs/HOW-IT-WORKS.md).
 
 ## What it can't do
 
@@ -79,12 +55,6 @@ injected scripts and no page bridge.
   <img src="screens/3.jpeg" width="200" alt="TestTube screenshot 3" />
   <img src="screens/4.jpeg" width="200" alt="TestTube screenshot 4" />
 </p>
-
-## Building it yourself
-
-On Linux, macOS or WSL2, run `./BUILD.sh` and pick from the menu. It downloads the JDK and
-Android SDK it needs (checking their checksums), creates your signing key the first time, and puts
-the APK in `dist/`. `./BUILD.sh --help` lists every option.
 
 ## Licence
 

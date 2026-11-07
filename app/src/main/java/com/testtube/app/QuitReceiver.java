@@ -5,11 +5,15 @@ import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.util.UnstableApi;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Closing the app from its player notification, which also shows on the lock screen: the Quit
@@ -26,6 +30,8 @@ public final class QuitReceiver extends BroadcastReceiver {
 	private static final String ACTION_DISMISSED = "com.testtube.app.action.NOTIFICATION_DISMISSED";
 	private static final int REQUEST_QUIT = 102;
 	private static final int REQUEST_DISMISSED = 103;
+	/** Well inside the time Android gives a receiver that went async. */
+	private static final long MAX_CLEAR_WAIT_MS = 8_000L;
 
 	/** Closes the screens; set while the main screen exists. */
 	@Nullable
@@ -34,12 +40,29 @@ public final class QuitReceiver extends BroadcastReceiver {
 	@Override
 	public void onReceive(@NonNull Context context, @NonNull Intent intent) {
 		String action = intent.getAction();
+		boolean clearCache;
 		if (ACTION_QUIT.equals(action)) {
-			quit(context);
+			clearCache = true;
 		} else if (ACTION_DISMISSED.equals(action)) {
 			// Swiped away, playing or not: everything closes, like swiping the app out of recents
-			exit(context, AppSettings.clearCacheOnExit());
+			clearCache = AppSettings.clearCacheOnExit();
+		} else {
+			return;
 		}
+		// Keeps the process alive until the cache is empty; with every screen gone Android would
+		// otherwise kill it half-way through. Let go in time anyway, a receiver mustn't hang on;
+		// whatever is left then gets cleared on the next start.
+		PendingResult pending = goAsync();
+		AtomicBoolean finished = new AtomicBoolean();
+		Handler handler = new Handler(Looper.getMainLooper());
+		Runnable finish = () -> {
+			if (finished.compareAndSet(false, true)) pending.finish();
+		};
+		handler.postDelayed(finish, MAX_CLEAR_WAIT_MS);
+		exit(context, clearCache, () -> {
+			handler.removeCallbacks(finish);
+			finish.run();
+		});
 	}
 
 	/** For the notification's Quit button. Only this app can send it (explicit and immutable). */
@@ -78,15 +101,17 @@ public final class QuitReceiver extends BroadcastReceiver {
 
 	@MainThread
 	static void quit(@NonNull Context context) {
-		exit(context, true);
+		exit(context, true, null);
 	}
 
 	/**
 	 * Stops the video, takes the notification away and closes the screens. The Quit button always
 	 * clears the cache; swiping the app away only does when "Clear cache on exit" is on.
+	 * {@code done}, if given, runs on the main thread once the cache is empty (right away when it
+	 * isn't cleared), so the caller can keep the process alive until then.
 	 */
 	@MainThread
-	static void exit(@NonNull Context context, boolean clearCache) {
+	static void exit(@NonNull Context context, boolean clearCache, @Nullable Runnable done) {
 		Context app = context.getApplicationContext();
 		Runnable close = closeScreens;
 		if (close != null) {
@@ -96,11 +121,12 @@ public final class QuitReceiver extends BroadcastReceiver {
 			app.stopService(new Intent(app, PlaybackService.class));
 		}
 		removeFromRecents(app);
-		if (!clearCache) return;
+		if (!clearCache) {
+			if (done != null) done.run();
+			return;
+		}
 		// Safe while the player is still letting go: the caches are emptied through their own APIs
-		AppGraph graph = AppGraph.of(app);
-		graph.clearMainThreadCaches();
-		graph.executor().execute(graph::clearCaches);
+		AppGraph.of(app).clearCachesOnExit(done);
 	}
 
 	/**

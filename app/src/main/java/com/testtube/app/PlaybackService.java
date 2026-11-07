@@ -559,11 +559,12 @@ public class PlaybackService extends Service {
 		if (root != null && !MainActivity.class.getName().equals(root.getClassName())) return;
 		// Swiped away from the recent apps: that means stop, like YouTube does. Only stopping the
 		// service wasn't enough, the screen kept it bound and the video just played on with the
-		// notification gone. Clear cache on exit counts here too, it's a normal exit.
-		QuitReceiver.exit(this, AppSettings.clearCacheOnExit());
+		// notification gone. Clear cache on exit counts here too, it's a normal exit. The service
+		// stops only once the cache is empty: while it's still started Android leaves the process
+		// alive, without it the clearing would be killed half-way.
 		stopForeground(true);
 		inForeground = false;
-		stopSelf();
+		QuitReceiver.exit(this, AppSettings.clearCacheOnExit(), this::stopSelf);
 	}
 
 	@Override

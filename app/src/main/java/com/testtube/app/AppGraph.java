@@ -1,11 +1,14 @@
 package com.testtube.app;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.webkit.WebView;
 
 import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.database.StandaloneDatabaseProvider;
@@ -228,13 +231,6 @@ public final class AppGraph {
 	}
 
 	/**
-	 * Empties the video, HTTP and picture caches through their own APIs, so this is
-	 * safe while something plays, and deletes other leftovers in the cache directory. Downloads in
-	 * progress, downloaded updates, cookies, history, the queue and settings stay. Reads and writes
-	 * the disk; the WebView's cache and the pictures in memory have to be cleared on the main
-	 * thread by the caller.
-	 */
-	/**
 	 * The part of clearing the cache that has to run on the main thread: the WebViews' cache and
 	 * the pictures in memory. {@link #clearCaches()} does the rest.
 	 */
@@ -250,6 +246,88 @@ public final class AppGraph {
 		Glide.get(context).clearMemory();
 	}
 
+	/**
+	 * Set while the cache may still hold something from a run that "Clear cache on exit" didn't
+	 * get to empty: the app was swiped away before a video played, or killed before the clearing
+	 * finished. The next start empties it then.
+	 */
+	private static final String KEY_EXIT_CLEAR_PENDING = "exit_cache_clear_pending";
+	/** Guards the pending flag together with {@link #cacheSession}. */
+	private final Object exitClearLock = new Object();
+	/** Raised each time a screen opens, so a clear that began earlier doesn't mark the new cache as gone. */
+	private int cacheSession;
+	@NonNull
+	private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+	/** A screen opened: what it caches from now on is left for the next exit, or the next start, to clear. */
+	public void markCacheInUse() {
+		synchronized (exitClearLock) {
+			cacheSession++;
+			mmkv().encode(KEY_EXIT_CLEAR_PENDING, true);
+		}
+	}
+
+	/**
+	 * At process start: when "Clear cache on exit" is on and the last run's cache wasn't emptied
+	 * (Android gives no reliable last word to an app swiped away), empties it now, once the main
+	 * thread is idle so the first screen isn't held up.
+	 */
+	@MainThread
+	public void clearCacheLeftFromLastRun() {
+		if (!AppSettings.clearCacheOnExit() || !mmkv().decodeBool(KEY_EXIT_CLEAR_PENDING, false)) return;
+		int session;
+		synchronized (exitClearLock) {
+			session = cacheSession;
+		}
+		Looper.myQueue().addIdleHandler(() -> {
+			clearExitCaches(session, null);
+			return false;
+		});
+	}
+
+	/**
+	 * "Clear cache on exit": empties everything {@link #clearMainThreadCaches()} and
+	 * {@link #clearCaches()} do, then remembers the cache is clean. {@code done}, if given, runs on
+	 * the main thread afterwards, also when the clearing failed.
+	 */
+	@MainThread
+	public void clearCachesOnExit(@Nullable Runnable done) {
+		int session;
+		synchronized (exitClearLock) {
+			session = cacheSession;
+		}
+		clearExitCaches(session, done);
+	}
+
+	@MainThread
+	private void clearExitCaches(int session, @Nullable Runnable done) {
+		try {
+			clearMainThreadCaches();
+		} catch (RuntimeException e) {
+			Log.w("AppGraph", "could not clear the in-memory caches", e);
+		}
+		executor().execute(() -> {
+			try {
+				clearCaches();
+				synchronized (exitClearLock) {
+					if (cacheSession == session) mmkv().encode(KEY_EXIT_CLEAR_PENDING, false);
+				}
+			} catch (RuntimeException e) {
+				// Stays pending, so the next start tries again
+				Log.w("AppGraph", "could not clear the cache on exit", e);
+			} finally {
+				if (done != null) mainHandler.post(done);
+			}
+		});
+	}
+
+	/**
+	 * Empties the video, HTTP and picture caches through their own APIs, so this is
+	 * safe while something plays, and deletes other leftovers in the cache directory. Downloads in
+	 * progress, downloaded updates, cookies, history, the queue and settings stay. Reads and writes
+	 * the disk; the WebView's cache and the pictures in memory have to be cleared on the main
+	 * thread by the caller.
+	 */
 	@WorkerThread
 	public void clearCaches() {
 		SimpleCache video = simpleCache();

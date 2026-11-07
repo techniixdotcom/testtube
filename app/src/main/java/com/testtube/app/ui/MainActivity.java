@@ -219,6 +219,8 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		tabManager = graph.tabManager;
 		player = graph.player;
 		QuitReceiver.setCloseScreens(quitApp);
+		// If this run ends without a chance to clear the cache, the next start does it
+		app.markCacheInUse();
 		youtubeExtractor = app.youtubeExtractor();
 		// After Home had its turn at the network
 		handler.postDelayed(app::warmUp, WARM_UP_DELAY_MS);
@@ -1244,8 +1246,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		if ((!isChangingConfigurations() || recreatingForTheme) && player != null) player.release();
 		// Closed for good (not rebuilt): the player above let go of the video cache by now
 		if (isFinishing() && !isChangingConfigurations() && !quitting && AppSettings.clearCacheOnExit()) {
-			AppGraph app = AppGraph.of(this);
-			app.executor().execute(app::clearCaches);
+			AppGraph.of(this).clearCachesOnExit(null);
 		}
 	}
 
