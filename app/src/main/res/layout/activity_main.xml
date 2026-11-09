@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Home, Subscriptions, the Library and channel pages reach down under the mini player and the
-    bottom bar (frosted glass in NiiX, solid in Dark and Light; BlurTarget, GlassBackground,
-    BottomChrome).
-    Shorts and the video page end above the bars.
+    Home, Subscriptions, Library and channel pages reach under the mini player and bottom bar
+    (frosted in NiiX, solid otherwise; BlurTarget, GlassBackground, BottomChrome). Shorts and the
+    video page end above the bars.
 -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -80,8 +79,8 @@
         app:use_controller="true" />
 
     <!--
-        Touch layer and buttons of the floating window. The video itself is the player above,
-        scaled into the same spot (see FloatingWindow); size and position are set in code.
+        Floating window touch layer and buttons. The video is the player above scaled into the same
+        spot (FloatingWindow); size and position set in code.
     -->
     <FrameLayout
         android:id="@+id/floating_overlay"

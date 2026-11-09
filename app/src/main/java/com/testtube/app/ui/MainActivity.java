@@ -1,5 +1,6 @@
 package com.testtube.app.ui;
 
+import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -7,6 +8,7 @@ import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.graphics.RectF;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -54,6 +56,7 @@ import com.testtube.app.downloader.ui.DownloadDialog;
 import com.testtube.app.downloader.ui.DownloadPermissionHost;
 import com.testtube.app.downloader.ui.PlaylistDownloadDialog;
 import com.testtube.app.downloader.ui.PlaylistDownloadItem;
+import com.testtube.app.external.ExternalIds;
 import com.testtube.app.extractor.FeedItem;
 import com.testtube.app.extractor.LocalSubscriptions;
 import com.testtube.app.extractor.PageSource;
@@ -63,6 +66,9 @@ import com.testtube.app.extractor.YoutubeExtractor;
 import com.testtube.app.filter.AiChannelList;
 import com.testtube.app.filter.ContentFilters;
 import com.testtube.app.history.WatchHistory;
+import com.testtube.app.links.ExtraLinks;
+import com.testtube.app.links.LinkDefaults;
+import com.testtube.app.links.LinkTarget;
 import com.testtube.app.nav.MediaItemMenuPayload;
 import com.testtube.app.nav.TabManager;
 import com.testtube.app.player.TestTubePlayer;
@@ -70,6 +76,7 @@ import com.testtube.app.player.common.PlayerLoopMode;
 import com.testtube.app.player.engine.ShortsEngine;
 import com.testtube.app.player.queue.QueueItem;
 import com.testtube.app.player.queue.QueueRepository;
+import com.testtube.app.playlist.LocalPlaylists;
 import com.testtube.app.ui.feed.NativeBrowser;
 import com.testtube.app.ui.feed.PageScreen;
 import com.testtube.app.ui.feed.ShortsScreen;
@@ -105,16 +112,18 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	private static final long WARM_UP_DELAY_MS = 1_500L;
 	private static final float GLASS_BLUR_DP = 24f;
 	private final Handler handler = new Handler(Looper.getMainLooper());
+	/** Delay after start (and any update notice) before asking about links. */
+	private static final long OPEN_LINKS_ASK_DELAY_MS = 2_000L;
 	private final Consumer<PlaybackDetails> extrasListener = details -> handler.post(() -> {
 		if (this.player != null) this.player.onExtras(details);
 	});
 	private ActivityGraph graph;
 	private TabManager tabManager;
 	private TestTubePlayer player;
-	/** What the Quit button runs while this screen exists. */
+	/** What Quit runs while this screen exists. */
 	@NonNull
 	private final Runnable quitApp = this::quitApp;
-	/** Quitting (or being swiped away) handles the cache itself; onDestroy shouldn't do it again. */
+	/** Quit (or swipe away) handles the cache itself, onDestroy shouldn't again. */
 	private boolean quitting;
 	private YoutubeExtractor youtubeExtractor;
 	private QueueRepository queueRepository;
@@ -136,7 +145,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	private boolean bootstrapped;
 	private boolean libraryVisible;
 	private boolean watchVisible;
-	/** The video is being dragged to or from the bottom bar, so the screen below stays visible. */
+	/** Video being dragged to/from the bar, keep the screen below visible. */
 	private boolean revealBehind;
 	@Nullable
 	private View watchContainer;
@@ -176,7 +185,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	private Runnable pendingPermissionAction;
 	@Nullable
 	private String restoredUrl;
-	/** The screen is being built again for a new theme; the new one makes its own player. */
+	/** Rebuilding for a new theme; the new one makes its own player. */
 	private boolean recreatingForTheme;
 
 	@NonNull
@@ -191,7 +200,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		player.applyPreferredQuality();
 		if (watchPanel != null) watchPanel.refreshCommentBox();
 		updateTabs();
-		// Greying and the watched threshold change how every list looks
+		// greying and the threshold change how every list looks
 		onContentFiltersChanged();
 	}
 
@@ -208,8 +217,8 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 
 	@Override
 	protected void onCreate(@Nullable Bundle savedInstanceState) {
-		// The chosen theme (NiiX has its own). Before super.onCreate, or the damn thing gets built
-		// with the manifest's theme first
+		// chosen theme (NiiX has its own). Before super.onCreate or the damn thing gets built with the
+		// manifest's theme first
 		setTheme(AppSettings.theme().style);
 		EdgeToEdge.enable(this);
 		super.onCreate(savedInstanceState);
@@ -219,10 +228,8 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		tabManager = graph.tabManager;
 		player = graph.player;
 		QuitReceiver.setCloseScreens(quitApp);
-		// If this run ends without a chance to clear the cache, the next start does it
-		app.markCacheInUse();
 		youtubeExtractor = app.youtubeExtractor();
-		// After Home had its turn at the network
+		// after Home had its go at the network
 		handler.postDelayed(app::warmUp, WARM_UP_DELAY_MS);
 		queueRepository = app.queueRepository();
 		watchHistory = app.watchHistory();
@@ -258,7 +265,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		}
 
 		bottomNav = findViewById(R.id.bottom_nav);
-		// The activity already pads for the system bars; don't let the nav bar add the inset again.
+		// activity already pads for system bars, don't let the nav bar add it again
 		if (bottomNav != null) bottomNav.setOnApplyWindowInsetsListener(null);
 		libraryContainer = findViewById(R.id.library_container);
 		shortsContainer = findViewById(R.id.shorts_container);
@@ -267,20 +274,20 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 						(ViewGroup) nativeContainer, true);
 		UpdateManager updates = app.updateManager();
 		AiChannelList aiChannels = app.aiChannelList();
-		// Hide or show AI channels as soon as the list (or a new id from it) is known
+		// hide or show AI channels as soon as the list (or a new id) is known
 		aiChannels.setOnChanged(this::onContentFiltersChanged);
 		aiChannels.start();
 		View.OnClickListener aboutClick = v -> SettingsDialog.showSettings(this, updates, aiChannels,
 						app.playerPreferences(), contentFilters, this::onShortsSettingChanged, this::onSettingsSaved);
-		// The chosen theme's logo (NiiX has the pink play); the layout shows the standard one
+		// theme's logo (NiiX has the pink play); the layout has the standard one
 		int logo = AppSettings.theme().logo;
 		((ImageView) browserView.findViewById(R.id.browser_logo)).setImageResource(logo);
 		((ImageView) browserView.findViewById(R.id.browser_start_logo)).setImageResource(logo);
 		browserView.findViewById(R.id.browser_logo).setOnClickListener(aboutClick);
-		// The search-only Home has no top bar; its big logo opens the settings instead
+		// search-only Home has no top bar, its big logo opens settings instead
 		browserView.findViewById(R.id.browser_start_logo).setOnClickListener(aboutClick);
 		browserView.findViewById(R.id.browser_title).setOnClickListener(aboutClick);
-		// On the very first start the update check waits until the welcome dialog is closed
+		// first start: update check waits for the welcome dialog
 		if (AppSettings.welcomeShown()) updates.checkOnStart(this);
 		NativeBrowser.Host feedHost = new NativeBrowser.Host() {
 			@Override
@@ -317,7 +324,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 
 			@Override
 			public boolean accountEnabled() {
-				// Followed channels by default, the account feed is opt-in
+				// local follows by default, account feed is opt-in
 				return MMKV.defaultMMKV().decodeBool(KEY_SUBS_ACCOUNT, false);
 			}
 
@@ -390,14 +397,17 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		player.setDetailsListener(details -> {
 			if (watchPanel != null) watchPanel.onDetails(details);
 		});
+		// SoundCloud preview-only song plays from YouTube instead
+		player.setWatchReplacer(tabManager::replaceWatch);
 		youtubeExtractor.setExtrasListener(extrasListener);
 		player.setOnStartedPlaying(() -> {
 			if (shortsScreen != null) shortsScreen.pause();
 		});
-		// Long press on the player opens the same menu as in the lists
+		// long press on the player opens the list menu
 		player.setLongPressAction(() -> {
 			VideoDetails video = player.currentDetails();
-			if (video == null) return;
+			// the menu is YouTube's (queue, download, share), not for external videos
+			if (video == null || ExternalIds.isExternal(video.getId())) return;
 			feedHost.showMenu(new FeedItem(FeedItem.Kind.VIDEO, Constant.HOME_URL + "/watch?v=" + video.getId(),
 							video.getId(), video.getTitle() == null ? "" : video.getTitle(), video.getAuthor(), video.getUploaderUrl(),
 							video.getThumbnailUrl(), -1, -1, null, false));
@@ -408,6 +418,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 			public void onWatchChanged(@Nullable String url, boolean visible) {
 				watchVisible = visible;
 				if (watchPanel != null) watchPanel.show(url);
+				syncWatchOnScreen();
 				updateContainers();
 				if (!visible && nativeBrowser != null) nativeBrowser.onFiltersChanged();
 			}
@@ -471,7 +482,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		};
 		getOnBackPressedDispatcher().addCallback(this, appBackCallback);
 
-		// Sign-in is optional; Subscriptions offers it.
+		// sign-in is optional, Subscriptions offers it
 		loginController = new LoginController(this);
 		mainView.post(this::bootstrap);
 	}
@@ -480,7 +491,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	private static final String KEY_FOLLOW_REMINDERS = "follow_swipe_reminders";
 	private static final int FOLLOW_REMINDER_COUNT = 3;
 
-	/** Asks for confirmation on the first FOLLOW_REMINDER_COUNT swipes. */
+	/** Confirms the first FOLLOW_REMINDER_COUNT swipes. */
 	private void confirmFollow(@NonNull FeedItem item) {
 		MMKV store = MMKV.defaultMMKV();
 		int shown = store.decodeInt(KEY_FOLLOW_REMINDERS, 0);
@@ -540,60 +551,84 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	private final ActivityResultLauncher<String> exportPicker =
 					registerForActivityResult(new ActivityResultContracts.CreateDocument("text/csv"), uri -> {
 						if (uri == null) return;
-						String csv = LocalSubscriptions.get().exportCsv();
-						// Off the main thread: the file can live on a slow provider like Drive
-						AppGraph.of(this).executor().execute(() -> {
-							boolean saved = false;
-							try (OutputStream stream = getContentResolver().openOutputStream(uri)) {
-								if (stream != null) {
-									stream.write(csv.getBytes(StandardCharsets.UTF_8));
-									saved = true;
-								}
-							} catch (IOException | RuntimeException e) {
-								Log.w("MainActivity", "channel export failed", e);
-							}
-							boolean done = saved;
-							runOnUiThread(() -> {
-								if (isDestroyed()) return;
-								ToastUtils.show(this, done ? R.string.subs_export_done : R.string.subs_export_failed);
-							});
-						});
+						writePicked(uri, LocalSubscriptions.get().exportCsv(), saved ->
+										ToastUtils.show(this, saved ? R.string.subs_export_done : R.string.subs_export_failed));
 					});
 
-	/**
-	 * Reads a list of channels (Takeout csv, NewPipe export, OPML or plain links) and follows them.
-	 */
+	/** Reads a channel list (Takeout csv, NewPipe, OPML, plain links) and follows them. */
 	private final ActivityResultLauncher<String[]> importPicker =
 					registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
 						if (uri == null) return;
-						AppGraph.of(this).executor().execute(() -> {
-							int added = -1;
-							try (InputStream stream = getContentResolver().openInputStream(uri)) {
-								if (stream != null) {
-									ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-									byte[] chunk = new byte[8192];
-									int read;
-									while ((read = stream.read(chunk)) != -1 && buffer.size() < MAX_IMPORT_BYTES) {
-										buffer.write(chunk, 0, read);
-									}
-									String text = buffer.toString(StandardCharsets.UTF_8.name());
-									added = LocalSubscriptions.get().addAll(LocalSubscriptions.parseImport(text));
-								}
-							} catch (IOException | RuntimeException e) {
-								Log.w("MainActivity", "channel import failed", e);
+						readPicked(uri, text -> {
+							int count = text == null ? -1 : LocalSubscriptions.get().addAll(LocalSubscriptions.parseImport(text));
+							if (count < 0) {
+								ToastUtils.show(this, R.string.subs_import_failed);
+								return;
 							}
-							int count = added;
-							runOnUiThread(() -> {
-								if (isDestroyed()) return;
-								if (count < 0) {
-									ToastUtils.show(this, R.string.subs_import_failed);
-									return;
-								}
-								ToastUtils.show(this, getString(R.string.subs_import_done, count));
-								onFollowedChannelsChanged();
-							});
+							ToastUtils.show(this, getResources().getQuantityString(R.plurals.subs_import_done, count, count));
+							onFollowedChannelsChanged();
 						});
 					});
+
+	private final ActivityResultLauncher<String> playlistExportPicker =
+					registerForActivityResult(new ActivityResultContracts.CreateDocument("application/json"), uri -> {
+						if (uri == null) return;
+						writePicked(uri, LocalPlaylists.of(this).exportJson(), saved ->
+										ToastUtils.show(this, saved ? R.string.playlist_export_done : R.string.playlist_export_failed));
+					});
+
+	private final ActivityResultLauncher<String[]> playlistImportPicker =
+					registerForActivityResult(new ActivityResultContracts.OpenDocument(), uri -> {
+						if (uri == null) return;
+						readPicked(uri, text -> {
+							int count = text == null ? -1 : LocalPlaylists.of(this).importJson(text);
+							ToastUtils.show(this, count < 0 ? getString(R.string.playlist_import_failed)
+											: getResources().getQuantityString(R.plurals.playlist_import_done, count, count));
+						});
+					});
+
+	/** Reads a picked file off the main thread (it may sit on something slow like Drive); null if it can't. */
+	private void readPicked(@NonNull Uri uri, @NonNull Consumer<String> done) {
+		AppGraph.of(this).executor().execute(() -> {
+			String text = null;
+			try (InputStream stream = getContentResolver().openInputStream(uri)) {
+				if (stream != null) {
+					ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+					byte[] chunk = new byte[8192];
+					int read;
+					while ((read = stream.read(chunk)) != -1 && buffer.size() < MAX_IMPORT_BYTES) {
+						buffer.write(chunk, 0, read);
+					}
+					text = buffer.toString(StandardCharsets.UTF_8.name());
+				}
+			} catch (IOException | RuntimeException e) {
+				Log.w("MainActivity", "import failed", e);
+			}
+			String result = text;
+			runOnUiThread(() -> {
+				if (!isDestroyed()) done.accept(result);
+			});
+		});
+	}
+
+	/** Writes a picked file off the main thread; {@code done} gets whether it worked. */
+	private void writePicked(@NonNull Uri uri, @NonNull String text, @NonNull Consumer<Boolean> done) {
+		AppGraph.of(this).executor().execute(() -> {
+			boolean saved = false;
+			try (OutputStream stream = getContentResolver().openOutputStream(uri)) {
+				if (stream != null) {
+					stream.write(text.getBytes(StandardCharsets.UTF_8));
+					saved = true;
+				}
+			} catch (IOException | RuntimeException e) {
+				Log.w("MainActivity", "export failed", e);
+			}
+			boolean result = saved;
+			runOnUiThread(() -> {
+				if (!isDestroyed()) done.accept(result);
+			});
+		});
+	}
 
 	private void setSubscriptionsAccount(boolean enabled) {
 		MMKV.defaultMMKV().encode(KEY_SUBS_ACCOUNT, enabled);
@@ -613,7 +648,10 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 								AppSettings.setWelcomeShown();
 								onSettingsSaved();
 								if (!isFinishing() && !isDestroyed()) updates.checkOnStart(this);
+								askOpenLinksSoon();
 							});
+		} else {
+			askOpenLinksSoon();
 		}
 		String initialUrl = restoredUrl;
 		if (initialUrl != null && !initialUrl.isBlank()) {
@@ -646,9 +684,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		});
 	}
 
-	/**
-	 * Selects a bottom tab and shows its screen.
-	 */
+	/** Selects a bottom tab and shows its screen. */
 	private void goTo(int navId) {
 		if (bottomNav != null && bottomNav.getSelectedItemId() != navId) {
 			navGuard = true;
@@ -675,7 +711,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		}
 		if (libraryScreen != null) libraryScreen.setVisible(libraryVisible && started);
 		updateContainers();
-		// A short fade when the bottom tab changes, so screens don't pop in
+		// short fade on tab change so screens don't pop in
 		View shown = libraryVisible ? libraryContainer : shortsVisible ? shortsContainer : nativeContainer;
 		if (changed && shown != null && shown.getVisibility() == View.VISIBLE) ViewUtils.fadeIn(shown);
 	}
@@ -692,13 +728,13 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		ShortsEngine engine = new ShortsEngine(this, app.simpleCache(), app.playerPreferences()::getPreferredQuality);
 		shortsScreen = new ShortsScreen(view, app.feedClient(), youtubeExtractor, engine, contentFilters,
 						app.watchHistory(), app.executor(), shortsHost);
-		// A Short and a regular video never play at the same time
+		// a Short and a normal video never play at once
 		shortsScreen.setOnStartedPlaying(() -> {
 			if (player != null && player.isPlaying()) player.pause();
 		});
 	}
 
-	/** Shows the Shorts and Subscriptions tabs as set in the settings; a hidden tab that is open goes Home. */
+	/** Shows the Shorts and Subscriptions tabs per settings; an open hidden tab goes Home. */
 	private void updateTabs() {
 		if (bottomNav == null) return;
 		boolean shorts = AppSettings.showShorts();
@@ -723,6 +759,32 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 			}
 
 			@Override
+			public void playPlaylist(@NonNull String url, boolean shuffle) {
+				// Shuffle plays the playlist shuffled until changed, Play all in order
+				if (player != null) {
+					PlayerLoopMode mode = player.getLoopMode();
+					if (shuffle && mode != PlayerLoopMode.PLAYLIST_RANDOM) player.setLoopMode(PlayerLoopMode.PLAYLIST_RANDOM);
+					else if (!shuffle && mode == PlayerLoopMode.PLAYLIST_RANDOM) player.setLoopMode(PlayerLoopMode.PLAYLIST_NEXT);
+				}
+				MainActivity.this.openVideo(url);
+			}
+
+			@Override
+			public boolean isWatched(@NonNull String videoId) {
+				return contentFilters.isWatched(videoId);
+			}
+
+			@Override
+			public void importPlaylists() {
+				playlistImportPicker.launch(new String[]{"*/*"});
+			}
+
+			@Override
+			public void exportPlaylists() {
+				playlistExportPicker.launch("testtube-playlists.json");
+			}
+
+			@Override
 			public void removeQueueItem(@NonNull String videoId) {
 				viewModel.removeQueueItem(videoId);
 			}
@@ -739,15 +801,16 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		});
 		if (bottomChrome != null) {
 			bottomChrome.addAll(view, R.id.panel_queue_list, R.id.panel_queue_empty, R.id.history_list,
-							R.id.history_empty, R.id.download_list, R.id.download_empty);
+							R.id.history_empty, R.id.download_list, R.id.download_empty, R.id.playlists_list,
+							R.id.playlist_items, R.id.playlist_empty);
 		}
 		MainActivityViewModel.UiState state = uiState();
 		libraryScreen.renderQueue(state.items(), state.videoId());
 	}
 
 	/**
-	 * The mini player and the bottom bar float over Home, Subscriptions, the Library and channel
-	 * pages (frosted glass in NiiX, solid otherwise), and those lists scroll on under them.
+	 * Mini player and bottom bar float over Home, Subscriptions, Library and channel pages (frosted
+	 * in NiiX, solid otherwise) and the lists scroll on under them.
 	 */
 	private void setupGlassBars(@NonNull View root) {
 		View miniBar = findViewById(R.id.mini_bar);
@@ -760,7 +823,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		int hairline = ViewUtils.themeColor(this, R.attr.ttGlassHairline);
 		GlassBackground.install(miniBar, glass, solid, base, hairline, blurPx, targets);
 		GlassBackground.install(bottomNav, glass, solid, base, hairline, blurPx, targets);
-		// A translucent bar would show its own shadow through itself, and that looks like crap
+		// a translucent bar shows its own shadow through itself and that looks like crap
 		miniBar.setElevation(0f);
 		bottomNav.setElevation(0f);
 		bottomChrome = new BottomChrome(root, miniBar, bottomNav);
@@ -843,13 +906,21 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	@Override
 	public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, @NonNull Configuration newConfig) {
 		super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
-		// Closing the floating window, rather than expanding it, leaves the activity stopped
+		// closing the floating window (not expanding) leaves the activity stopped
 		boolean closed = !isInPictureInPictureMode && getLifecycle().getCurrentState() == Lifecycle.State.CREATED;
 		player.onPictureInPictureModeChanged(isInPictureInPictureMode, closed);
 		if (closed) player.pause();
+		syncWatchOnScreen();
 	}
 
-	/** Home or recent apps while a video plays: the floating player, when it is switched on. */
+	/** Live chat only runs while the watch screen can actually be seen. */
+	private void syncWatchOnScreen() {
+		if (watchPanel != null) {
+			watchPanel.setOnScreen(watchVisible && started && !DeviceUtils.isInPictureInPictureMode(this));
+		}
+	}
+
+	/** Home or recents while playing: floating player, if enabled. */
 	@Override
 	protected void onUserLeaveHint() {
 		super.onUserLeaveHint();
@@ -870,7 +941,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		if (Intent.ACTION_VIEW.equals(action) && intent.getData() != null) {
 			url = intent.getData().toString();
 		} else if (Intent.ACTION_SEND.equals(action) || isDownloadAction) {
-			// Extract a shared YouTube URL from the incoming text.
+			// pull a YouTube URL out of shared text
 			String text = intent.getStringExtra(Intent.EXTRA_TEXT);
 			if (text != null) {
 				Matcher m = SHARED_URL.matcher(text);
@@ -878,11 +949,18 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 			}
 		}
 
-		// Only YouTube links are accepted from other apps.
 		if (url != null && url.regionMatches(true, 0, "http://", 0, 7)) {
 			url = "https://" + url.substring(7);
 		}
+		// TestTube+ also opens Spotify, Facebook and SoundCloud links
+		if (url != null && !isDownloadAction && !UrlUtils.isYoutubeLink(url) && ExtraLinks.isSupported(url)) {
+			ExtraLinks.open(this, url, linkTarget);
+			return;
+		}
+		// otherwise only YouTube links. A link Android sent that isn't one (Facebook's start page, say)
+		// goes on to another app instead of nowhere.
 		if (url != null && !UrlUtils.isYoutubeLink(url)) {
+			if (Intent.ACTION_VIEW.equals(action)) openElsewhere(url);
 			url = null;
 		}
 		if (url != null) {
@@ -897,6 +975,71 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 			}
 		}
 	}
+
+	/**
+	 * Once the first screen settled: offer to let links open here (12+ asks the user) if some don't
+	 * and they weren't asked about.
+	 */
+	private void askOpenLinksSoon() {
+		handler.postDelayed(() -> {
+			if (!isFinishing() && !isDestroyed()) LinkDefaults.maybeAsk(this);
+		}, OPEN_LINKS_ASK_DELAY_MS);
+	}
+
+	/** Lets another app (usually the browser) open a link we don't play. */
+	private void openElsewhere(@NonNull String url) {
+		Intent view = new Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE);
+		Intent chooser = Intent.createChooser(view, null)
+						.putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS,
+										new ComponentName[]{new ComponentName(this, MainActivity.class)});
+		try {
+			startActivity(chooser);
+		} catch (ActivityNotFoundException ignored) {
+			// nothing else opens it
+		}
+	}
+
+	/** Where a Spotify link's YouTube matches go. */
+	private final LinkTarget linkTarget = new LinkTarget() {
+		@Override
+		public void playVideo(@NonNull String videoId) {
+			String loadUrl = "https://" + Constant.YOUTUBE_MOBILE_HOST + "/watch?v=" + videoId;
+			tabManager.openTab(loadUrl, UrlUtils.getPageClass(loadUrl));
+		}
+
+		@Override
+		public void queueVideo(@NonNull String videoId, @NonNull String title, @Nullable String author,
+		                       @Nullable String thumbnailUrl) {
+			if (queueRepository == null) return;
+			queueRepository.add(new QueueItem(videoId, "https://www.youtube.com/watch?v=" + videoId, title, author,
+							thumbnailUrl));
+			if (player != null) player.refreshQueueNav();
+		}
+
+		@Override
+		public void playUrl(@NonNull String url) {
+			tabManager.openWatch(url);
+		}
+
+		@Override
+		public void queueUrl(@NonNull String id, @NonNull String url, @NonNull String title, @Nullable String author,
+		                     @Nullable String thumbnailUrl) {
+			if (queueRepository == null) return;
+			queueRepository.add(new QueueItem(id, url, title, author, thumbnailUrl));
+			if (player != null) player.refreshQueueNav();
+		}
+
+		@Override
+		public void search(@NonNull String query) {
+			goTo(R.id.nav_home);
+			if (nativeBrowser != null && !query.isBlank()) nativeBrowser.searchFor(query);
+		}
+
+		@Override
+		public boolean isAlive() {
+			return !isFinishing() && !isDestroyed();
+		}
+	};
 
 	private void showQueueBottomSheet() {
 		if (DeviceUtils.isInPictureInPictureMode(this)) return;
@@ -962,6 +1105,10 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 			List<PlaylistDownloadItem> dialogItems = new ArrayList<>();
 			for (int i = 0; i < items.size(); i++) {
 				QueueItem queueItem = items.get(i);
+				// the downloader is YouTube only, external items stay out
+				if (ExternalIds.isExternal(queueItem.getVideoId()) || ExternalIds.isExternalUrl(queueItem.getVideoUrl())) {
+					continue;
+				}
 				String videoId = queueItem.getVideoId() != null
 								? queueItem.getVideoId()
 								: YoutubeExtractor.getVideoId(queueItem.getVideoUrl());
@@ -971,7 +1118,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 								? null
 								: "https://www.youtube.com/watch?v=" + videoId;
 				PlaylistDownloadItem item = new PlaylistDownloadItem(
-								i,
+								dialogItems.size(),
 								videoId == null ? "unknown" : videoId,
 								itemUrl == null ? "" : itemUrl);
 				item.setTitle(queueItem.getTitle());
@@ -986,6 +1133,10 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 					item.setSelected(true);
 				}
 				dialogItems.add(item);
+			}
+			if (dialogItems.isEmpty()) {
+				ToastUtils.show(this, R.string.queue_download_unavailable);
+				return;
 			}
 			new PlaylistDownloadDialog(
 							getString(R.string.queue),
@@ -1022,7 +1173,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 							sheetView.getPaddingTop(),
 							sheetView.getPaddingRight(),
 							sheetBasePaddingBottom + Math.max(0, bottomInset));
-			// Keep last row visible.
+			// keep the last row visible
 			recyclerView.setPadding(
 							recyclerView.getPaddingLeft(),
 							recyclerView.getPaddingTop(),
@@ -1164,6 +1315,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 			updateContainers();
 			return;
 		}
+		if (libraryVisible && libraryScreen != null && libraryScreen.back()) return;
 		if (libraryVisible || shortsVisible) {
 			goTo(R.id.nav_home);
 			return;
@@ -1208,16 +1360,18 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	protected void onStart() {
 		super.onStart();
 		started = true;
+		syncWatchOnScreen();
 		if (player != null) player.setVideoEnabled(true);
 		if (libraryScreen != null) libraryScreen.setVisible(libraryVisible);
 		updateContainers();
 	}
 
-	/** Audio only while in the background, to save data. */
+	/** Audio only in the background, saves data. */
 	@Override
 	protected void onStop() {
 		super.onStop();
 		started = false;
+		syncWatchOnScreen();
 		if (shortsScreen != null) shortsScreen.setActive(false);
 		if (libraryScreen != null) libraryScreen.setVisible(false);
 		if (player != null && !isChangingConfigurations() && !DeviceUtils.isInPictureInPictureMode(this)) {
@@ -1239,12 +1393,13 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		QuitReceiver.clearCloseScreens(quitApp);
 		if (youtubeExtractor != null) youtubeExtractor.removeExtrasListener(extrasListener);
 		if (nativeBrowser != null) nativeBrowser.release();
+		if (watchPanel != null) watchPanel.release();
 		if (shortsScreen != null) shortsScreen.release();
 		if (libraryScreen != null) libraryScreen.release();
 		if (bottomChrome != null) bottomChrome.release();
 		if (serviceConnection != null) unbindService(serviceConnection);
 		if ((!isChangingConfigurations() || recreatingForTheme) && player != null) player.release();
-		// Closed for good (not rebuilt): the player above let go of the video cache by now
+		// closed for good (not rebuilt), the player let go of the cache by now
 		if (isFinishing() && !isChangingConfigurations() && !quitting && AppSettings.clearCacheOnExit()) {
 			AppGraph.of(this).clearCachesOnExit(null);
 		}
@@ -1262,9 +1417,8 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	}
 
 	/**
-	 * The Quit button, or the app swiped away from the recent apps: the sound stops right away, the
-	 * notification goes, and every screen of the app closes. onDestroy lets go of the player; the
-	 * cache is up to {@link QuitReceiver}.
+	 * Quit or swipe from recents: sound stops now, notification goes, every screen closes.
+	 * onDestroy releases the player; {@link QuitReceiver} handles the cache.
 	 */
 	private void quitApp() {
 		quitting = true;
@@ -1273,7 +1427,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 		finishAndRemoveTask();
 	}
 
-	/** Builds the screen again in the newly chosen colours. The open video stops and reopens. */
+	/** Rebuilds the screen in the new colours. The open video stops and reopens. */
 	void recreateForTheme() {
 		recreatingForTheme = true;
 		recreate();
@@ -1282,7 +1436,7 @@ public final class MainActivity extends AppCompatActivity implements DownloadPer
 	@Override
 	protected void onSaveInstanceState(@NonNull Bundle outState) {
 		super.onSaveInstanceState(outState);
-		// Rebuilt for a new theme: the video comes back also when it was minimized
+		// rebuilt for a theme: the video comes back even if it was minimized
 		String url = watchVisible || recreatingForTheme ? tabManager.getWatchUrl() : null;
 		if (url != null) {
 			outState.putString(STATE_LAST_URL, url);

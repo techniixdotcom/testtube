@@ -20,7 +20,7 @@ public class ZoomTouchListener extends ScaleGestureDetector.SimpleOnScaleGesture
 	private Consumer<Boolean> onShowReset;
 	private float scaleFactor = 1.0f;
 	private float lastX, lastY;
-	private int state = 0; // 0: idle, 1: scaling, 2: panning
+	private int state = 0; // 0 idle, 1 scaling, 2 panning
 
 	public ZoomTouchListener(Activity activity, TestTubePlayerView playerView) {
 		this.playerView = playerView;
@@ -57,7 +57,7 @@ public class ZoomTouchListener extends ScaleGestureDetector.SimpleOnScaleGesture
 
 			case MotionEvent.ACTION_POINTER_UP:
 				if (event.getPointerCount() > 2) {
-					// Recenter when a finger lifts from a multi-touch gesture.
+					// recenter when a finger lifts from multi-touch
 					lastX = centerX(event);
 					lastY = centerY(event);
 				} else {
@@ -69,7 +69,7 @@ public class ZoomTouchListener extends ScaleGestureDetector.SimpleOnScaleGesture
 
 	@Override
 	public boolean onScale(@NonNull ScaleGestureDetector detector) {
-		// Allow zoom up to 500%.
+		// zoom up to 500%
 		scaleFactor = Math.max(1.0f, Math.min(scaleFactor * detector.getScaleFactor(), 5.0f));
 		applyScale(scaleFactor);
 		checkResetVisibility();
@@ -124,7 +124,7 @@ public class ZoomTouchListener extends ScaleGestureDetector.SimpleOnScaleGesture
 			float nextX = target.getTranslationX() + dx;
 			float nextY = target.getTranslationY() + dy;
 
-			// Clamp movement so the content stays within the visible crop.
+			// clamp so the content stays inside the crop
 			float limitX = (target.getWidth() * scaleFactor - target.getWidth()) / 2f;
 			float limitY = (target.getHeight() * scaleFactor - target.getHeight()) / 2f;
 
@@ -134,15 +134,15 @@ public class ZoomTouchListener extends ScaleGestureDetector.SimpleOnScaleGesture
 	}
 
 	private View getTargetView() {
-		// Prefer the content frame so zoom applies to the video area.
+		// prefer the content frame so zoom hits the video area
 		View contentFrame = playerView.findViewById(R.id.exo_content_frame);
 		if (contentFrame != null) return contentFrame;
 
-		// Fallback to the surface view.
+		// fallback: surface view
 		View surface = playerView.getVideoSurfaceView();
 		if (surface != null) return surface;
 
-		// Final fallback: use the first child of the player view.
+		// last resort: first child of the player view
 		if (playerView.getChildCount() > 0) {
 			return playerView.getChildAt(0);
 		}
@@ -150,7 +150,7 @@ public class ZoomTouchListener extends ScaleGestureDetector.SimpleOnScaleGesture
 		return playerView;
 	}
 
-	// Controller uses this to toggle the reset button.
+	// controller toggles the reset button with this
 	public boolean isZoomed() {
 		return scaleFactor > 1.01f;
 	}

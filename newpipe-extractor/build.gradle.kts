@@ -10,7 +10,7 @@ plugins {
 allprojects {
     apply(plugin = "java-library")
 
-    version = "v0.26.5-dev-2f7d9da"
+    version = "v0.27.0"
 
     tasks.withType<JavaCompile>().configureEach {
         options.encoding = Charsets.UTF_8.toString()

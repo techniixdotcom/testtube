@@ -35,6 +35,7 @@ import com.google.android.material.tabs.TabLayout;
 import com.testtube.app.AppSettings;
 import com.testtube.app.Constant;
 import com.testtube.app.R;
+import com.testtube.app.external.ExternalIds;
 import com.testtube.app.extractor.AvatarCache;
 import com.testtube.app.extractor.FeedClient;
 import com.testtube.app.extractor.FeedItem;
@@ -59,10 +60,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 
-/**
- * Everything below the player: title, channel, description, and the playlist or the
- * suggestions.
- */
+/** Everything under the player: title, channel, description, playlist or suggestions. */
 @UnstableApi
 public final class WatchPanel {
 	private static final int COLLAPSED_LINES = 3;
@@ -90,6 +88,8 @@ public final class WatchPanel {
 	@Nullable
 	private String chatVideoId;
 	private boolean chatTab;
+	/** Watch screen on screen in a started activity, not in PiP. */
+	private boolean onScreen;
 	private boolean live;
 	@NonNull
 	private final TabLayout tabs;
@@ -113,7 +113,7 @@ public final class WatchPanel {
 	private final EditText commentInput;
 	@NonNull
 	private final ImageButton commentSend;
-	/** Token for posting on the video in {@link #commentsVideoId}; null when that isn't possible. */
+	/** Posting token for {@link #commentsVideoId}; null if we can't post. */
 	@Nullable
 	private String commentParams;
 	private boolean commentPosting;
@@ -129,6 +129,11 @@ public final class WatchPanel {
 	private String videoId;
 	@Nullable
 	private VideoDetails details;
+	/** External video (TestTube+): no YouTube comments, suggestions from a search. */
+	private boolean external;
+	/** External video whose suggestions were requested, so it's only asked once. */
+	@Nullable
+	private String searchedFor;
 	@Nullable
 	private String section;
 	private boolean expanded;
@@ -226,7 +231,7 @@ public final class WatchPanel {
 				if (item.kind() == FeedItem.Kind.VIDEO) host.showMenu(item);
 			}
 		});
-		// Uploader pictures next to the suggestions, like on Home
+		// avatars next to suggestions, like Home
 		items.setShowAvatars(true);
 		LinearLayoutManager listLayout = new LinearLayoutManager(root.getContext());
 		list.setLayoutManager(listLayout);
@@ -259,12 +264,11 @@ public final class WatchPanel {
 		list.setItemViewCacheSize(4);
 	}
 
-	/**
-	 * The watch screen shows another video (or closed when url is null).
-	 */
+	/** Watch screen shows another video (closed if url is null). */
 	public void show(@Nullable String url) {
 		if (Objects.equals(this.url, url)) return;
-		String id = YoutubeExtractor.getVideoId(url);
+		// before reading "v=", Facebook links have one too
+		String id = ExternalIds.idOf(url);
 		boolean sameVideo = id != null && id.equals(videoId);
 		String previousList = this.url != null ? UrlUtils.getQueryParameter(this.url, "list") : null;
 		String list = url != null ? UrlUtils.getQueryParameter(url, "list") : null;
@@ -286,7 +290,18 @@ public final class WatchPanel {
 			chatVideoId = null;
 			live = false;
 			resetComments();
+			applyExternal(ExternalIds.isExternal(id));
 			applyTab();
+		}
+		if (external) {
+			// suggestions come from a search for its title once known
+			if (!sameVideo) {
+				searchedFor = null;
+				section = null;
+				setSuggestions(new ArrayList<>(), false);
+			}
+			this.list.scrollToPosition(0);
+			return;
 		}
 		if (!sameVideo || !Objects.equals(previousList, list)) {
 			if (!Objects.equals(previousList, list)) setSuggestions(new ArrayList<>(), false);
@@ -295,12 +310,16 @@ public final class WatchPanel {
 		this.list.scrollToPosition(0);
 	}
 
-	/**
-	 * The player finished loading a video.
-	 */
+	/** Player finished loading a video. */
 	public void onDetails(@NonNull VideoDetails details) {
 		if (!Objects.equals(details.getId(), videoId)) return;
 		this.details = details;
+		if (external && !details.getId().equals(searchedFor)) {
+			searchedFor = details.getId();
+			String query = details.getTitle() != null && !details.getTitle().isBlank()
+							? details.getTitle() : details.getAuthor();
+			if (query != null && !query.isBlank()) loadSearchSuggestions(token, query);
+		}
 		AvatarCache.get().remember(details.getUploaderUrl(), details.getUploaderAvatarUrl());
 		header.notifyItemChanged(0);
 		if (live != details.isLive()) {
@@ -311,14 +330,12 @@ public final class WatchPanel {
 		}
 	}
 
-	/**
-	 * Blocked channels or watched marks changed.
-	 */
+	/** Blocked channels or watched marks changed. */
 	public void onFiltersChanged() {
 		items.refreshStates();
 	}
 
-	/** A channel was followed or unfollowed somewhere else. */
+	/** A channel got followed or unfollowed elsewhere. */
 	public void onFollowChanged() {
 		header.notifyItemChanged(0);
 	}
@@ -396,7 +413,33 @@ public final class WatchPanel {
 		}));
 	}
 
-	/** Fallback when the extractor has no suggestions: YouTube's "next" endpoint. */
+	/** Suggestions for an external video: a title search, also what autoplay picks from. */
+	private void loadSearchSuggestions(long current, @NonNull String query) {
+		FeedClient.Call call = feedClient.search(query, null);
+		call.result.whenComplete((page, error) -> handler.post(() -> {
+			if (current != token) return;
+			List<FeedItem> out = page != null ? visible(page.items()) : new ArrayList<>();
+			note = out.isEmpty() ? list.getContext().getString(R.string.watch_no_suggestions) : null;
+			header.notifyItemChanged(0);
+			setSuggestions(out, false);
+		}));
+	}
+
+	/**
+	 * External videos have no comments or chat here: tabs go, description stays. YouTube brings
+	 * them back.
+	 */
+	private void applyExternal(boolean isExternal) {
+		external = isExternal;
+		tabs.setVisibility(isExternal ? View.GONE : View.VISIBLE);
+		if (isExternal && chatTab) {
+			chatTab = false;
+			TabLayout.Tab first = tabs.getTabAt(0);
+			if (first != null) first.select();
+		}
+	}
+
+	/** Fallback when the extractor has no suggestions: YouTube's "next". */
 	private void loadRelatedFallback(long current, @NonNull String id) {
 		FeedClient.Call call = feedClient.related(id);
 		call.result.whenComplete((page, error) -> handler.post(() -> {
@@ -416,9 +459,26 @@ public final class WatchPanel {
 		chatHint.setVisibility(live ? View.VISIBLE : View.GONE);
 		chatHost.setVisibility(live ? View.VISIBLE : View.GONE);
 		commentsList.setVisibility(live ? View.GONE : View.VISIBLE);
-		if (!chatTab) return;
-		if (live) loadChat();
-		else loadComments(true);
+		syncChat();
+		if (chatTab && !live) loadComments(true);
+	}
+
+	/** Watch screen became visible or hidden (minimized, closed, app in the background, PiP). */
+	public void setOnScreen(boolean onScreen) {
+		if (this.onScreen == onScreen) return;
+		this.onScreen = onScreen;
+		syncChat();
+	}
+
+	/** Chat runs only while someone can see it; a hidden one is a whole browser doing nothing useful. */
+	private void syncChat() {
+		if (onScreen && chatTab && live && videoId != null) loadChat();
+		else releaseChat();
+	}
+
+	/** Screen is going away for good. */
+	public void release() {
+		releaseChat();
 	}
 
 	private void resetComments() {
@@ -433,10 +493,7 @@ public final class WatchPanel {
 		refreshCommentBox();
 	}
 
-	/**
-	 * Shows the box for writing a comment when commenting is switched on and YouTube lets the
-	 * signed-in account comment on this video.
-	 */
+	/** Shows the comment box when commenting is on and YouTube lets this account comment here. */
 	public void refreshCommentBox() {
 		boolean shown = AppSettings.commentingEnabled() && !live && commentParams != null
 						&& feedClient.isSignedIn();
@@ -467,7 +524,7 @@ public final class WatchPanel {
 				return;
 			}
 			ToastUtils.show(context, R.string.comment_posted);
-			// Another video was opened meanwhile; the comment is on the earlier one
+			// another video opened meanwhile, the comment is on the old one
 			if (current != commentsToken) return;
 			commentInput.setText("");
 			hideKeyboard();
@@ -488,7 +545,7 @@ public final class WatchPanel {
 
 	private void loadComments(boolean first) {
 		String id = videoId;
-		if (id == null || live || commentsLoading) return;
+		if (id == null || live || commentsLoading || ExternalIds.isExternal(id)) return;
 		if (first && id.equals(commentsVideoId)) return;
 		if (!first && commentsNext == null) return;
 		commentsVideoId = id;
@@ -533,10 +590,10 @@ public final class WatchPanel {
 			settings.setAllowContentAccess(false);
 			settings.setGeolocationEnabled(false);
 			settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-			// The app is always dark: no white flash before the chat has loaded
+			// always dark, no white flash before chat loads
 			int surface = ViewUtils.themeColor(chatHost.getContext(), com.google.android.material.R.attr.colorSurface);
 			web.setBackgroundColor(surface);
-			// Stay on YouTube pages, ignore other links and schemes
+			// stay on YouTube, ignore other links and schemes
 			web.setWebViewClient(new WebViewClient() {
 				@Override
 				public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
@@ -561,8 +618,8 @@ public final class WatchPanel {
 	}
 
 	/**
-	 * YouTube's chat follows the browser's light theme unless told otherwise. Keeps its dark
-	 * attribute set (the page resets it while it loads) and paints the page in the app's colour.
+	 * YouTube's chat goes light unless told otherwise. Keeps its dark attribute set (the page resets
+	 * it while loading) and paints the page in our colour.
 	 */
 	@NonNull
 	private static String darkChatScript(int surface) {
@@ -580,7 +637,12 @@ public final class WatchPanel {
 
 	private void releaseChat() {
 		chatVideoId = null;
-		if (chatWeb != null) chatWeb.loadUrl("about:blank");
+		WebView web = chatWeb;
+		if (web == null) return;
+		chatWeb = null;
+		chatHost.removeView(web);
+		web.stopLoading();
+		web.destroy();
 	}
 
 	@NonNull
@@ -594,7 +656,6 @@ public final class WatchPanel {
 		}
 		return out;
 	}
-
 
 	private static final class CommentAdapter extends RecyclerView.Adapter<CommentHolder> {
 		@NonNull
@@ -632,8 +693,8 @@ public final class WatchPanel {
 		@Override
 		public void onBindViewHolder(@NonNull CommentHolder holder, int position) {
 			FeedClient.Comment comment = data.get(position);
-			// The username has its own view, coloured by the theme (the pink in NiiX). Some comments
-			// come without a name at all, and printing "null" there looked like shit.
+			// username has its own view coloured by the theme (pink in NiiX). Some comments have no name at
+			// all, and printing "null" there looked like shit.
 			String author = comment.author();
 			boolean hasAuthor = author != null && !author.isBlank();
 			holder.author.setText(hasAuthor ? author : "");
@@ -641,10 +702,10 @@ public final class WatchPanel {
 			List<String> parts = new ArrayList<>(3);
 			if (comment.published() != null && !comment.published().isBlank()) parts.add(comment.published());
 			Context context = holder.itemView.getContext();
-			if (comment.likes() > 0) parts.add(context.getString(R.string.watch_comment_likes, comment.likes()));
+			if (comment.likes() > 0) parts.add(context.getResources().getQuantityString(R.plurals.watch_comment_likes, comment.likes(), comment.likes()));
 			if (comment.pinned()) parts.add(context.getString(R.string.watch_comment_pinned));
 			String rest = String.join(StringUtils.META_SEPARATOR, parts);
-			// The separator after the name only when something follows it
+			// separator after the name only if something follows
 			holder.meta.setText(hasAuthor && !rest.isEmpty() ? StringUtils.META_SEPARATOR + rest : rest);
 			holder.text.setText(comment.text());
 		}
@@ -778,7 +839,7 @@ public final class WatchPanel {
 
 		private void applyExpanded() {
 			description.setMaxLines(expanded ? Integer.MAX_VALUE : COLLAPSED_LINES);
-			// While collapsed, a tap expands the text instead of opening a link
+			// collapsed: a tap expands instead of opening a link
 			description.setMovementMethod(expanded ? LinkMovementMethod.getInstance() : null);
 			description.setClickable(true);
 		}

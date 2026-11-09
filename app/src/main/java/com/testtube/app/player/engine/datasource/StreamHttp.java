@@ -15,9 +15,9 @@ import java.util.Map;
 import java.util.function.Supplier;
 
 /**
- * Where the players get their HTTP from: HttpEngine (HTTP/3) when the phone has it, otherwise
- * HttpURLConnection. The engine is only built on first use, off the main thread, so creating a
- * player stays instant; {@link #warmUp(Context)} builds it ahead of the first video.
+ * Where players get HTTP from: HttpEngine (HTTP/3) if the phone has it, else HttpURLConnection.
+ * The engine is built lazily off the main thread so creating a player stays instant;
+ * {@link #warmUp(Context)} builds it before the first video.
  */
 @UnstableApi
 public final class StreamHttp {
@@ -25,9 +25,9 @@ public final class StreamHttp {
 	}
 
 	/**
-	 * Builds the engine now, so the first video doesn't wait for it. HttpEngine ships as a mainline
-	 * module: Android 14, or Android 11+ with system updates. The same check is spelled out at
-	 * every call site because that's the only form lint recognises.
+	 * Builds the engine now so the first video doesn't wait. HttpEngine is a mainline module:
+	 * Android 14, or 11+ with system updates. The check is repeated at every call site because
+	 * that's the only form lint understands.
 	 */
 	@WorkerThread
 	public static void warmUp(@NonNull Context context) {
@@ -37,7 +37,7 @@ public final class StreamHttp {
 		}
 	}
 
-	/** YouTube's stream URLs (DASH and progressive). */
+	/** YouTube stream URLs (DASH and progressive). */
 	@NonNull
 	public static HttpDataSource.Factory youtube(@NonNull Context context,
 	                                             @NonNull String userAgent,
@@ -79,10 +79,7 @@ public final class StreamHttp {
 		});
 	}
 
-	/**
-	 * Picks the engine the first time a data source is needed (that's on a loader thread), and
-	 * sticks with the answer.
-	 */
+	/** Picks the engine on first use (loader thread) and sticks with it. */
 	private static final class Lazy implements HttpDataSource.Factory {
 		@NonNull
 		private final HttpDataSource.Factory fallback;

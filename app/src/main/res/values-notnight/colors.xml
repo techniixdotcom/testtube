@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-        Light theme. Same names as values/colors.xml (the Dark theme); only what differs is here.
-        Brand red, the overlays on video and the launcher icon are the same in both. The NiiX
-        theme is dark only and doesn't use these.
+        Light theme. Same names as values/colors.xml (Dark), only what differs. Brand red, video
+        overlays and the launcher icon are shared. NiiX is dark only and ignores these.
     -->
 
-    <!-- Black on white: buttons, switches, sliders and tabs, like YouTube's light theme -->
+    <!-- Black on white controls, like YouTube's light theme -->
     <color name="accent">#0F0F0F</color>
     <color name="on_accent">#FFFFFF</color>
     <color name="accent_container">#E5E5E5</color>
@@ -57,6 +56,6 @@
     <color name="error_container">#FFDAD6</color>
     <color name="on_error_container">#410002</color>
 
-    <!-- Buttons of the player notification: dark on the light notification background -->
+    <!-- Notification buttons: dark on the light background -->
     <color name="notification_control">#DE000000</color>
 </resources>

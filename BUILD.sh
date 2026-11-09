@@ -1,54 +1,56 @@
 #!/usr/bin/env bash
-# BUILD.sh -- everything around building and releasing TestTube, from one place.
+# BUILD.sh: building and releasing TestTube from one place.
 #
-# Run it with no arguments for the menu, or use one of these directly. The menu and the options
-# are the same in the BUILD.sh of TestTube, NiiX and niixfliix, wherever an option fits the app.
+# No arguments opens the menu. Same menu and options as NiiX's and niixfliix's BUILD.sh where
+# they fit.
 #
-#   ./BUILD.sh --release                  Build the signed release APK (dist/testtube<version>.apk).
-#   ./BUILD.sh --publish                  Build it and publish it to GitHub Releases (APK and
-#                                         SHA256SUMS.txt), checked so the app's updater accepts it.
-#   ./BUILD.sh --upload-only              Publish the APK already in dist/, without building.
-#   ./BUILD.sh --debug                    Build a debug APK (Android's own debug key; installs next
-#                                         to the release app as "com.testtube.app.debug").
-#   ./BUILD.sh --install                  Install the APK in dist/ on the phone connected over USB.
-#   ./BUILD.sh --test                     Run the test suite.
-#   ./BUILD.sh --audit-zip                Pack the source into dist/, without keys, logs or build
-#                                         output, for a reviewer.
-#   ./BUILD.sh --write-dependency-hashes  Record the SHA-256 of every library and build; Gradle then
-#                                         refuses any library that changes.
-#   ./BUILD.sh --push-source              Put the current source on GitHub as a normal commit (no
-#                                         release). README, screenshots and logo there are kept.
-#   ./BUILD.sh --set-version              Set the version name and code for the next release.
-#   ./BUILD.sh --create-keys              Create the signing key (the first release build also does).
-#   ./BUILD.sh --show-keys                Show the signing keys' fingerprints and where they are.
-#   ./BUILD.sh --import-key DIR           Use the TestTube signing key in DIR from now on.
-#   ./BUILD.sh --use-shared-key           Switch TestTube to the Android key all your apps share
-#                                         (~/.keys/android, made the first time), for good;
-#                                         installed copies update to it normally.
-#   ./BUILD.sh --backup-keys[=DIR]        Copy all signing keys (~/.keys) to DIR/.keys (a USB stick,
-#                                         for example) and check the copy.
-#   ./BUILD.sh --clean                    Delete all build output.
-#   ./BUILD.sh --fix-permissions          Give the project folder back to you after a run with sudo.
+#   --release                  signed release APKs: dist/testtube<version>.apk and
+#                              dist/testtubeplus<version>.apk
+#   --publish                  build both and publish to GitHub Releases (APKs + SHA256SUMS.txt),
+#                              verified so the updater accepts them
+#   --upload-only              publish what's in dist/ without building
+#   --debug                    debug APKs (debug key, installs next to release as com.testtube.app.debug)
+#   --install                  install an APK from dist/ over USB with all links enabled (12+)
+#   --test                     run the tests
+#   --audit-zip                source zip in dist/ without keys, logs or build output
+#   --write-dependency-hashes  record every library's SHA-256; Gradle then refuses changed ones
+#   --push-source              push the source to GitHub as a normal commit (no release); README,
+#                              screenshots and logo there stay
+#   --set-version              set version name and code for the next release
+#   --create-keys              create the signing key (the first release build does it too)
+#   --show-keys                show key fingerprints and locations
+#   --import-key DIR           use the TestTube key in DIR from now on
+#   --use-shared-key           switch to the Android key all your apps share (~/.keys/android),
+#                              for good; installed copies update normally
+#   --backup-keys[=DIR]        copy ~/.keys to DIR/.keys (a USB stick, say) and verify
+#   --clean                    delete build output
+#   --fix-permissions          take the folder back after a sudo run
 #
-# Options that go with the build actions:
-#   --install       after building, install on the connected phone; picks the signing key that
-#                   matches the TestTube already on it, if that key is on this computer
-#   --reinstall     like --install, but uninstalls a TestTube signed with an unknown key first
-#                   (its settings, history and login are lost)
-#   --clean         delete earlier build output before building
-#   --verbose       more detailed Gradle output in the log
+# Build options:
+#   --install       install on the connected phone after building, with the key matching the
+#                   TestTube already on it if that key is here
+#   --reinstall     like --install but uninstalls a TestTube with an unknown key first (loses its
+#                   settings, history and login)
+#   --clean         clean before building
+#   --verbose       more Gradle output in the log
+#   --version=X.Y.Z build, publish or push as this version (written into app/build.gradle.kts);
+#                   without it the version stays
+#   --edition=E     standard, plus or both (default). Publishing always does both.
 #
-# Logs (written live: tail -f build.log): build.log for this run, build.previous.log for the one
-# before, build-errors.log with only the errors when a build fails.
+# Menu options 1 and 4 ask for the edition (Enter: both). Options 1, 2, 4, 9 and 10 ask for the
+# version first; Enter takes one above GitHub's latest release (3.0.3 suggests 3.0.4), or the
+# project's version if that's higher.
+#
+# Logs (live: tail -f build.log): build.log, build.previous.log, and build-errors.log with just
+# the errors when a build fails.
 #
 # Environment:
-#   KEYS_HOME              where all signing keys are kept (default ~/.keys)
-#   TESTTUBE_HOME          where the JDK and Android SDK are kept (default ~/.testtube)
-#   TESTTUBE_RELEASE_TAG   tag to publish as, instead of v<version from app/build.gradle.kts>
+#   KEYS_HOME              signing keys (default ~/.keys)
+#   TESTTUBE_HOME          JDK and Android SDK (default ~/.testtube)
+#   TESTTUBE_RELEASE_TAG   tag to publish as instead of v<version>
 #
-# Publishing needs the GitHub CLI ("gh"); it is installed and logged in on first use. The repo is
-# the one the app's updater downloads from (DOWNLOAD_PREFIX in UpdateManager.java), so a fork that
-# changed that publishes to its own repo.
+# Publishing needs gh, installed and logged in on first use. The repo is the one the updater
+# downloads from (DOWNLOAD_PREFIX in UpdateManager.java), so a fork publishes to its own.
 
 set -Eeuo pipefail
 umask 022
@@ -60,7 +62,7 @@ TESTTUBE_HOME="${TESTTUBE_HOME:-$HOME/.testtube}"
 JDK_MAJOR=21
 JDK_DIR="$TESTTUBE_HOME/jdk-$JDK_MAJOR"
 SDK_DIR="$TESTTUBE_HOME/android-sdk"
-# Every signing key, for all apps, lives in ~/.keys (see README.txt there and scripts/android-keys.sh).
+# every key for every app lives in ~/.keys (see README.txt there and scripts/android-keys.sh)
 KEYS_HOME="${KEYS_HOME:-$HOME/.keys}"
 if [[ ! -f "$ROOT/scripts/android-keys.sh" ]]; then
 	printf 'error: scripts/android-keys.sh is missing. Unzip the whole project into an empty folder.\n' >&2
@@ -71,12 +73,12 @@ source "$ROOT/scripts/android-keys.sh"
 ANDROID_KEYS="$AK_SHARED_DIR"
 SHARED_KEYSTORE="$AK_SHARED_KS"
 SHARED_ENV="$AK_SHARED_ENV"
-# TestTube's own key, and lineage.bin once it switched to the shared key
+# TestTube's own key, plus lineage.bin once switched to the shared key
 SIGNING_DIR="$KEYS_HOME/testtube"
 SIGNING_ENV="$SIGNING_DIR/signing.env"
 KEYSTORE="$SIGNING_DIR/testtube-release.p12"
 LINEAGE="$SIGNING_DIR/lineage.bin"
-# Where versions before 3.0.2 kept it; moved to ~/.keys on the first run
+# where versions before 3.0.2 kept it, moved on first run
 LEGACY_SIGNING_DIR="$TESTTUBE_HOME/signing"
 DIST_DIR="$ROOT/dist"
 LOG_FILE="$ROOT/build.log"
@@ -90,9 +92,9 @@ log() { printf '==> %s\n' "$*"; }
 warn() { printf 'warning: %s\n' "$*" >&2; }
 die() { printf 'error: %s\n' "$*" >&2; exit 1; }
 
-# Everything printed goes through tee into build.log, and that pipe can hold a question back so
-# the terminal shows nothing while the script waits for an answer. Questions go straight to the
-# terminal instead. Without one (CI, piped input) the answer comes from stdin.
+# output goes through tee into build.log, and that pipe can hold a question back so the terminal
+# shows nothing while we wait. Questions go straight to the terminal. Without one (CI, piped
+# input) the answer comes from stdin.
 ask() {
 	local __prompt="$1" __var="$2" __reply=""
 	if { true > /dev/tty; } 2>/dev/null; then
@@ -105,7 +107,7 @@ ask() {
 	printf -v "$__var" '%s' "$__reply"
 }
 
-# Yes/no question; the default (y or n) is what Enter picks.
+# yes/no question, Enter picks the default (y or n)
 confirm() {
 	local answer default="${2:-n}" hint="[y/N]"
 	[[ "$default" == "y" ]] && hint="[Y/n]"
@@ -147,7 +149,7 @@ cleanup() {
 		rm -rf "$TMP_DIR"
 	fi
 	restore_project_access
-	# Give the log writer a moment to flush the final lines.
+	# give the log writer a moment to flush
 	if [[ -s "$LOG_FILE" ]]; then
 		sleep 1
 	fi
@@ -178,6 +180,9 @@ APK_OUT=""
 IMPORT_KEY=""
 BACKUP_KEY=""
 MENU_CHOICE=""
+VERSION_OVERRIDE=""
+EDITION=""
+APK_OUTS=()
 
 set_mode() {
 	[[ -z "$MODE" || "$MODE" == "$1" ]] || die "Pick one action at a time ($MODE and $1 were both given)"
@@ -186,7 +191,7 @@ set_mode() {
 
 show_menu() {
 	local choice
-	ask "$(printf 'What would you like to do?\n  1) Build a signed release APK\n  2) Build a signed release APK and publish it to GitHub Releases\n  3) Publish an already-built release APK to GitHub Releases\n  4) Build a debug APK (no signing key needed)\n  5) Install the built APK to a connected phone (shows the real error if it fails)\n  6) Run the test suite\n  7) Package a source archive for a reviewer (no keys)\n  8) Record dependency hashes (supply-chain verification)\n  9) Push source to GitHub (no release)\n 10) Set the version for the next release\n 11) Create signing keys (once, before your first signed build)\n 12) Show the signing keys\n 13) Use a signing key from another folder\n 14) Switch to the shared Android key (one key for all apps)\n 15) Back up all signing keys (~/.keys)\n 16) Delete all build output\n 17) Give the project folder back to you (after a run with sudo)\nEnter a number [1-17]: ')" choice
+	ask "$(printf 'What would you like to do?\n  1) Build signed release APKs (asks for the version and edition)\n  2) Build both editions and publish them to GitHub Releases (asks for the version)\n  3) Publish already-built release APKs to GitHub Releases\n  4) Build debug APKs (no signing key needed; asks for the version and edition)\n  5) Install the built APK to a connected phone (shows the real error if it fails)\n  6) Run the test suite\n  7) Package a source archive for a reviewer (no keys)\n  8) Record dependency hashes (supply-chain verification)\n  9) Push source to GitHub (no release; asks for the version)\n 10) Set the version for the next release\n 11) Create signing keys (once, before your first signed build)\n 12) Show the signing keys\n 13) Use a signing key from another folder\n 14) Switch to the shared Android key (one key for all apps)\n 15) Back up all signing keys (~/.keys)\n 16) Delete all build output\n 17) Give the project folder back to you (after a run with sudo)\nEnter a number [1-17]: ')" choice
 	apply_choice "$choice"
 	MENU_CHOICE="$choice"
 }
@@ -246,22 +251,29 @@ for arg in "$@"; do
 		--reinstall) INSTALL=1; REINSTALL=1 ;;
 		--clean) CLEAN=1 ;;
 		--verbose) VERBOSE=1 ;;
+		--version=*) VERSION_OVERRIDE="${arg#--version=}" ;;
+		--edition=*) EDITION="${arg#--edition=}" ;;
+		--edition) EXPECT="EDITION" ;;
+		--version) EXPECT="VERSION_OVERRIDE" ;;
 		--menu-choice=*) MENU_CHOICE="${arg#--menu-choice=}"; apply_choice "$MENU_CHOICE" ;;
 		--help|-h) usage; exit 0 ;;
 		*) usage; die "Unknown option: $arg" ;;
 	esac
 done
-[[ -z "$EXPECT" ]] || die "${arg} needs a folder after it"
-# --import-key on its own means "switch to that key"; with a build it's used for that build.
+if [[ -n "$EXPECT" ]]; then
+	[[ "$EXPECT" == "VERSION_OVERRIDE" ]] && die "--version needs a version after it, like --version=3.0.4"
+	[[ "$EXPECT" == "EDITION" ]] && die "--edition needs standard, plus or both after it"
+	die "${arg} needs a folder after it"
+fi
+# --import-key alone means switch to that key; with a build it's used for that build
 if [[ -n "$IMPORT_KEY" && -z "$MODE" ]]; then
 	MODE="import-key"
 fi
-# --clean on its own deletes the build output; with a build it cleans first.
+# --clean alone deletes build output; with a build it cleans first
 if [[ "$CLEAN" -eq 1 && -z "$MODE" ]]; then
 	MODE="clean"
 fi
-# --install on its own installs the APK already built (as in the other apps' BUILD.sh); with a
-# build it installs what was just built.
+# --install alone installs what's already built; with a build it installs the new APK
 if [[ "$INSTALL" -eq 1 && "$WRITE_CHECKSUMS" -eq 0 && -z "$MODE" ]]; then
 	MODE="install-only"
 fi
@@ -269,14 +281,30 @@ if [[ -z "$MODE" ]]; then
 	if [[ $# -eq 0 ]] && has_tty; then
 		show_menu
 	else
-		# Without a terminal (CI) or with only options like --install: the release build, as before
+		# no terminal (CI) or only options like --install: release build, as before
 		MODE="build"
 	fi
 fi
 
+case "$EDITION" in
+	""|standard|plus|both) ;;
+	*) die "--edition takes standard (TestTube), plus (TestTube+) or both, not '$EDITION'" ;;
+esac
+# a release carries both editions, each updater looks for its own APK
+if [[ "$MODE" == "publish" || "$MODE" == "upload-only" ]] && [[ -n "$EDITION" && "$EDITION" != "both" ]]; then
+	die "Publishing always takes both editions: TestTube+ users get their updates from the same release"
+fi
+# only builds and pushes take a version, an existing APK keeps its own
+if [[ -n "$VERSION_OVERRIDE" ]]; then
+	case "$MODE" in
+		build|publish|push-source|set-version) ;;
+		*) die "--version goes with --release, --debug, --publish, --push-source or --set-version, not with $MODE" ;;
+	esac
+fi
+
 if [[ "$(id -u)" -eq 0 && -n "${SUDO_USER:-}" && "$SUDO_USER" != "root" && "$MODE" != "fix-permissions" ]]; then
 	log "Started with sudo; continuing as $SUDO_USER so every file stays yours"
-	# The menu has been answered already; pass the answer on instead of asking again
+	# menu already answered, pass it on instead of asking again
 	if [[ -n "$MENU_CHOICE" && $# -eq 0 ]]; then
 		exec sudo -u "$SUDO_USER" -H bash "$ROOT/BUILD.sh" "--menu-choice=$MENU_CHOICE"
 	fi
@@ -340,7 +368,7 @@ fi
 [[ -f "$LOG_FILE" ]] && mv -f "$LOG_FILE" "$ROOT/build.previous.log"
 rm -f "$ROOT/build-errors.log"
 : > "$LOG_FILE" 2>/dev/null || die "Cannot write $LOG_FILE. Is the folder yours? Try: ./BUILD.sh --fix-permissions"
-# From here on, output goes to the terminal and to build.log (timestamped, without colours).
+# from here output goes to the terminal and build.log (timestamped, no colours)
 if command -v perl >/dev/null 2>&1; then
 	exec > >(tee >(perl -MPOSIX -pe 'BEGIN { $| = 1 } s/\e\[[0-9;?]*[A-Za-z]//g; s/\r\n/\n/; s/\r/\n/g; $_ = strftime("[%H:%M:%S] ", localtime) . $_' >> "$LOG_FILE")) 2>&1
 else
@@ -375,7 +403,7 @@ run_privileged() {
 	fi
 }
 
-# Installs packages with whatever package manager the system has.
+# installs packages with whatever package manager there is
 install_packages() {
 	if command -v apt-get >/dev/null 2>&1; then
 		run_privileged apt-get update
@@ -518,7 +546,7 @@ write_local_properties() {
 	printf 'sdk.dir=%s\n' "$escaped" > "$ROOT/local.properties"
 }
 
-# JDK and Android SDK, downloaded into TESTTUBE_HOME the first time.
+# JDK and Android SDK, downloaded into TESTTUBE_HOME the first time
 setup_toolchain() {
 	detect_platform
 	ensure_system_tools
@@ -555,8 +583,8 @@ protected_exists() {
 	[[ "$(id -u)" -ne 0 ]] && command -v sudo >/dev/null 2>&1 && sudo test -e "$1"
 }
 
-# The password in a signing.env: TESTTUBE_KEYSTORE_PASSWORD= (TestTube's own) or KEYSTORE_PASSWORD=
-# (the shared key and other apps).
+# password in a signing.env: TESTTUBE_KEYSTORE_PASSWORD= (TestTube's own) or KEYSTORE_PASSWORD=
+# (shared key, other apps)
 signing_password_from() {
 	local line value=""
 	while IFS= read -r line; do
@@ -568,7 +596,7 @@ signing_password_from() {
 	printf '%s' "$value"
 }
 
-# The key alias in a signing.env, or the one given as default.
+# key alias in a signing.env, or the given default
 signing_alias_from() {
 	local line value="$1"
 	while IFS= read -r line; do
@@ -579,7 +607,7 @@ signing_alias_from() {
 	printf '%s' "$value"
 }
 
-# Writes a signing.env: file, password, alias, and the variable prefix (TESTTUBE_ or nothing).
+# writes a signing.env: file, password, alias, variable prefix (TESTTUBE_ or nothing)
 write_env_file() {
 	(umask 077; {
 		printf '%sKEYSTORE_PASSWORD=%s\n' "$4" "$2"
@@ -592,14 +620,14 @@ write_signing_env() {
 	write_env_file "$SIGNING_ENV" "$1" testtube TESTTUBE_
 }
 
-# The key's SHA-256 fingerprint as keytool prints it (AA:BB:...), or nothing: keystore, password, alias.
+# key SHA-256 like keytool prints it (AA:BB:...), or nothing. Args: keystore, password, alias.
 key_fingerprint() {
 	TESTTUBE_FP_PASSWORD="$2" "$JDK_DIR/bin/keytool" -list -v -keystore "$1" -storetype PKCS12 \
 		-storepass:env TESTTUBE_FP_PASSWORD -alias "${3:-testtube}" 2>/dev/null \
 		| awk -F': ' '/SHA256:/ {print $2; exit}' || true
 }
 
-# The same, lower case without colons, as apksigner prints it: keystore, its signing.env, default alias.
+# same, lower case without colons like apksigner. Args: keystore, its signing.env, default alias.
 keystore_digest() {
 	local password alias
 	password="$(read_protected "$2" | signing_password_from)" || return 1
@@ -610,13 +638,13 @@ keystore_digest() {
 	rm -f "$copy"
 }
 
-# ~/.keys holds every signing key, for all apps, and only you can open it (scripts/android-keys.sh).
+# ~/.keys holds every key for every app, only you can open it (scripts/android-keys.sh)
 secure_keys_home() {
 	mkdir -p "$SIGNING_DIR"
 	ak_secure || die "Could not set up $KEYS_HOME"
 }
 
-# Moves TestTube's key to ~/.keys/testtube from where earlier versions kept it.
+# moves TestTube's key to ~/.keys/testtube from where older versions kept it
 migrate_keys() {
 	local legacy
 	for legacy in "$KEYS_HOME/android/old/testtube" "$LEGACY_SIGNING_DIR"; do
@@ -635,7 +663,7 @@ shared_key_exists() {
 	ak_shared_exists
 }
 
-# The digest updates have to carry: the shared key once TestTube has switched to it, its own until then.
+# digest updates must carry: the shared key once switched, TestTube's own until then
 release_digest() {
 	if rotated; then
 		keystore_digest "$SHARED_KEYSTORE" "$SHARED_ENV" release
@@ -741,7 +769,7 @@ show_key_info() {
 	log "Every update has to be signed with these keys; the app refuses anything else."
 }
 
-# Copies the whole ~/.keys folder to DIR/.keys and checks every file.
+# copies all of ~/.keys to DIR/.keys and verifies every file
 backup_signing_key() {
 	migrate_keys
 	if [[ ! -d "$KEYS_HOME" ]] || ! find "$KEYS_HOME" -type f \( -name '*.p12' -o -name '*.jks' -o -name '*.pem' \) -print -quit | grep -q .; then
@@ -761,18 +789,18 @@ backup_signing_key() {
 
 # ---- One Android key for all apps ---------------------------------------------------------------
 
-# Points scripts/android-keys.sh at this toolchain.
+# points scripts/android-keys.sh at this toolchain
 key_tools() {
 	AK_KEYTOOL="$JDK_DIR/bin/keytool"
 	AK_JAVA_HOME="$JDK_DIR"
 	AK_APKSIGNER="$(apksigner_bin)"
 }
 
-# The first TestTube version whose updater accepts a change of key.
+# first TestTube whose updater accepts a key change
 ROTATION_AWARE_CODE=30002
 APP_MIN_SDK=26
 
-# Switches TestTube to the shared Android key, for good (see scripts/android-keys.sh).
+# switches TestTube to the shared key for good (see scripts/android-keys.sh)
 switch_to_shared_key() {
 	setup_toolchain
 	ensure_signing_key
@@ -782,8 +810,8 @@ switch_to_shared_key() {
 		log "TestTube already uses the shared Android key"
 		return
 	fi
-	# People whose TestTube is older than 3.0.2 have an updater that only takes the exact old key.
-	# Android itself accepts the switch, so they'd have to download the APK by hand once.
+	# TestTube before 3.0.2 has an updater that only takes the exact old key. Android itself accepts
+	# the switch, so those people have to grab the APK by hand once.
 	local slug published="" code=""
 	if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
 		slug="$(repo_slug || true)"
@@ -804,7 +832,7 @@ switch_to_shared_key() {
 	log "Back up $KEYS_HOME now (option 15)."
 }
 
-# Re-signs a release APK with TestTube's own key and the shared one, and checks it.
+# re-signs a release APK with TestTube's key and the shared one, then checks it
 sign_rotated() {
 	local apk="$1" password
 	key_tools
@@ -814,7 +842,7 @@ sign_rotated() {
 	log "Signed with the shared Android key (Android 9+) and TestTube's own key (Android 8)"
 }
 
-# A switched APK: Android 8 sees TestTube's own key, Android 9 and newer the shared one.
+# a switched APK: Android 8 sees TestTube's own key, 9+ the shared one
 check_rotated() {
 	key_tools
 	ak_check "$1" "$(keystore_digest "$KEYSTORE" "$SIGNING_ENV" testtube)" "$APP_MIN_SDK" || die "$(basename "$1") isn't signed the way the switch needs"
@@ -859,7 +887,7 @@ gradle_heap_mb() {
 	echo "$heap"
 }
 
-# Copies the lines that explain a failed Gradle run into build-errors.log and shows them.
+# copies the lines explaining a failed Gradle run into build-errors.log and shows them
 extract_errors() {
 	local src="$1" out="$ROOT/build-errors.log"
 	{
@@ -884,7 +912,7 @@ gradle_args() {
 	chmod +x "$ROOT/gradlew"
 }
 
-# Runs Gradle tasks, retrying only failures caused by the network.
+# runs Gradle, retrying only network failures
 run_gradle_tasks() {
 	gradle_args
 	local attempt gradle_out
@@ -895,7 +923,7 @@ run_gradle_tasks() {
 			rm -f "$gradle_out"
 			return 0
 		fi
-		# A compile error or a failing test fails the same way every time.
+		# compile errors and failing tests fail the same way every time
 		if ! grep -qiE 'Could not (resolve|GET|HEAD|download)|timed out|Connection (reset|refused)|UnknownHost|SSLHandshake|Premature end' "$gradle_out"; then
 			extract_errors "$gradle_out"
 			rm -f "$gradle_out"
@@ -918,14 +946,74 @@ run_gradle_build() {
 		gradle_args
 		(cd "$ROOT" && ./gradlew "${GRADLE_ARGS[@]}" clean)
 	fi
-	local task=":app:assembleRelease"
-	[[ "$VARIANT" == "debug" ]] && task=":app:assembleDebug"
-	run_gradle_tasks "$task"
+	local build="Release" edition
+	local tasks=()
+	[[ "$VARIANT" == "debug" ]] && build="Debug"
+	while IFS= read -r edition; do
+		tasks+=(":app:assemble$(edition_task_name "$edition")$build")
+	done < <(selected_editions)
+	run_gradle_tasks "${tasks[@]}"
+}
+
+# ---- Editions ----------------------------------------------------------------------------------
+
+# standard = TestTube (YouTube), plus = TestTube+ (Spotify, Facebook, SoundCloud too). One id and
+# key so either installs over the other. A release has both APKs; each updater only takes its own
+# (Edition.APK_PREFIX).
+
+edition_label() {
+	case "$1" in
+		standard) printf 'TestTube' ;;
+		plus) printf 'TestTube+' ;;
+		*) die "Unknown edition $1" ;;
+	esac
+}
+
+# APK name before the version (app/build.gradle.kts uses the same)
+edition_prefix() {
+	case "$1" in
+		standard) printf 'testtube' ;;
+		plus) printf 'testtubeplus' ;;
+		*) die "Unknown edition $1" ;;
+	esac
+}
+
+# flavor name as it appears in task names: assembleStandardRelease
+edition_task_name() {
+	case "$1" in
+		standard) printf 'Standard' ;;
+		plus) printf 'Plus' ;;
+		*) die "Unknown edition $1" ;;
+	esac
+}
+
+# editions this run builds, TestTube first: both unless one was picked
+selected_editions() {
+	case "${EDITION:-both}" in
+		both) printf '%s\n' standard plus ;;
+		*) printf '%s\n' "$EDITION" ;;
+	esac
+}
+
+# menu: which edition, Enter for both
+pick_edition() {
+	[[ -n "$EDITION" ]] && return 0
+	if [[ -n "$MENU_CHOICE" ]] && has_tty; then
+		local answer
+		ask "$(printf 'Which edition?\n  1) TestTube (YouTube)\n  2) TestTube+ (YouTube, Spotify links, Facebook videos)\n  3) Both\nEnter a number [3]: ')" answer
+		case "${answer:-3}" in
+			1) EDITION="standard" ;;
+			2) EDITION="plus" ;;
+			3) EDITION="both" ;;
+			*) die "'$answer' isn't one of the options above." ;;
+		esac
+	fi
+	EDITION="${EDITION:-both}"
 }
 
 # ---- Versions ----------------------------------------------------------------------------------
 
-# The version name without its "v", from app/build.gradle.kts (3.0.2).
+# version name without the "v", from app/build.gradle.kts (3.0.2)
 read_version_name() {
 	local name
 	name="$(grep -E '^val appVersionName[[:space:]]*=' "$GRADLE_FILE" | head -n 1 | sed -E 's/.*"(.*)".*/\1/')"
@@ -936,7 +1024,7 @@ read_version_code() {
 	grep -E '^val appVersionCode[[:space:]]*=' "$GRADLE_FILE" | head -n 1 | sed -E 's/[^0-9]*([0-9]+).*/\1/'
 }
 
-# 3.0.2 -> 30002, the scheme every release so far used. Empty for names it can't read.
+# 3.0.2 -> 30002, the scheme every release used. Empty if unreadable.
 version_code_for() {
 	if [[ "$1" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
 		local major=$((10#${BASH_REMATCH[1]})) minor=$((10#${BASH_REMATCH[2]})) patch=$((10#${BASH_REMATCH[3]}))
@@ -945,50 +1033,72 @@ version_code_for() {
 	fi
 }
 
-# Whether version a is newer than b, by number (3.0.10 is newer than 3.0.9).
+# a newer than b, numerically (3.0.10 beats 3.0.9)
 version_newer() {
 	[[ "$1" != "$2" && "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -n 1)" == "$1" ]]
 }
 
-set_version() {
-	local current current_code suggested name code published=""
+# plain version (3.0.4), or nothing if it isn't three dotted numbers
+normalize_version() {
+	local name="${1#v}"
+	if [[ "$name" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+		printf '%s.%s.%s' "$((10#${BASH_REMATCH[1]}))" "$((10#${BASH_REMATCH[2]}))" "$((10#${BASH_REMATCH[3]}))"
+	fi
+}
+
+# next version: 3.0.3 -> 3.0.4, 3.0.99 -> 3.1.0 since the code has two digits each
+next_version() {
+	if [[ "$1" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+		local major=$((10#${BASH_REMATCH[1]})) minor=$((10#${BASH_REMATCH[2]})) patch=$((10#${BASH_REMATCH[3]}))
+		patch=$((patch + 1))
+		if (( patch > 99 )); then
+			patch=0
+			minor=$((minor + 1))
+		fi
+		if (( minor > 99 )); then
+			minor=0
+			major=$((major + 1))
+		fi
+		printf '%s.%s.%s' "$major" "$minor" "$patch"
+	fi
+}
+
+# latest GitHub release (3.0.3), or nothing. Via gh when logged in, else the public API (the repo
+# is public, the app downloads updates there).
+latest_release_version() {
+	local slug tag=""
+	slug="$(repo_slug || true)"
+	[[ -n "$slug" ]] || return 0
+	if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+		tag="$(gh api "repos/$slug/releases/latest" --jq .tag_name 2>/dev/null || true)"
+	fi
+	if [[ -z "$tag" ]] && command -v curl >/dev/null 2>&1; then
+		tag="$(curl --proto '=https' --tlsv1.2 -fsSL --retry 2 --connect-timeout 10 --max-time 30 \
+			-H 'Accept: application/vnd.github+json' "https://api.github.com/repos/$slug/releases/latest" 2>/dev/null \
+			| sed -n 's/^[[:space:]]*"tag_name":[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1 || true)"
+	fi
+	normalize_version "$tag"
+}
+
+# writes name and code into app/build.gradle.kts. For a release also adds the empty CHANGELOG.md
+# section and the F-Droid notes file, to fill in before publishing.
+write_version() {
+	local name="$1" code="$2" purpose="$3" current current_code
 	current="$(read_version_name)"
 	current_code="$(read_version_code)"
-	[[ -n "$current" && -n "$current_code" ]] || die "Could not read the version from $GRADLE_FILE"
-	if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-		local slug
-		slug="$(repo_slug || true)"
-		[[ -n "$slug" ]] && published="$(gh api "repos/$slug/releases/latest" --jq .tag_name 2>/dev/null || true)"
-		published="${published#v}"
-		[[ -n "$published" ]] && log "Latest release on GitHub: $published"
-	fi
-	local base="$current"
-	if [[ -n "$published" ]] && version_newer "$published" "$base"; then
-		base="$published"
-	fi
-	if [[ "$base" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-		suggested="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.$((10#${BASH_REMATCH[3]} + 1))"
+	if [[ "$name" == "$current" && "$code" == "$current_code" ]]; then
+		log "Version: $name (code $code), as it was"
 	else
-		suggested="$base"
+		sed -i.bak -E "s/^val appVersionName[[:space:]]*=.*/val appVersionName = \"v$name\"/; s/^val appVersionCode[[:space:]]*=.*/val appVersionCode = $code/" "$GRADLE_FILE"
+		rm -f "$GRADLE_FILE.bak"
+		[[ "$(read_version_name)" == "$name" && "$(read_version_code)" == "$code" ]] || die "Could not write the version into $GRADLE_FILE"
+		log "Version set: $current ($current_code) -> $name ($code)"
 	fi
-	log "Current version: $current (code $current_code)"
-	ask "New version [$suggested]: " name
-	name="${name:-$suggested}"
-	name="${name#v}"
-	[[ "$name" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "A version looks like 3.0.3: three numbers with dots"
-	code="$(version_code_for "$name")"
-	[[ -n "$code" ]] || die "The middle and last number have to stay below 100"
-	if (( code <= current_code )); then
-		die "Version $name (code $code) isn't newer than $current (code $current_code). Android won't install it as an update."
-	fi
-	if [[ -n "$published" ]] && ! version_newer "$name" "$published"; then
-		die "Version $name isn't newer than $published, which is already on GitHub. The app wouldn't offer it."
-	fi
-	sed -i.bak -E "s/^val appVersionName[[:space:]]*=.*/val appVersionName = \"v$name\"/; s/^val appVersionCode[[:space:]]*=.*/val appVersionCode = $code/" "$GRADLE_FILE"
-	rm -f "$GRADLE_FILE.bak"
-	[[ "$(read_version_name)" == "$name" && "$(read_version_code)" == "$code" ]] || die "Could not write the version into $GRADLE_FILE"
-	log "Version set: $current ($current_code) -> $name ($code)"
-	if [[ -f "$CHANGELOG" ]] && ! grep -qxF "## $name" "$CHANGELOG"; then
+	case "$purpose" in
+		set|build|publish) ;;
+		*) return 0 ;;
+	esac
+	if [[ -f "$CHANGELOG" ]] && ! grep -qxF "## $name" "$CHANGELOG" && ! grep -qxF "## v$name" "$CHANGELOG"; then
 		awk -v v="$name" 'done == 0 && /^## / { print "## " v "\n"; done = 1 } { print }' "$CHANGELOG" > "$CHANGELOG.tmp"
 		mv "$CHANGELOG.tmp" "$CHANGELOG"
 		log "Added an empty '## $name' section to CHANGELOG.md. Write what changed there before publishing."
@@ -1000,7 +1110,57 @@ set_version() {
 	fi
 }
 
-# The notes under "## <version>" in CHANGELOG.md, up to the next version.
+# asks for the version, suggesting one above GitHub's latest (or the project's if higher), checks
+# it and writes it. --version=X.Y.Z skips the question. What it's for decides refuse vs warn:
+#   set, publish  must beat GitHub's latest or the app won't offer it
+#   build, source warns if not newer: phones with GitHub's version won't take it
+#   debug         separate app (.debug), GitHub's version doesn't matter
+choose_version() {
+	local purpose="$1" current current_code published suggested name code entered
+	current="$(normalize_version "$(read_version_name)")"
+	current_code="$(read_version_code)"
+	[[ -n "$current" && -n "$current_code" ]] || die "Could not read the version from $GRADLE_FILE"
+	published="$(latest_release_version)"
+	if [[ -n "$published" ]]; then
+		suggested="$(next_version "$published")"
+		if version_newer "$current" "$suggested"; then
+			suggested="$current"
+		fi
+	else
+		warn "Couldn't read the latest release from GitHub, so the suggestion is one above the project's version"
+		suggested="$(next_version "$current")"
+	fi
+	if [[ -n "$VERSION_OVERRIDE" ]]; then
+		entered="$VERSION_OVERRIDE"
+	else
+		ask "Version (GitHub: ${published:-unknown}, project: $current) [$suggested]: " entered
+		entered="${entered:-$suggested}"
+	fi
+	name="$(normalize_version "$entered")"
+	[[ -n "$name" ]] || die "'$entered' isn't a version. A version looks like 3.0.4: three numbers with dots"
+	code="$(version_code_for "$name")"
+	[[ -n "$code" ]] || die "In $name the middle and last number have to stay below 100"
+	if [[ -n "$published" ]] && ! version_newer "$name" "$published"; then
+		case "$purpose" in
+			set|publish) die "Version $name isn't newer than $published, the latest release on GitHub. The app wouldn't offer it as an update." ;;
+			build|source) warn "Version $name isn't newer than $published on GitHub: phones that have $published won't take it as an update" ;;
+		esac
+	fi
+	if (( code < current_code )); then
+		warn "Version $name is lower than the project's $current: a phone with a $current build refuses it until that is uninstalled"
+	fi
+	write_version "$name" "$code" "$purpose"
+}
+
+# menu or --version=X.Y.Z: pick the version first. Otherwise (other options, CI) use what's in
+# app/build.gradle.kts.
+pick_version() {
+	if [[ -n "$VERSION_OVERRIDE" ]] || { [[ -n "$MENU_CHOICE" ]] && has_tty; }; then
+		choose_version "$1"
+	fi
+}
+
+# notes under "## <version>" in CHANGELOG.md, up to the next version
 changelog_notes() {
 	[[ -f "$CHANGELOG" ]] || return 0
 	awk -v v="$1" '
@@ -1030,16 +1190,18 @@ ensure_build_tools() {
 	"$sdkmanager" --sdk_root="$SDK_DIR" --install "$package" >/dev/null
 }
 
+# path of an edition's APK for a version: apk_path_for 3.0.4 plus
 apk_path_for() {
-	local version="$1"
+	local version="$1" prefix
+	prefix="$(edition_prefix "${2:-standard}")"
 	if [[ "$VARIANT" == "debug" ]]; then
-		printf '%s' "$DIST_DIR/testtube$version-debug.apk"
+		printf '%s' "$DIST_DIR/$prefix$version-debug.apk"
 	else
-		printf '%s' "$DIST_DIR/testtube$version.apk"
+		printf '%s' "$DIST_DIR/$prefix$version.apk"
 	fi
 }
 
-# The SHA-256 of the APK's signing certificate, lower case without colons.
+# SHA-256 of the APK's signing cert, lower case, no colons
 apk_digest() {
 	JAVA_HOME="$JDK_DIR" "$(apksigner_bin)" verify --print-certs "$1" 2>/dev/null \
 		| awk -F': ' '/Signer #1 certificate SHA-256 digest/ {print $2; exit}' | tr 'A-F' 'a-f'
@@ -1052,33 +1214,54 @@ apk_version_name() {
 	"$aapt2" dump badging "$1" 2>/dev/null | sed -n "s/.*versionName='\([^']*\)'.*/\1/p" | head -n 1 || true
 }
 
+# checks every APK built this run (signature, version), drops that edition's older ones from dist/
+# and lists them in APK_OUTS, TestTube first
 collect_apk() {
-	local version
+	local version edition out built prefix
 	version="$(read_version_name)"
 	[[ -n "$version" ]] || die "Could not read appVersionName from $GRADLE_FILE"
-	local out
-	out="$(apk_path_for "$version")"
-	APK_OUT="$out"
-	[[ -f "$out" ]] || die "APK not found at $out"
 	ensure_build_tools
-	if [[ "$VARIANT" == "release" ]] && rotated; then
-		sign_rotated "$out"
+	APK_OUTS=()
+	while IFS= read -r edition; do
+		out="$(apk_path_for "$version" "$edition")"
+		[[ -f "$out" ]] || die "APK not found at $out"
+		if [[ "$VARIANT" == "release" ]] && rotated; then
+			sign_rotated "$out"
+		fi
+		JAVA_HOME="$JDK_DIR" "$(apksigner_bin)" verify "$out"
+		log "$(edition_label "$edition"): signature verified"
+		built="$(apk_version_name "$out")"
+		if [[ -n "$built" ]]; then
+			[[ "$built" == "v$version" ]] || die "$(basename "$out") reports version '$built' but $GRADLE_FILE says v$version"
+			log "$(edition_label "$edition"): version $built"
+		fi
+		# only this edition's: testtube[0-9]* never matches testtubeplus…
+		prefix="$(edition_prefix "$edition")"
+		if [[ "$VARIANT" == "debug" ]]; then
+			find "$DIST_DIR" -maxdepth 1 -name "${prefix}[0-9]*-debug.apk" ! -name "$(basename "$out")" -delete 2>/dev/null || true
+		else
+			find "$DIST_DIR" -maxdepth 1 -name "${prefix}[0-9]*.apk" ! -name '*-debug.apk' ! -name "$(basename "$out")" -delete 2>/dev/null || true
+		fi
+		log "$(edition_label "$edition") SHA-256: $(sha256_of "$out")"
+		log "Done. $(edition_label "$edition"): $out"
+		APK_OUTS+=("$out")
+	done < <(selected_editions)
+}
+
+# which fresh APK goes on the phone: the only one, or the one asked for (TestTube without a terminal)
+choose_install_apk() {
+	[[ ${#APK_OUTS[@]} -gt 0 ]] || die "No APK was built"
+	APK_OUT="${APK_OUTS[0]}"
+	[[ ${#APK_OUTS[@]} -gt 1 ]] || return 0
+	local answer="1"
+	if has_tty; then
+		ask "$(printf 'Install which on the phone?\n  1) TestTube\n  2) TestTube+\nEnter a number [1]: ')" answer
 	fi
-	JAVA_HOME="$JDK_DIR" "$(apksigner_bin)" verify "$out"
-	log "Signature verified"
-	local built
-	built="$(apk_version_name "$out")"
-	if [[ -n "$built" ]]; then
-		[[ "$built" == "v$version" ]] || die "The APK reports version '$built' but $GRADLE_FILE says v$version"
-		log "APK version: $built"
-	fi
-	if [[ "$VARIANT" == "debug" ]]; then
-		find "$DIST_DIR" -maxdepth 1 -name 'testtube*-debug.apk' ! -name "$(basename "$out")" -delete 2>/dev/null || true
-	else
-		find "$DIST_DIR" -maxdepth 1 -name 'testtube*.apk' ! -name '*-debug.apk' ! -name "$(basename "$out")" -delete 2>/dev/null || true
-	fi
-	log "SHA-256: $(sha256_of "$out")"
-	log "Done. Your APK: $out"
+	case "${answer:-1}" in
+		1) APK_OUT="${APK_OUTS[0]}" ;;
+		2) APK_OUT="${APK_OUTS[1]}" ;;
+		*) die "'$answer' isn't one of the options above." ;;
+	esac
 }
 
 # ---- Phone -------------------------------------------------------------------------------------
@@ -1168,6 +1351,21 @@ installed_version() {
 		| sed -n 's/.*versionName=\(.*\)/\1/p' | head -n 1 || true
 }
 
+# 12+ only opens links in an app allowed in "Open by default". Over USB we can set that directly,
+# so every link works straight after installing.
+enable_app_links() {
+	local package="$1" sdk out
+	sdk="$("$(adb_bin)" shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r' || true)"
+	[[ "$sdk" =~ ^[0-9]+$ ]] && (( sdk >= 31 )) || return 0
+	out="$("$(adb_bin)" shell pm set-app-links-allowed --user cur --package "$package" true 2>&1 \
+		&& "$(adb_bin)" shell pm set-app-links-user-selection --user cur --package "$package" true all 2>&1)" || out="failed: $out"
+	if [[ -n "$(tr -d '[:space:]' <<< "$out")" ]] && grep -qiE 'fail|error|exception|unknown' <<< "$out"; then
+		warn "Couldn't set the app's links to open in it ($out). The app asks about it on its first start."
+		return 0
+	fi
+	log "Links set to open in the app on the phone (Settings > Apps > Open by default: all ticked)"
+}
+
 install_apk() {
 	device_ready || die "No phone found. Turn on USB debugging, connect the phone, accept the prompt on it and run again"
 	local package="$APP_ID" output
@@ -1176,6 +1374,7 @@ install_apk() {
 	output="$("$(adb_bin)" install -r "$APK_OUT" 2>&1 || true)"
 	if grep -q '^Success' <<< "$output"; then
 		log "Installed on the phone: $(installed_version "$package")"
+		enable_app_links "$package"
 		return
 	fi
 	printf '%s\n' "$output"
@@ -1186,35 +1385,53 @@ install_apk() {
 			output="$("$(adb_bin)" install "$APK_OUT" 2>&1 || true)"
 			grep -q '^Success' <<< "$output" || die "Installation failed: $output"
 			log "Installed on the phone: $(installed_version "$package")"
+			enable_app_links "$package"
 			return
 		fi
 		die "The phone's TestTube was signed with a different key. Run ./BUILD.sh --reinstall to replace it (its settings, history and login are lost)"
 	fi
 	if grep -q 'INSTALL_FAILED_VERSION_DOWNGRADE' <<< "$output"; then
-		die "The phone has a newer TestTube than this build. Set a higher version first (option 10)"
+		die "The phone has a newer TestTube than this build. Build it again with a higher version"
 	fi
 	die "Installation failed"
 }
 
-# Picks the APK in dist/: the release one unless only a debug one is there.
+# picks the APK in dist/ to install: the only one, or the one asked for (release first).
+# --edition narrows it down.
 find_dist_apk() {
-	local version release debug
+	local version path name i answer menu
+	local candidates=()
 	version="$(read_version_name)"
-	release="$DIST_DIR/testtube$version.apk"
-	debug="$DIST_DIR/testtube$version-debug.apk"
-	if [[ -f "$release" ]]; then
-		APK_OUT="$release"
-	elif [[ -f "$debug" ]]; then
-		APK_OUT="$debug"
-	else
-		die "No APK for version $version in $DIST_DIR. Build it first (option 1)"
+	for path in "$DIST_DIR/testtube$version.apk" "$DIST_DIR/testtubeplus$version.apk" \
+		"$DIST_DIR/testtube$version-debug.apk" "$DIST_DIR/testtubeplus$version-debug.apk"; do
+		[[ -f "$path" ]] || continue
+		name="$(basename "$path")"
+		case "$EDITION" in
+			standard) [[ "$name" == testtube[0-9]* ]] || continue ;;
+			plus) [[ "$name" == testtubeplus[0-9]* ]] || continue ;;
+		esac
+		candidates+=("$path")
+	done
+	[[ ${#candidates[@]} -gt 0 ]] || die "No APK for version $version in $DIST_DIR. Build it first (option 1)"
+	APK_OUT="${candidates[0]}"
+	if [[ ${#candidates[@]} -gt 1 ]] && has_tty; then
+		menu="Install which APK?"$'\n'
+		for i in "${!candidates[@]}"; do
+			menu+="  $((i + 1))) $(basename "${candidates[$i]}")"$'\n'
+		done
+		ask "${menu}Enter a number [1]: " answer
+		answer="${answer:-1}"
+		if ! [[ "$answer" =~ ^[0-9]+$ ]] || (( answer < 1 || answer > ${#candidates[@]} )); then
+			die "'$answer' isn't one of the options above."
+		fi
+		APK_OUT="${candidates[$((answer - 1))]}"
 	fi
 	log "APK: $APK_OUT"
 }
 
 # ---- GitHub ------------------------------------------------------------------------------------
 
-# owner/repo the app's updater downloads from.
+# owner/repo the updater downloads from
 repo_slug() {
 	grep -oE 'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/releases/download/' "$UPDATE_MANAGER" 2>/dev/null \
 		| head -n 1 | sed -E 's#https://github\.com/([^/]+/[^/]+)/releases/download/#\1#'
@@ -1234,9 +1451,9 @@ ensure_gh() {
 	gh auth status >/dev/null 2>&1 || die "The GitHub CLI isn't logged in. Run: gh auth login"
 }
 
-# Folders whose files on GitHub are made to match this source exactly (old files deleted).
+# folders mirrored exactly on GitHub (old files deleted)
 MIRRORED_DIRS=(app newpipe-extractor gradle)
-# Never deleted by --push-source, and left as GitHub has them when this folder has no copy.
+# never deleted by --push-source, left as GitHub has them if we have no copy
 KEEP_ON_GITHUB=(README.md screens testtube.png .github)
 
 is_mirrored() {
@@ -1247,10 +1464,10 @@ is_mirrored() {
 	return 1
 }
 
-# Files that must never leave this computer.
+# files that must never leave this computer
 SECRET_PATTERNS=('*.p12' '*.jks' '*.keystore' '*.pem' '*.key' 'signing.env' 'keystore.properties' 'local.properties')
 
-# Copies the source tree to $1, leaving out git data, build output, logs and anything secret.
+# copies the source to $1 without git data, build output, logs or secrets
 copy_source_tree() {
 	local target="$1"
 	mkdir -p "$target"
@@ -1264,7 +1481,7 @@ copy_source_tree() {
 		excludes+=(--exclude="$pattern")
 	done
 	(cd "$ROOT" && tar -cf - "${excludes[@]}" .) | (cd "$target" && tar -xf -)
-	# Checked, not trusted: nothing secret may be in the copy.
+	# checked, not trusted: nothing secret in the copy
 	local found=""
 	for pattern in "${SECRET_PATTERNS[@]}"; do
 		found+="$(find "$target" -name "$pattern" -not -path '*/.git/*' 2>/dev/null)"
@@ -1283,10 +1500,9 @@ push_source() {
 	log "Fetching $slug"
 	gh auth setup-git >/dev/null 2>&1 || true
 	git clone --quiet "https://github.com/$slug.git" "$clone" || die "Could not clone $slug"
-	# One normal commit on top of the history, nothing is force-pushed. Only the code folders are
-	# mirrored exactly (a file deleted here is deleted there, or Gradle would still compile it);
-	# everything else is added or updated, never deleted. The README, the screenshots and the other
-	# things in KEEP_ON_GITHUB stay exactly as GitHub has them unless this folder has its own copy.
+	# one normal commit on top, no force push. Only code folders are mirrored exactly (a file deleted
+	# here goes there too or Gradle would still compile it); everything else is added or updated, never
+	# deleted. KEEP_ON_GITHUB stays as GitHub has it unless we have our own copy.
 	local dir
 	for dir in "${MIRRORED_DIRS[@]}"; do
 		rm -rf "${clone:?}/$dir"
@@ -1300,7 +1516,7 @@ push_source() {
 		fi
 	done
 	(cd "$clone" && git add -A)
-	# Checked, not trusted: nothing outside the code folders may be deleted
+	# checked, not trusted: nothing outside the code folders gets deleted
 	local deleted bad=""
 	deleted="$(cd "$clone" && git diff --cached --name-only --diff-filter=D)"
 	while IFS= read -r path; do
@@ -1345,36 +1561,42 @@ push_source() {
 	log "Source pushed to https://github.com/$slug"
 }
 
-# Publishes $APK_OUT as release v<version>: the APK and SHA256SUMS.txt, then checks it the way the
-# app's updater will: the file is all there, GitHub's SHA-256 matches, it is the latest release.
+# publishes both editions as v<version> (both APKs + SHA256SUMS.txt), then checks like the updaters
+# will: complete files, GitHub's SHA-256 matches, it's the latest release, and TestTube's APK is
+# first (updaters before 3.0.4 take the first APK, whatever edition).
 publish_release() {
 	ensure_gh
-	local slug version tag apk_name sha size
+	local slug version tag standard plus
 	slug="$(repo_slug)"
 	[[ -n "$slug" ]] || die "Could not find the GitHub repo in $UPDATE_MANAGER"
-	[[ "$APK_OUT" != *-debug.apk ]] || die "That's a debug APK; only a release APK can be published"
-	[[ -f "$APK_OUT" ]] || die "APK not found at $APK_OUT"
 	version="$(read_version_name)"
 	tag="${TESTTUBE_RELEASE_TAG:-v$version}"
-	apk_name="$(basename "$APK_OUT")"
+	standard="$(apk_path_for "$version" standard)"
+	plus="$(apk_path_for "$version" plus)"
+	[[ -f "$standard" ]] || die "No TestTube APK for $version at $standard. Build both editions first (option 1, Both)"
+	[[ -f "$plus" ]] || die "No TestTube+ APK for $version at $plus. Build both editions first (option 1, Both): TestTube+ users get their updates from the same release"
 	ensure_build_tools
 
-	# The updater installs only APKs signed with the same key as the installed app, so a release
-	# signed with any other key would be offered to everyone and then refused by everyone.
-	[[ -f "$KEYSTORE" && -f "$SIGNING_ENV" ]] || die "No signing key in $SIGNING_DIR to check the APK against"
-	local signed expected
-	signed="$(apk_digest "$APK_OUT")"
+	# the updater only installs APKs with the installed app's key, so one signed with anything else
+	# would be offered to everyone and refused by everyone
+	[[ -f "$KEYSTORE" && -f "$SIGNING_ENV" ]] || die "No signing key in $SIGNING_DIR to check the APKs against"
+	local expected apk signed built
 	expected="$(release_digest || true)"
-	[[ -n "$signed" && "$signed" == "$expected" ]] || die "$apk_name isn't signed with your signing key ($KEYS_HOME). The app would refuse it as an update."
+	[[ -n "$expected" ]] || die "Could not read your signing key's fingerprint"
+	for apk in "$standard" "$plus"; do
+		signed="$(apk_digest "$apk")"
+		[[ -n "$signed" && "$signed" == "$expected" ]] || die "$(basename "$apk") isn't signed with your signing key ($KEYS_HOME). The app would refuse it as an update."
+		if rotated; then
+			check_rotated "$apk"
+		fi
+		built="$(apk_version_name "$apk")"
+		[[ -z "$built" || "$built" == "v$version" ]] || die "$(basename "$apk") is version '$built', not v$version"
+	done
 	if rotated; then
-		check_rotated "$APK_OUT"
-		log "Signed with the shared Android key, and TestTube's own key for Android 8"
+		log "Both signed with the shared Android key, and TestTube's own key for Android 8"
 	else
-		log "Signed with your key"
+		log "Both signed with your key"
 	fi
-	local built
-	built="$(apk_version_name "$APK_OUT")"
-	[[ -z "$built" || "$built" == "v$version" ]] || die "$apk_name is version '$built', not v$version"
 
 	local prerelease=0
 	[[ "$tag" =~ (alpha|beta|rc) ]] && prerelease=1
@@ -1394,66 +1616,119 @@ publish_release() {
 	log "Release notes for $tag:"
 	sed 's/^/    /' "$notes_file"
 
-	sha="$(sha256_of "$APK_OUT")"
-	size="$(size_of "$APK_OUT")"
 	local sums="$TMP_DIR/SHA256SUMS.txt"
-	printf '%s  %s\n' "$sha" "$apk_name" > "$sums"
+	{
+		printf '%s  %s\n' "$(sha256_of "$standard")" "$(basename "$standard")"
+		printf '%s  %s\n' "$(sha256_of "$plus")" "$(basename "$plus")"
+	} > "$sums"
 
 	local exists=0
 	gh release view "$tag" --repo "$slug" >/dev/null 2>&1 && exists=1
 	if has_tty; then
-		local what="Publish $tag to $slug"
-		[[ "$exists" -eq 1 ]] && what="$tag already exists on $slug. Replace its APK and notes"
+		local what="Publish $tag (TestTube and TestTube+) to $slug"
+		[[ "$exists" -eq 1 ]] && what="$tag already exists on $slug. Replace its APKs and notes"
 		confirm "$what?" y || die "Nothing was published"
 	fi
 	if [[ "$exists" -eq 1 ]]; then
-		gh release upload "$tag" "$APK_OUT" "$sums" --repo "$slug" --clobber
+		upload_in_order "$tag" "$slug" "$standard" "$plus" "$sums"
 		gh release edit "$tag" --repo "$slug" --notes-file "$notes_file" >/dev/null
-		[[ "$prerelease" -eq 0 ]] && gh release edit "$tag" --repo "$slug" --latest >/dev/null 2>&1 || true
+		if [[ "$prerelease" -eq 0 ]]; then
+			gh release edit "$tag" --repo "$slug" --latest >/dev/null 2>&1 || true
+		fi
 	else
 		local flags=(--repo "$slug" --title "$tag" --notes-file "$notes_file")
 		if [[ "$prerelease" -eq 1 ]]; then
 			flags+=(--prerelease)
 		else
-			# Explicit: /releases/latest is what the app's update check asks for
+			# explicit: /releases/latest is what the update check asks for
 			flags+=(--latest)
 		fi
-		gh release create "$tag" "$APK_OUT" "$sums" "${flags[@]}"
+		# TestTube's APK first, TestTube+'s in its own upload after: the order old updaters see
+		gh release create "$tag" "$standard" "$sums" "${flags[@]}"
+		gh release upload "$tag" "$plus" --repo "$slug"
 	fi
 
-	# A failed upload can leave the name behind with a broken file, and the app refuses an update
-	# whose SHA-256 doesn't match. So check GitHub's own size and SHA-256, and upload again if off.
-	local attempt remote_size remote_digest
+	# a failed upload can leave a broken file behind and the app refuses a mismatched SHA-256. So
+	# check GitHub's size and SHA-256 of both APKs and that TestTube's is first; re-upload (in order)
+	# if anything's off.
+	local attempt state
 	for attempt in 1 2 3; do
-		remote_size="$(gh api "repos/$slug/releases/tags/$tag" --jq ".assets[] | select(.name == \"$apk_name\") | .size" 2>/dev/null || true)"
-		remote_digest="$(gh api "repos/$slug/releases/tags/$tag" --jq ".assets[] | select(.name == \"$apk_name\") | .digest // \"\"" 2>/dev/null || true)"
-		if [[ "$remote_size" == "$size" && "$remote_digest" == "sha256:$sha" ]]; then
-			break
-		fi
+		state="$(release_state "$tag" "$slug" "$standard" "$plus")"
+		[[ "$state" == "ok" ]] && break
 		if [[ "$attempt" -lt 3 ]]; then
-			if [[ "$remote_size" == "$size" && -z "$remote_digest" ]]; then
-				# Complete, but GitHub hasn't shown its SHA-256 yet
-				warn "Waiting for GitHub to report the APK's SHA-256"
+			if [[ "$state" == "pending" ]]; then
+				# complete, GitHub just hasn't shown the SHA-256 yet
+				warn "Waiting for GitHub to report the APKs' SHA-256"
 				sleep 10
 			else
-				warn "The APK on GitHub doesn't match (size ${remote_size:-none}, ${remote_digest:-no SHA-256}); uploading again"
+				warn "The release on GitHub isn't right yet ($state); uploading again"
 				sleep 5
-				gh release upload "$tag" "$APK_OUT" --repo "$slug" --clobber >/dev/null 2>&1 || true
+				upload_in_order "$tag" "$slug" "$standard" "$plus" "" >/dev/null 2>&1 || true
 			fi
 		fi
 	done
-	[[ "$remote_size" == "$size" ]] || die "The APK on GitHub is ${remote_size:-missing} bytes, the file here is $size. Run ./BUILD.sh --upload-only to try again."
-	[[ "$remote_digest" == "sha256:$sha" ]] || die "GitHub reports SHA-256 '${remote_digest:-none}' for the APK, expected $sha. The app refuses updates without a matching SHA-256."
-	log "On GitHub: $apk_name, $size bytes, SHA-256 $sha (what the app checks)"
+	[[ "$state" == "ok" ]] || die "The release on GitHub isn't right: $state. Run ./BUILD.sh --upload-only to try again."
+	for apk in "$standard" "$plus"; do
+		log "On GitHub: $(basename "$apk"), $(size_of "$apk") bytes, SHA-256 $(sha256_of "$apk") (what the app checks)"
+	done
 	if [[ "$prerelease" -eq 0 ]]; then
 		local latest_now
 		latest_now="$(gh api "repos/$slug/releases/latest" --jq .tag_name 2>/dev/null || true)"
 		[[ "$latest_now" == "$tag" ]] || die "$tag is published, but GitHub still shows ${latest_now:-nothing} as the latest release, so the app wouldn't offer it. Fix: gh release edit $tag --repo $slug --latest"
-		log "$tag is the latest release, so the app will offer it"
+		log "$tag is the latest release, so both apps will offer it"
 	else
 		log "$tag is a pre-release: offered only to people with Pre-releases on"
 	fi
 	log "Published: https://github.com/$slug/releases/tag/$tag"
+}
+
+# uploads TestTube's APK (and SHA256SUMS.txt if given) before TestTube+'s; TestTube+'s gets deleted
+# first so a replaced TestTube APK doesn't land after it
+upload_in_order() {
+	local tag="$1" slug="$2" standard="$3" plus="$4" sums="$5"
+	gh release delete-asset "$tag" "$(basename "$plus")" --repo "$slug" --yes >/dev/null 2>&1 || true
+	if [[ -n "$sums" ]]; then
+		gh release upload "$tag" "$standard" "$sums" --repo "$slug" --clobber
+	else
+		gh release upload "$tag" "$standard" --repo "$slug" --clobber
+	fi
+	gh release upload "$tag" "$plus" --repo "$slug" --clobber
+}
+
+# "ok" when both APKs are complete with matching SHA-256 and TestTube's is first, "pending" when
+# only GitHub's SHA-256 is missing, otherwise what's wrong
+release_state() {
+	local tag="$1" slug="$2" standard="$3" plus="$4"
+	local json apk name size sha remote_size remote_digest first pending=0
+	json="$(gh api "repos/$slug/releases/tags/$tag" 2>/dev/null || true)"
+	[[ -n "$json" ]] || { printf 'release not found'; return 0; }
+	for apk in "$standard" "$plus"; do
+		name="$(basename "$apk")"
+		size="$(size_of "$apk")"
+		sha="$(sha256_of "$apk")"
+		remote_size="$(gh api "repos/$slug/releases/tags/$tag" --jq ".assets[] | select(.name == \"$name\") | .size" 2>/dev/null || true)"
+		remote_digest="$(gh api "repos/$slug/releases/tags/$tag" --jq ".assets[] | select(.name == \"$name\") | .digest // \"\"" 2>/dev/null || true)"
+		if [[ "$remote_size" != "$size" ]]; then
+			printf '%s is %s bytes there, %s here' "$name" "${remote_size:-missing}" "$size"
+			return 0
+		fi
+		if [[ -z "$remote_digest" ]]; then
+			pending=1
+		elif [[ "$remote_digest" != "sha256:$sha" ]]; then
+			printf '%s has SHA-256 %s there, %s here' "$name" "$remote_digest" "$sha"
+			return 0
+		fi
+	done
+	first="$(gh api "repos/$slug/releases/tags/$tag" --jq '[.assets[] | select(.name | endswith(".apk")) | .name] | first // ""' 2>/dev/null || true)"
+	if [[ "$first" != "$(basename "$standard")" ]]; then
+		printf '%s comes first instead of %s' "${first:-nothing}" "$(basename "$standard")"
+		return 0
+	fi
+	if [[ "$pending" -eq 1 ]]; then
+		printf 'pending'
+	else
+		printf 'ok'
+	fi
 }
 
 # ---- Other actions -----------------------------------------------------------------------------
@@ -1480,16 +1755,18 @@ source_zip() {
 }
 
 run_tests() {
-	run_gradle_tasks ":app:testDebugUnitTest"
-	local reports="$ROOT/app/build/test-results/testDebugUnitTest"
-	if [[ -d "$reports" ]]; then
-		local tests failures errors skipped
+	# both editions: each compiles its own Edition and ExtraLinks
+	run_gradle_tasks ":app:testStandardDebugUnitTest" ":app:testPlusDebugUnitTest"
+	local edition reports tests failures errors skipped
+	for edition in standard plus; do
+		reports="$ROOT/app/build/test-results/test$(edition_task_name "$edition")DebugUnitTest"
+		[[ -d "$reports" ]] || continue
 		tests="$(cat "$reports"/*.xml 2>/dev/null | grep -o 'tests="[0-9]*"' | grep -o '[0-9]*' | awk '{s+=$1} END {print s+0}')"
 		failures="$(cat "$reports"/*.xml 2>/dev/null | grep -o 'failures="[0-9]*"' | grep -o '[0-9]*' | awk '{s+=$1} END {print s+0}')"
 		errors="$(cat "$reports"/*.xml 2>/dev/null | grep -o 'errors="[0-9]*"' | grep -o '[0-9]*' | awk '{s+=$1} END {print s+0}')"
 		skipped="$(cat "$reports"/*.xml 2>/dev/null | grep -o 'skipped="[0-9]*"' | grep -o '[0-9]*' | awk '{s+=$1} END {print s+0}')"
-		log "Tests: $tests run, $failures failed, $errors errors, $skipped skipped"
-	fi
+		log "$(edition_label "$edition") tests: $tests run, $failures failed, $errors errors, $skipped skipped"
+	done
 	log "All tests passed"
 }
 
@@ -1500,8 +1777,8 @@ clean_outputs() {
 	log "Done. The next build starts from scratch (the JDK and SDK stay in $TESTTUBE_HOME, the keys in $KEYS_HOME)."
 }
 
-# Files removed in newer versions. Unzipping over an old copy leaves them behind, and Gradle
-# would try to compile them.
+# files removed in newer versions. Unzipping over an old copy leaves them, and Gradle would
+# compile them.
 remove_retired_files() {
 	local main="app/src/main"
 	local retired=(
@@ -1515,6 +1792,12 @@ remove_retired_files() {
 		"$main/res/layout/activity_gallery.xml" "$main/res/layout/fragment_webview.xml"
 		"$main/res/menu/gallery_context_menu.xml" "$main/res/drawable/ic_cancel.xml"
 		"$main/res/font/jetbrains_mono_extrabold.ttf"
+		"$main/res/drawable-nodpi/ic_testtube_logo.png"
+		"$main/res/mipmap-mdpi" "$main/res/mipmap-hdpi" "$main/res/mipmap-xhdpi"
+		"$main/res/mipmap-xxhdpi" "$main/res/mipmap-xxxhdpi"
+		"app/src/plus/java/com/testtube/app/plus/LinkPlayerActivity.java"
+		"app/src/plus/java/com/testtube/app/plus/LinkPlayerService.java"
+		"app/src/plus/res/layout/activity_link_player.xml"
 		"app/src/test/java/com/testtube/app/browser"
 	)
 	local path
@@ -1542,6 +1825,7 @@ build_apk() {
 	run_gradle_build
 	collect_apk
 	if [[ "$INSTALL" -eq 1 ]]; then
+		choose_install_apk
 		install_apk
 	fi
 }
@@ -1550,10 +1834,24 @@ main() {
 	TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/testtube-build.XXXXXX")"
 	case "$MODE" in
 		build)
+			# recording dependency hashes (option 8) isn't a release, don't ask
+			if [[ "$VARIANT" == "debug" ]]; then
+				pick_version debug
+				pick_edition
+			elif [[ "$WRITE_CHECKSUMS" -eq 0 || -n "$VERSION_OVERRIDE" ]]; then
+				pick_version build
+				pick_edition
+			fi
 			build_apk
 			;;
 		publish)
 			VARIANT="release"
+			EDITION="both"
+			pick_version publish
+			# before the build, not after: publishing stops without release notes
+			local notes
+			notes="$(changelog_notes "$(read_version_name)")"
+			[[ -n "$(tr -d '[:space:]' <<< "$notes")" ]] || die "CHANGELOG.md has nothing under '## $(read_version_name)'. Write what changed there and run this again: it becomes the release notes and the update dialog in the app."
 			build_apk
 			if has_tty && confirm "Also put the current source on GitHub first?" n; then
 				push_source
@@ -1561,12 +1859,11 @@ main() {
 			publish_release
 			;;
 		upload-only)
-			# Building isn't needed, but checking the APK's signature and version is
+			# no build needed, but check the APK's signature and version
 			setup_toolchain
 			ensure_build_tools
 			VARIANT="release"
-			APK_OUT="$(apk_path_for "$(read_version_name)")"
-			[[ -f "$APK_OUT" ]] || die "No release APK for version $(read_version_name) at $APK_OUT. Build it first (option 1)"
+			EDITION="both"
 			publish_release
 			;;
 		install-only)
@@ -1581,9 +1878,10 @@ main() {
 			run_tests
 			;;
 		set-version)
-			set_version
+			choose_version set
 			;;
 		push-source)
+			pick_version source
 			push_source
 			;;
 		source-zip)

@@ -17,12 +17,10 @@ import androidx.annotation.Nullable;
 import com.testtube.app.player.controller.gesture.WatchDrag;
 
 /**
- * Drags the open video down into the bottom bar, and the bottom bar back up into the video, with the
- * finger. Only the video moves: it stays centred, shrinks to half its size and fades into the bar at
- * the end, while the description and comments fade out where they are and the screen below shows
- * through. With the floating window chosen instead, the video shrinks straight into the window's
- * corner and stays visible. On release it settles at whichever end is closer, or where it was
- * flicked.
+ * Drags the open video down into the bar, and the bar back up, with a finger. Only the video moves:
+ * centred, shrinking to half and fading into the bar at the end, while description and comments
+ * fade out in place and the screen below shows through. With the floating window chosen it shrinks
+ * straight into the window's corner. On release it settles at the closer end or where it was flung.
  */
 final class WatchDragger implements WatchDrag {
 	interface Host {
@@ -32,17 +30,17 @@ final class WatchDragger implements WatchDrag {
 
 		void restore();
 
-		/** Keeps the screen under the video visible (and Shorts paused) while the video moves. */
+		/** Keeps the screen under the video visible (Shorts paused) while it moves. */
 		void setRevealed(boolean revealed);
 
-		/** Where the floating window is, when minimizing goes there; null for the bottom bar. */
+		/** Floating window bounds when minimizing goes there; null for the bar. */
 		@Nullable
 		RectF floatingTarget();
 	}
 
 	private static final long SETTLE_MS = 280L;
 	private static final long MIN_SETTLE_MS = 120L;
-	/** A flick this fast (dp per second) decides the direction, however far the video got. */
+	/** A fling this fast (dp/s) decides the direction, however far it got. */
 	private static final float FLING_DP_PER_SECOND = 900f;
 	private static final float END_SCALE = 0.5f;
 	private static final float FADE_FROM = 0.7f;
@@ -63,10 +61,10 @@ final class WatchDragger implements WatchDrag {
 	private final float flingVelocity;
 	private final DecelerateInterpolator interpolator = new DecelerateInterpolator(1.6f);
 
-	/** 0 with the video on top, 1 when it sits on the bottom bar. */
+	/** 0 on top, 1 on the bar. */
 	private float progress;
 	private float startProgress;
-	/** A drag or the settling after it runs; the views are moved by this class until it ends. */
+	/** A drag or its settle is running; this class moves the views until it ends. */
 	private boolean active;
 	@Nullable
 	private ValueAnimator settle;
@@ -124,7 +122,7 @@ final class WatchDragger implements WatchDrag {
 		settleTo(target);
 	}
 
-	/** Tapping the bar or the floating window: the video grows back instead of jumping up. */
+	/** Tapping the bar or the floating window: grow back instead of jumping. */
 	@Override
 	public boolean expand() {
 		if (!startFromBar()) return false;
@@ -135,7 +133,7 @@ final class WatchDragger implements WatchDrag {
 	private boolean startFromBar() {
 		if (active) return false;
 		active = true;
-		// Read before restoring, while the window still knows where it is
+		// read before restoring, while the window still knows where it is
 		floating = host.floatingTarget();
 		startProgress = 1f;
 		host.setRevealed(true);
@@ -165,7 +163,7 @@ final class WatchDragger implements WatchDrag {
 	private void finish(boolean minimized) {
 		if (minimized) host.minimize();
 		if (minimized && floating != null) {
-			// The floating window now holds the video where the drag left it
+			// the floating window holds the video where the drag left it
 			details.setAlpha(1f);
 		} else {
 			apply(0f);
@@ -190,7 +188,7 @@ final class WatchDragger implements WatchDrag {
 		player.setTranslationX(0f);
 		player.setTranslationY(range() * progress);
 		player.setAlpha(progress <= FADE_FROM ? 1f : (1f - progress) / (1f - FADE_FROM));
-		// The details stay where they are and fade out twice as fast as the video moves
+		// details stay put and fade twice as fast as the video moves
 		details.setAlpha(Math.max(0f, 1f - progress * 2f));
 	}
 
@@ -208,7 +206,7 @@ final class WatchDragger implements WatchDrag {
 		details.setAlpha(Math.max(0f, 1f - progress * 2f));
 	}
 
-	/** How far the top of the video travels until its bottom, at its end size, meets the bar's. */
+	/** How far the video's top travels until its bottom, at end size, meets the bar's. */
 	private float range() {
 		int bottom = bottomNav.getVisibility() == View.VISIBLE
 						? bottomNav.getTop()
@@ -302,7 +300,7 @@ final class WatchDragger implements WatchDrag {
 		}
 	}
 
-	/** Ends the bar's own press (ripple, click) once this class takes over the touch. */
+	/** Ends the bar's own press (ripple, click) once we take the touch. */
 	private static void cancelPress(@NonNull View view, @NonNull MotionEvent ev) {
 		MotionEvent cancel = MotionEvent.obtain(ev);
 		cancel.setAction(MotionEvent.ACTION_CANCEL);

@@ -36,25 +36,23 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Channels on AiSList, the community list of YouTube channels that post AI-generated videos
- * (https://github.com/Override92/AiSList, CC BY-NC 4.0). The list is downloaded once a day and
- * kept on the phone.
- *
- * <p>Most entries are handles, while list rows often only know a channel by its id. The ids that
- * belong to listed handles are picked up from YouTube's responses as they go by.</p>
+ * Channels on AiSList, the community list of channels posting AI videos
+ * (https://github.com/Override92/AiSList, CC BY-NC 4.0). Downloaded once a day, kept on the phone.
+ * <p>Most entries are handles but rows often only know the id, so ids of listed handles are
+ * picked up from YouTube responses as they pass by.</p>
  */
 public final class AiChannelList {
 	private static final String TAG = "AiChannelList";
 	private static final String LIST_URL =
 					"https://raw.githubusercontent.com/Override92/AiSList/main/AiSList/aislist_blocklist.txt";
 	private static final String FILE_NAME = "aislist_blocklist.txt";
-	// Same keys as v1.9.6, so the choice survives an update from there
+	// same keys as v1.9.6 so the setting survives the update
 	private static final String KEY_ENABLED = "ai_filter_enabled";
 	private static final String KEY_ETAG = "ai_filter_etag";
 	private static final String KEY_FETCHED_AT = "ai_filter_fetched_at";
 	private static final String KEY_LEARNED_IDS = "ai_filter_ids";
 	private static final long REFRESH_MS = 24 * 60 * 60 * 1000L;
-	/** The list is about 1 MB; anything far bigger is not the list. */
+	/** The list is about 1 MB, anything way bigger isn't it. */
 	private static final long MAX_LIST_BYTES = 16L * 1024 * 1024;
 	private static final int MAX_LEARNED_IDS = 20_000;
 	private static final long SAVE_DELAY_MS = 10_000L;
@@ -91,7 +89,7 @@ public final class AiChannelList {
 	                     @NonNull Executor executor,
 	                     @NonNull File directory) {
 		this.store = store;
-		// Conditional requests with the ETag instead of the shared HTTP cache
+		// ETag conditional requests instead of the shared HTTP cache
 		this.client = client.newBuilder().cache(null).build();
 		this.executor = executor;
 		this.file = new File(directory, FILE_NAME);
@@ -101,12 +99,12 @@ public final class AiChannelList {
 		return store.decodeBool(KEY_ENABLED, false);
 	}
 
-	/** Called on the main thread when the list or the known ids changed. */
+	/** Main thread, when the list or known ids changed. */
 	public void setOnChanged(@Nullable Runnable onChanged) {
 		this.onChanged = onChanged;
 	}
 
-	/** Loads the saved list and downloads a new one when it is a day old. */
+	/** Loads the saved list, downloads a new one once a day. */
 	public void start() {
 		if (!isEnabled()) return;
 		executor.execute(() -> {
@@ -136,10 +134,7 @@ public final class AiChannelList {
 		notifyChanged();
 	}
 
-	/**
-	 * @param channelPath a path from {@link ContentFilters#channelPath}, such as "/@name" or
-	 *                    "/channel/UC..."
-	 */
+	/** @param channelPath from {@link ContentFilters#channelPath}, like "/@name" or "/channel/UC..." */
 	public boolean matches(@Nullable String channelPath) {
 		if (channelPath == null || handles.isEmpty()) return false;
 		if (channelPath.startsWith("/@")) {
@@ -153,8 +148,8 @@ public final class AiChannelList {
 	}
 
 	/**
-	 * Remembers the ids of listed channels from a YouTube response, where a channel's handle and
-	 * id appear side by side. Called on the network threads.
+	 * Picks up ids of listed channels from a response where handle and id sit side by side.
+	 * Network threads.
 	 */
 	public void learn(@Nullable String response) {
 		Set<String> listed = handles;
@@ -206,7 +201,7 @@ public final class AiChannelList {
 				try (InputStream in = body.byteStream(); OutputStream out = new FileOutputStream(partial)) {
 					copy(in, out);
 				}
-				// Switched off while downloading
+				// turned off while downloading
 				if (!isEnabled()) {
 					if (!partial.delete()) Log.w(TAG, "could not delete the partial list");
 					return;
@@ -243,7 +238,7 @@ public final class AiChannelList {
 						new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
 			for (String line; (line = reader.readLine()) != null; ) {
 				String entry = line.trim();
-				// "!" starts a comment line
+				// "!" starts a comment
 				if (entry.isEmpty() || entry.startsWith("!")) continue;
 				if (entry.startsWith("@") && entry.length() > 1) {
 					nextHandles.add(normalizeHandle(entry.substring(1)));
@@ -263,7 +258,7 @@ public final class AiChannelList {
 		Log.i(TAG, "loaded " + (nextHandles.size() + nextIds.size()) + " channels");
 	}
 
-	/** Handles are matched without case, and percent-encoded ones (non-Latin names) decoded. */
+	/** Case-insensitive, percent-encoded handles (non-Latin) decoded. */
 	@NonNull
 	private static String normalizeHandle(@NonNull String handle) {
 		String decoded = handle;

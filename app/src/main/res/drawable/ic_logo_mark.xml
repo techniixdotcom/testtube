@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The logo on its own, used everywhere inside the app (top bar, settings, search-only Home): no
-     tile and no black edges, so the page shows through; the gap around the play is cut out of the
-     tube. Follows the theme's text colour. The launcher icon keeps its black tile. -->
+<!--
+    Logo alone, used inside the app (top bar, settings, search-only Home): no tile, no black edges,
+    gap around the play cut out. Follows the text colour. The launcher icon keeps its tile.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -12,7 +13,7 @@
         android:pivotY="54"
         android:scaleX="0.9"
         android:scaleY="0.9">
-        <!-- Everything minus a gap around the play (opposite winding makes the hole) -->
+        <!-- everything minus a gap around the play (opposite winding makes the hole) -->
         <clip-path android:pathData="M0,0 H108 V108 H0 Z M37,27.2 L37,82.8 L83.8,55 Z" />
         <group
             android:rotation="45"

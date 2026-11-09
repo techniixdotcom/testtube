@@ -18,7 +18,7 @@ public class StreamCandidate {
 	@Nullable
 	private AudioStream audioStream;
 
-	// Gson fills the fields when the details are copied out of the cache
+	// Gson fills these when copying out of the cache
 	private StreamCandidate() {
 	}
 

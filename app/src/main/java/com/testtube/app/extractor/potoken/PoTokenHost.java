@@ -159,7 +159,7 @@ public final class PoTokenHost {
 		settings.setJavaScriptEnabled(true);
 		settings.setDomStorageEnabled(false);
 		settings.setDatabaseEnabled(false);
-		// BotGuard runs as the desktop web client, with the same Chrome version as everything else.
+		// BotGuard runs as the desktop web client, same Chrome version as everything else
 		settings.setUserAgentString(Constant.DESKTOP_USER_AGENT);
 		settings.setBlockNetworkLoads(true);
 		if (WebViewFeature.isFeatureSupported(WebViewFeature.SAFE_BROWSING_ENABLE)) {

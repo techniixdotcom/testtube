@@ -18,8 +18,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Signed-in request context built from the Google sign-in cookies, so InnerTube can be called
- * without a YouTube page. The page config (account id, visitor data) is fetched once and cached.
+ * Signed-in request context from the Google cookies, so InnerTube works without a YouTube page.
+ * Page config (account id, visitor data) is fetched once and cached.
  */
 public final class NativeAuth {
 	private static final String TAG = "NativeAuth";
@@ -68,7 +68,7 @@ public final class NativeAuth {
 			String cookies = CookieManager.getInstance().getCookie(COOKIE_URL);
 			return cookies == null || cookies.isBlank() ? null : cookies;
 		} catch (RuntimeException e) {
-			// The WebView provider can be missing or updating.
+			// WebView can be missing or mid-update
 			return null;
 		}
 	}
@@ -127,7 +127,7 @@ public final class NativeAuth {
 	}
 
 	@Nullable
-	/** One cookie's value from a Cookie header, or null when it's missing or empty. */
+	/** One cookie from a Cookie header, or null if missing or empty. */
 	static String cookie(@Nullable String cookies, @NonNull String name) {
 		if (cookies == null) return null;
 		String prefix = name + "=";

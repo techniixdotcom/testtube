@@ -7,7 +7,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatImageView;
 
-/** Always 16:9, so rows have their final height before the image loads. */
+/** Always 16:9 so rows have their final height before the image loads. */
 public final class AspectImageView extends AppCompatImageView {
 	public AspectImageView(@NonNull Context context) {
 		super(context);

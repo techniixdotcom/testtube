@@ -2,7 +2,7 @@ package com.testtube.app.downloader.core;
 
 import java.io.File;
 
-/** What happens to one download task as a whole: progress, the merge step, and how it ended. */
+/** One download task: progress, merge step, outcome. */
 public interface DownloadListener {
 	void onProgress(int progress, long downloadedBytes, long totalBytes);
 

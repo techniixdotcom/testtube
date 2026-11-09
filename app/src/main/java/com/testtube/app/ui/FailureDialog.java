@@ -11,14 +11,14 @@ import com.testtube.app.net.Failure;
 import com.testtube.app.util.DeviceUtils;
 
 /**
- * Tells the person in plain words why a video didn't play and what they can do, instead of a
- * stack trace. The technical details stay one tap away for bug reports.
+ * Says in plain words why a video didn't play and what to do, instead of a stack trace.
+ * Technical details are one tap away for bug reports.
  */
 public final class FailureDialog {
 	private FailureDialog() {
 	}
 
-	/** @param retry what "Try again" does; no such button when null or when retrying can't help */
+	/** @param retry what Try again does; no button when null or retrying can't help */
 	public static void show(@NonNull Activity activity, @NonNull Failure failure, @NonNull Throwable error,
 	                        @Nullable Runnable retry) {
 		if (activity.isFinishing() || activity.isDestroyed() || DeviceUtils.isInPictureInPictureMode(activity)) {

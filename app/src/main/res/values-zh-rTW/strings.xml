@@ -19,16 +19,16 @@
     <string name="action_next">下一個</string>
     <string name="action_quit">結束</string>
     <string name="segments">片段</string>
-    <string name="pip">畫中畫</string>
+    <string name="pip">子母畫面</string>
     <string name="reset">重置</string>
     <string name="player_quality_auto">自動</string>
-    <string name="action_fullscreen">全屏</string>
+    <string name="action_fullscreen">全螢幕</string>
     <string name="lock_screen">鎖定螢幕</string>
     <string name="unlock_screen">解鎖螢幕</string>
     <string name="error_title">錯誤</string>
     <string name="crash_last_time">TestTube 上次意外關閉</string>
     <string name="copy">複製</string>
-    <string name="debug_info_copied">調試資訊已複製到剪貼板</string>
+    <string name="debug_info_copied">偵錯資訊已複製到剪貼簿</string>
     <string name="playback_end_next">播完後播放下一個</string>
     <string name="playback_end_loop">播完後單曲循環</string>
     <string name="playback_end_pause">播完後暫停</string>
@@ -41,35 +41,37 @@
     <string name="jumped_to_segment">跳轉至: %1$s</string>
     <string name="jump">跳轉</string>
     <string name="bitrate">位元率</string>
-    <string name="dropped_frames">丟幀</string>
+    <string name="dropped_frames">掉格</string>
     <string name="resolution">解析度</string>
     <string name="video_format">影片格式</string>
     <string name="audio_format">音訊格式</string>
     <string name="fps">FPS</string>
     <string name="channels">聲道</string>
-    <string name="sample_rate">採樣率</string>
-    <string name="active_stream_video">影片流 #%1$d [%2$s]: %3$s %4$s %5$s</string>
-    <string name="active_stream_audio">音訊流: %1$s %2$s %3$s</string>
+    <string name="sample_rate">取樣率</string>
+    <string name="active_stream_video">影片串流 #%1$d [%2$s]: %3$s %4$s %5$s</string>
+    <string name="active_stream_audio">音訊串流: %1$s %2$s %3$s</string>
     <string name="unknown">未知</string>
-    <string name="active_label">活動</string>
+    <string name="active_label">使用中</string>
     <string name="unknown_bitrate">未知位元率</string>
-    <string name="unable_to_get_stream_info">無法獲取流資訊</string>
+    <string name="unable_to_get_stream_info">無法取得串流資訊</string>
     <string name="audio_track">音訊軌道</string>
     <string name="info">詳情</string>
     <string name="more_options">更多選項</string>
-    <string name="failed_to_load_video_details">加載影片詳情失敗</string>
+    <string name="failed_to_load_video_details">無法載入影片詳細資訊</string>
     <string name="application_not_found">未找到應用程式</string>
     <string name="press_back_again_to_exit">再按一次退出</string>
     <string name="threads">執行緒</string>
     <string name="clear">清除</string>
-    <string name="download_tasks_added">下載任務已添加</string>
-    <string name="download_tasks_added_count">已添加 %1$d 個任務到隊列</string>
-    <string name="download_history">下載記錄</string>
-    <string name="no_download_records">暫无下載記錄</string>
-    <string name="file_not_found">文件不存在</string>
+    <string name="download_tasks_added">已新增下載任務</string>
+    <plurals name="download_tasks_added_count">
+        <item quantity="other">已將 %1$d 個任務加入佇列</item>
+    </plurals>
+    <string name="download_history">下載紀錄</string>
+    <string name="no_download_records">暫無下載紀錄</string>
+    <string name="file_not_found">找不到檔案</string>
     <string name="vid_copied">影片 ID 已複製</string>
     <string name="delete_record">刪除</string>
-    <string name="delete_local_file">同時刪除本地文件</string>
+    <string name="delete_local_file">同時刪除本機檔案</string>
     <string name="status_queued">排隊中</string>
     <string name="status_merging">合併中…</string>
     <string name="status_completed">已完成</string>
@@ -107,7 +109,9 @@
     <string name="download_playlist_summary">%1$d / %2$d 項目\n(%3$d%%)</string>
     <string name="preparing_download">正在準備下載…</string>
     <string name="downloading_file">正在下載: %1$s</string>
-    <string name="downloads_running">%1$d 個下載進行中</string>
+    <plurals name="downloads_running">
+        <item quantity="other">%1$d 個下載進行中</item>
+    </plurals>
     <string name="playlist_download_title_placeholder">播放清單</string>
     <string name="playlist_download_summary">已選 %1$d / 可用 %2$d / 共 %3$d</string>
     <string name="playlist_download_select_all">全選</string>
@@ -123,8 +127,12 @@
     <string name="playlist_download_status_queued">已排隊</string>
     <string name="playlist_download_status_partial">部分可用</string>
     <string name="playlist_download_status_canceled">已取消</string>
-    <string name="playlist_download_batch_added">已新增 %1$d 項</string>
-    <string name="playlist_download_batch_added_before_cancel">取消前已新增 %1$d 項</string>
+    <plurals name="playlist_download_batch_added">
+        <item quantity="other">已新增 %1$d 項</item>
+    </plurals>
+    <plurals name="playlist_download_batch_added_before_cancel">
+        <item quantity="other">取消前已新增 %1$d 項</item>
+    </plurals>
     <string name="playlist_download_batch_segment_partial">%1$d 個部分成功</string>
     <string name="playlist_download_batch_segment_failed">%1$d 個失敗</string>
     <string name="playlist_download_started">播放清單下載已開始</string>
@@ -153,12 +161,12 @@
     <string name="shorts_load_failed">無法載入 Shorts。輕觸即可重試。</string>
     <string name="shorts_empty">找不到 Shorts。輕觸即可重試。</string>
     <string name="play_next">下一個播放</string>
-    <string name="queue_item_play_next">將在下一個播放</string>
+    <string name="queue_item_play_next">將接著播放</string>
     <string name="queue_item_already_playing">此影片正在播放</string>
     <string name="no_suggestions">沒有可接著播放的推薦影片</string>
     <string name="watch_history_empty">還沒有播放過影片。</string>
-    <string name="watch_history_clear">清除記錄</string>
-    <string name="watch_history_clear_confirm">要從觀看記錄中移除所有影片嗎？</string>
+    <string name="watch_history_clear">清除紀錄</string>
+    <string name="watch_history_clear_confirm">要從觀看紀錄中移除所有影片嗎？</string>
     <string name="fetching_download_links">正在取得下載連結…</string>
     <string name="video_unavailable_skipped">影片無法播放，已略過</string>
     <string name="video_skipped_age_restricted">年齡限制影片，已略過</string>
@@ -180,7 +188,7 @@
     <string name="feed_error">無法載入，請下拉重試。</string>
     <string name="search_no_results">沒有結果</string>
     <string name="watch_up_next">即將播放</string>
-    <string name="watch_likes">%1$s 個喜歡</string>
+    <string name="watch_likes">%1$s 人喜歡</string>
     <string name="page_play_all">全部播放</string>
     <string name="page_tab_videos">影片</string>
     <string name="page_tab_live">直播</string>
@@ -226,7 +234,7 @@
     <string name="watch_follow">追蹤</string>
     <string name="watch_following">追蹤中</string>
     <string name="login_subtitle">使用 Google 帳戶登入</string>
-    <string name="watch_history_remove">從記錄中移除</string>
+    <string name="watch_history_remove">從紀錄中移除</string>
     <string-array name="discover_queries">
         <item>發燒影片</item>
         <item>今日熱門</item>
@@ -254,7 +262,9 @@
     <string name="subs_export_failed">無法儲存檔案</string>
     <string name="subs_followed">已追蹤頻道</string>
     <string name="subs_import">匯入</string>
-    <string name="subs_import_done">已匯入 %d 個頻道</string>
+    <plurals name="subs_import_done">
+        <item quantity="other">已匯入 %d 個頻道</item>
+    </plurals>
     <string name="subs_import_export">匯入 / 匯出</string>
     <string name="subs_import_failed">無法讀取這個檔案</string>
     <string name="subs_local_empty">目前沒有頻道。輕觸「管理」即可新增或匯入頻道，也可以從影片追蹤頻道。</string>
@@ -292,7 +302,9 @@
     <string name="update_progress">%1$s / %2$s</string>
     <string name="update_title">有可用的更新</string>
     <string name="watch_chat_hint">聊天室會在直播和首播期間開放。</string>
-    <string name="watch_comment_likes">%d 個喜歡</string>
+    <plurals name="watch_comment_likes">
+        <item quantity="other">%d 人喜歡</item>
+    </plurals>
     <string name="watch_comment_pinned">已置頂</string>
     <string name="watch_comments_disabled">這部影片已關閉留言</string>
     <string name="watch_comments_empty">沒有留言</string>
@@ -300,9 +312,9 @@
     <string name="watch_tab_chat">聊天室</string>
     <string name="watch_tab_comments">留言</string>
     <string name="watch_tab_description">說明</string>
-    <!-- Library, settings groups and notifications -->
+    <!-- Library, settings groups, notifications -->
     <string name="nav_library">媒體庫</string>
-    <string name="library_history">觀看記錄</string>
+    <string name="library_history">觀看紀錄</string>
     <string name="library_downloads">下載</string>
     <string name="downloads_clear">清除下載</string>
     <string name="downloads_clear_confirm">要從清單中移除所有下載嗎？已下載的檔案會保留在手機上。</string>
@@ -345,7 +357,7 @@
     <string name="failure_unsupported">不支援這類影片（例如付費或 Premium 專屬內容）。</string>
     <string name="failure_unavailable">這部影片無法觀看，可能已遭移除。</string>
     <string name="failure_other">載入這部影片時發生問題。請重試，或輕觸「詳細資料」查看原因。</string>
-    <!-- Minimizing, floating window and gestures -->
+    <!-- Minimizing, floating window, gestures -->
     <string name="setting_minimize_to">最小化到</string>
     <string name="setting_minimize_summary">底部列或浮動視窗</string>
     <string name="minimize_bottom_bar">底部列</string>
@@ -376,7 +388,7 @@
     <string name="setting_allow_hdr">允許 HDR</string>
     <string name="setting_allow_hdr_summary">關閉時播放 SDR，可修正三星等手機上的皮膚偏藍</string>
     <string name="setting_prefer_avc">優先 H264</string>
-    <string name="setting_prefer_avc_summary">適用於顏色仍然異常的手機。最高 1080p，耗費更多流量</string>
+    <string name="setting_prefer_avc_summary">適用於顏色仍然異常的手機。最高 1080p，數據用量較多</string>
     <string name="video_cache_large">大（150 MB）</string>
     <string name="video_cache_medium">中（100 MB）</string>
     <string name="video_cache_small">小（50 MB）</string>
@@ -386,6 +398,53 @@
     <string name="setting_prereleases">預先發布版本</string>
     <string name="setting_prereleases_summary">測試版本，可能不穩定</string>
     <string name="update_title_prerelease">有可用的預先發布版本</string>
-    <string name="clear_cache_confirm">要刪除 %1$s 的已儲存影片、圖片和網頁資料嗎？下載內容、觀看記錄、佇列、登入狀態和設定都會保留。</string>
+    <string name="clear_cache_confirm">要刪除 %1$s 的已儲存影片、圖片和網頁資料嗎？下載內容、觀看紀錄、佇列、登入狀態和設定都會保留。</string>
     <string name="cache_cleared">快取已清除</string>
+    <!-- Opening links from other apps (12+: allowed in system settings) -->
+    <string name="links_prompt_title">要在 %1$s 中開啟連結嗎？</string>
+    <string name="links_prompt_message">Android 只允許經你同意的應用程式開啟連結。在下一個畫面中，開啟「開啟支援的連結」，輕觸「新增」並保持勾選所有連結：別人傳給你的連結就會在這裡開啟，而不是在瀏覽器中。</string>
+    <string name="links_prompt_open">開啟設定</string>
+    <string name="links_prompt_later">稍後再說</string>
+    <string name="setting_open_links">在此應用程式中開啟連結</string>
+    <string name="setting_open_links_summary">其他應用程式中的連結在這裡開啟，而不是在瀏覽器中</string>
+    <string name="setting_open_links_all">全部</string>
+    <string name="setting_open_links_count">%2$d 個中的 %1$d 個</string>
+
+    <!-- Playlists and Watch later -->
+    <string name="action_done">完成</string>
+    <string name="action_delete">刪除</string>
+    <string name="library_playlists">播放清單</string>
+    <string name="playlist_save">儲存</string>
+    <string name="playlist_save_title">儲存至…</string>
+    <string name="playlist_watch_later">稍後觀看</string>
+    <string name="playlist_new">新增播放清單</string>
+    <string name="playlist_name_hint">名稱</string>
+    <string name="playlist_rename">重新命名</string>
+    <string name="playlist_delete">刪除播放清單</string>
+    <string name="playlist_delete_confirm">要刪除「%1$s」嗎？影片仍會保留在 YouTube 上。</string>
+    <string name="playlist_saved_to">已儲存至「%1$s」</string>
+    <string name="playlist_removed_from">已從「%1$s」移除</string>
+    <string name="playlist_full">無法儲存：播放清單或影片過多</string>
+    <string name="playlist_empty">這裡還沒有內容。長按影片，然後輕觸「儲存」。</string>
+    <string name="playlist_play_all">全部播放</string>
+    <string name="playlist_shuffle">隨機播放</string>
+    <string name="playlist_remove_watched">移除已觀看的影片</string>
+    <string name="playlist_remove_watched_confirm">要從「%1$s」中移除已觀看的影片嗎？</string>
+    <string name="playlist_import_export">匯入或匯出</string>
+    <string name="playlist_import">匯入播放清單</string>
+    <string name="playlist_export">匯出播放清單</string>
+    <string name="playlist_import_failed">這不是 TestTube 播放清單檔案</string>
+    <string name="playlist_export_done">播放清單已匯出</string>
+    <string name="playlist_export_failed">無法匯出播放清單</string>
+    <string name="playlist_options">播放清單選項</string>
+    <string name="playlist_back">返回播放清單</string>
+    <plurals name="playlist_count">
+        <item quantity="other">%d 部影片</item>
+    </plurals>
+    <plurals name="playlist_removed_watched">
+        <item quantity="other">已移除 %d 部影片</item>
+    </plurals>
+    <plurals name="playlist_import_done">
+        <item quantity="other">已匯入 %d 部影片</item>
+    </plurals>
 </resources>

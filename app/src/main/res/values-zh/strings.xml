@@ -16,7 +16,7 @@
     <string name="no_queue_items">暂无队列内容</string>
     <string name="queue_unknown_author">未知作者</string>
     <string name="queue_now_playing">正在播放</string>
-    <string name="queue_download_unavailable">当前没有可批量下载的播放列表或队列内容</string>
+    <string name="queue_download_unavailable">没有可下载的队列内容</string>
     <string name="video_quality">视频质量</string>
     <string name="confirm">确认</string>
     <string name="select_something_first">请先选择项目</string>
@@ -41,7 +41,7 @@
     <string name="crash_last_time">TestTube 上次意外关闭</string>
     <string name="copy">复制</string>
     <string name="debug_info_copied">调试信息已复制到剪贴板</string>
-    <string name="playback_end_next">播完后播放下一首</string>
+    <string name="playback_end_next">播完后播放下一个</string>
     <string name="playback_end_loop">播完后单曲循环</string>
     <string name="playback_end_pause">播完后暂停</string>
     <string name="playback_end_playlist_random">播完后随机播放列表</string>
@@ -63,7 +63,7 @@
     <string name="active_stream_video">视频流 #%1$d [%2$s]: %3$s %4$s %5$s</string>
     <string name="active_stream_audio">音频流: %1$s %2$s %3$s</string>
     <string name="unknown">未知</string>
-    <string name="active_label">活动</string>
+    <string name="active_label">使用中</string>
     <string name="unknown_bitrate">未知比特率</string>
     <string name="unable_to_get_stream_info">无法获取流信息</string>
     <string name="audio_track">音轨</string>
@@ -75,7 +75,9 @@
     <string name="threads">线程</string>
     <string name="clear">清除</string>
     <string name="download_tasks_added">下载任务已添加</string>
-    <string name="download_tasks_added_count">已添加 %1$d 个任务到队列</string>
+    <plurals name="download_tasks_added_count">
+        <item quantity="other">已添加 %1$d 个任务到队列</item>
+    </plurals>
     <string name="download_history">下载记录</string>
     <string name="no_download_records">暂无下载记录</string>
     <string name="file_not_found">文件不存在</string>
@@ -107,7 +109,9 @@
     <string name="download_playlist_summary">%1$d / %2$d 项目\n(%3$d%%)</string>
     <string name="preparing_download">正在准备下载…</string>
     <string name="downloading_file">正在下载: %1$s</string>
-    <string name="downloads_running">%1$d 个下载进行中</string>
+    <plurals name="downloads_running">
+        <item quantity="other">%1$d 个下载进行中</item>
+    </plurals>
     <string name="playlist_download_title_placeholder">播放列表</string>
     <string name="playlist_download_summary">已选 %1$d / 可用 %2$d / 共 %3$d</string>
     <string name="playlist_download_select_all">全选</string>
@@ -123,8 +127,12 @@
     <string name="playlist_download_status_queued">已排队</string>
     <string name="playlist_download_status_partial">部分可用</string>
     <string name="playlist_download_status_canceled">已取消</string>
-    <string name="playlist_download_batch_added">已添加 %1$d 项</string>
-    <string name="playlist_download_batch_added_before_cancel">取消前已添加 %1$d 项</string>
+    <plurals name="playlist_download_batch_added">
+        <item quantity="other">已添加 %1$d 项</item>
+    </plurals>
+    <plurals name="playlist_download_batch_added_before_cancel">
+        <item quantity="other">取消前已添加 %1$d 项</item>
+    </plurals>
     <string name="playlist_download_batch_segment_partial">%1$d 个部分成功</string>
     <string name="playlist_download_batch_segment_failed">%1$d 个失败</string>
     <string name="playlist_download_started">播放列表下载已开始</string>
@@ -153,7 +161,7 @@
     <string name="shorts_load_failed">无法加载 Shorts。点按即可重试。</string>
     <string name="shorts_empty">未找到 Shorts。点按即可重试。</string>
     <string name="play_next">下一个播放</string>
-    <string name="queue_item_play_next">将在下一个播放</string>
+    <string name="queue_item_play_next">将接着播放</string>
     <string name="queue_item_already_playing">此视频正在播放</string>
     <string name="no_suggestions">没有可接着播放的推荐视频</string>
     <string name="watch_history_empty">还没有播放过视频。</string>
@@ -170,7 +178,7 @@
     <string name="action_seek_forward_10">前进 10 秒</string>
     <string name="search_hint">搜索 TestTube</string>
     <string name="action_search">搜索</string>
-    <string name="feed_views">%1$s次观看</string>
+    <string name="feed_views">%1$s 次观看</string>
     <string name="feed_live">直播</string>
     <string name="feed_videos">%1$s 个视频</string>
     <string name="feed_subscribers">%1$s 位订阅者</string>
@@ -180,7 +188,7 @@
     <string name="feed_error">加载失败，下拉即可重试。</string>
     <string name="search_no_results">无结果</string>
     <string name="watch_up_next">接下来播放</string>
-    <string name="watch_likes">%1$s 赞</string>
+    <string name="watch_likes">%1$s 个赞</string>
     <string name="page_play_all">全部播放</string>
     <string name="page_tab_videos">视频</string>
     <string name="page_tab_live">直播</string>
@@ -254,7 +262,9 @@
     <string name="subs_export_failed">无法保存文件</string>
     <string name="subs_followed">已关注频道</string>
     <string name="subs_import">导入</string>
-    <string name="subs_import_done">已导入 %d 个频道</string>
+    <plurals name="subs_import_done">
+        <item quantity="other">已导入 %d 个频道</item>
+    </plurals>
     <string name="subs_import_export">导入 / 导出</string>
     <string name="subs_import_failed">无法读取该文件</string>
     <string name="subs_local_empty">还没有频道。点按“管理”添加或导入频道，或在视频中关注频道。</string>
@@ -292,7 +302,9 @@
     <string name="update_progress">%1$s / %2$s</string>
     <string name="update_title">有可用更新</string>
     <string name="watch_chat_hint">直播聊天在直播和首播期间可用。</string>
-    <string name="watch_comment_likes">%d 个赞</string>
+    <plurals name="watch_comment_likes">
+        <item quantity="other">%d 个赞</item>
+    </plurals>
     <string name="watch_comment_pinned">已置顶</string>
     <string name="watch_comments_disabled">此视频已关闭评论</string>
     <string name="watch_comments_empty">暂无评论</string>
@@ -300,7 +312,7 @@
     <string name="watch_tab_chat">聊天</string>
     <string name="watch_tab_comments">评论</string>
     <string name="watch_tab_description">简介</string>
-    <!-- Library, settings groups and notifications -->
+    <!-- Library, settings groups, notifications -->
     <string name="nav_library">媒体库</string>
     <string name="library_history">观看记录</string>
     <string name="library_downloads">下载</string>
@@ -345,7 +357,7 @@
     <string name="failure_unsupported">不支持此类视频（例如付费或 Premium 专享内容）。</string>
     <string name="failure_unavailable">此视频不可用，可能已被移除。</string>
     <string name="failure_other">加载此视频时出现问题。请重试，或点按“详情”查看原因。</string>
-    <!-- Minimizing, floating window and gestures -->
+    <!-- Minimizing, floating window, gestures -->
     <string name="setting_minimize_to">最小化到</string>
     <string name="setting_minimize_summary">底部栏或浮动窗口</string>
     <string name="minimize_bottom_bar">底部栏</string>
@@ -388,4 +400,51 @@
     <string name="update_title_prerelease">有可用的预发布版本</string>
     <string name="clear_cache_confirm">要删除 %1$s 的已保存视频、图片和网页数据吗？下载内容、观看记录、队列、登录状态和设置都会保留。</string>
     <string name="cache_cleared">缓存已清除</string>
+    <!-- Opening links from other apps (12+: allowed in system settings) -->
+    <string name="links_prompt_title">在 %1$s 中打开链接？</string>
+    <string name="links_prompt_message">Android 只允许经你同意的应用打开链接。在下一个界面中，开启“打开支持的链接”，点按“添加”并保持勾选所有链接：别人发给你的链接就会在这里打开，而不是在浏览器中。</string>
+    <string name="links_prompt_open">打开设置</string>
+    <string name="links_prompt_later">以后再说</string>
+    <string name="setting_open_links">在此应用中打开链接</string>
+    <string name="setting_open_links_summary">其他应用中的链接在这里打开，而不是在浏览器中</string>
+    <string name="setting_open_links_all">全部</string>
+    <string name="setting_open_links_count">%2$d 个中的 %1$d 个</string>
+
+    <!-- Playlists and Watch later -->
+    <string name="action_done">完成</string>
+    <string name="action_delete">删除</string>
+    <string name="library_playlists">播放列表</string>
+    <string name="playlist_save">保存</string>
+    <string name="playlist_save_title">保存到…</string>
+    <string name="playlist_watch_later">稍后观看</string>
+    <string name="playlist_new">新建播放列表</string>
+    <string name="playlist_name_hint">名称</string>
+    <string name="playlist_rename">重命名</string>
+    <string name="playlist_delete">删除播放列表</string>
+    <string name="playlist_delete_confirm">删除“%1$s”？视频仍会保留在 YouTube 上。</string>
+    <string name="playlist_saved_to">已保存到“%1$s”</string>
+    <string name="playlist_removed_from">已从“%1$s”移除</string>
+    <string name="playlist_full">无法保存：播放列表或视频过多</string>
+    <string name="playlist_empty">这里还没有内容。长按视频，然后点按“保存”。</string>
+    <string name="playlist_play_all">全部播放</string>
+    <string name="playlist_shuffle">随机播放</string>
+    <string name="playlist_remove_watched">移除已观看的视频</string>
+    <string name="playlist_remove_watched_confirm">要从“%1$s”中移除已观看的视频吗？</string>
+    <string name="playlist_import_export">导入或导出</string>
+    <string name="playlist_import">导入播放列表</string>
+    <string name="playlist_export">导出播放列表</string>
+    <string name="playlist_import_failed">这不是 TestTube 播放列表文件</string>
+    <string name="playlist_export_done">播放列表已导出</string>
+    <string name="playlist_export_failed">无法导出播放列表</string>
+    <string name="playlist_options">播放列表选项</string>
+    <string name="playlist_back">返回播放列表</string>
+    <plurals name="playlist_count">
+        <item quantity="other">%d 个视频</item>
+    </plurals>
+    <plurals name="playlist_removed_watched">
+        <item quantity="other">已移除 %d 个视频</item>
+    </plurals>
+    <plurals name="playlist_import_done">
+        <item quantity="other">已导入 %d 个视频</item>
+    </plurals>
 </resources>

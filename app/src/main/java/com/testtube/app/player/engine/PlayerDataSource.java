@@ -42,7 +42,7 @@ final class PlayerDataSource {
 	PlayerDataSource(@NonNull Context context, @Nullable SimpleCache cache) {
 		this.cache = cache;
 		liveHttp = StreamHttp.plain(context, Constant.USER_AGENT, 30_000, 45_000);
-		// Web streaming URLs come from the desktop WEB client; VISIONOS ones get their own agent
+		// web URLs come from the desktop WEB client, VISIONOS ones get their own agent
 		ytDashHttp = StreamHttp.youtube(context, Constant.DESKTOP_USER_AGENT, 30_000, true, true);
 		ytProgressiveHttp = StreamHttp.youtube(context, Constant.DESKTOP_USER_AGENT, 30_000, false, true);
 		YoutubeProgressiveDashManifestCreator.getCache().setMaximumSize(MANIFEST_CACHE_SIZE);
@@ -86,7 +86,7 @@ final class PlayerDataSource {
 		return PROGRESSIVE_LOAD_INTERVAL_BYTES;
 	}
 
-	/** Writes into the player cache under the keys playback reads, or null without a cache. */
+	/** Writes into the player cache under playback's keys, or null without a cache. */
 	@Nullable
 	CacheDataSource.Factory preloadSource() {
 		return cache == null ? null : cacheFactory(cache, ytDashHttp);
@@ -112,10 +112,7 @@ final class PlayerDataSource {
 						.setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR);
 	}
 
-	/**
-	 * Stream URLs change with every extraction, so the cache key uses the stable parts (video,
-	 * format, size).
-	 */
+	/** Stream URLs change every extraction, so the key uses the stable parts (video, format, size). */
 	@NonNull
 	static String cacheKey(@NonNull DataSpec spec) {
 		if (spec.key != null) return spec.key;

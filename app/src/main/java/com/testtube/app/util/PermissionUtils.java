@@ -42,7 +42,7 @@ public final class PermissionUtils {
 						== PackageManager.PERMISSION_GRANTED;
 	}
 
-	/** True when a permission request came back with every permission granted. */
+	/** Every permission in the result was granted. */
 	public static boolean allGranted(@NonNull int[] grantResults) {
 		if (grantResults.length == 0) return false;
 		for (int result : grantResults) {

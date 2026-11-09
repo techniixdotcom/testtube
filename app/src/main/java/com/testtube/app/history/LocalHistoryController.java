@@ -23,7 +23,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
-/** The Library's History tab: watched videos grouped by day. */
+/** Library > History: watched videos grouped by day. */
 public final class LocalHistoryController {
 	private static final int TYPE_HEADER = 0;
 	private static final int TYPE_VIDEO = 1;
@@ -46,8 +46,8 @@ public final class LocalHistoryController {
 	private final TextView empty;
 
 	/**
-	 * @param root      a view holding {@code history_list} and {@code history_empty}
-	 * @param onChanged runs after every reload, so the host can update its clear button
+	 * @param root      view holding {@code history_list} and {@code history_empty}
+	 * @param onChanged runs after every reload so the host can update its clear button
 	 */
 	public LocalHistoryController(@NonNull View root,
 	                              @NonNull WatchHistory history,
@@ -66,7 +66,7 @@ public final class LocalHistoryController {
 		return adapter.rows.isEmpty();
 	}
 
-	/** Asks, then removes every video from the history. */
+	/** Asks, then clears the history. */
 	public void confirmClear() {
 		Dialogs.builder(list.getContext())
 						.setTitle(R.string.watch_history_clear)
@@ -79,7 +79,7 @@ public final class LocalHistoryController {
 						.show();
 	}
 
-	/** Reloads from the store; call whenever the tab becomes visible. */
+	/** Reloads; call whenever the tab shows. */
 	public void reload() {
 		List<WatchHistory.Entry> entries = history.entries();
 		List<Object> rows = new ArrayList<>(entries.size() + 8);

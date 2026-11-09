@@ -147,7 +147,7 @@ public final class DownloadPrefs {
 	public AudioStream restoreAudioSelection(@NonNull List<AudioStream> streams) {
 		if (streams.isEmpty() || !isSingleAudioEnabled()) return null;
 
-		// Every language of a video shares the same format codes, so look in the original first
+		// all languages share format codes, so check the original first
 		List<AudioStream> ordered = PlaybackPlanner.originalFirst(streams);
 		int itag = kv.decodeInt(KEY_AUD_ITAG, NO_VALUE);
 		if (itag != NO_VALUE) {

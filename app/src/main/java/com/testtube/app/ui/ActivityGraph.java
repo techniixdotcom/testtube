@@ -13,9 +13,7 @@ import com.testtube.app.player.controller.Controller;
 import com.testtube.app.player.controller.gesture.ZoomTouchListener;
 import com.testtube.app.player.engine.Engine;
 
-/**
- * Objects that live as long as one {@link MainActivity}.
- */
+/** Objects living as long as one {@link MainActivity}. */
 @UnstableApi
 public final class ActivityGraph {
 	@NonNull

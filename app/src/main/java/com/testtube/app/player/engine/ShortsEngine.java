@@ -24,21 +24,21 @@ import com.testtube.app.util.Timing;
 import java.util.function.Supplier;
 
 /**
- * The player of the Shorts tab. Separate from the main player so a Short never touches its queue,
- * history or mini player, but it builds the streams the same way.
+ * Shorts tab player. Separate from the main one so a Short never touches its queue, history or
+ * mini player, but streams are built the same way.
  * <p>
- * Two players take turns: while one plays, the other already loads the next Short, so a swipe
- * just switches over instead of starting from nothing. The Shorts after that get their first
- * seconds cached, so even fast swiping lands on something that starts at once.
+ * Two players take turns: one plays, the other loads the next Short, so a swipe just switches.
+ * The ones after that get their first seconds cached, so even fast swiping lands on something
+ * that starts instantly.
  */
 @UnstableApi
 public final class ShortsEngine {
-	/** Shorts don't change quality while playing; more than this mostly costs time to start. */
+	/** Shorts don't switch quality mid-play, more than this just slows the start. */
 	private static final int MAX_HEIGHT = 720;
-	/** Seconds cached of each Short further ahead: enough to start, little enough to waste. */
+	/** Seconds cached per Short further ahead: enough to start, not much to waste. */
 	private static final long WARM_SECONDS = 6L;
 
-	/** Called on the main thread, for the player that's on screen only. */
+	/** Main thread, only for the player on screen. */
 	public interface Listener {
 		void onFirstFrame();
 
@@ -66,7 +66,7 @@ public final class ShortsEngine {
 	private String standbyId;
 	@Nullable
 	private Listener listener;
-	/** When the Short now loading was handed to the player, for the debug timing log. */
+	/** When the loading Short was handed to the player, for the debug timing log. */
 	private long firstFrameStarted = Timing.OFF;
 	@Nullable
 	private String firstFrameFor;
@@ -91,9 +91,9 @@ public final class ShortsEngine {
 						.setHandleAudioBecomingNoisy(true)
 						.setUsePlatformDiagnostics(false)
 						.build();
-		// Shorts loop until the next one is swiped in
+		// Shorts loop until the next one comes in
 		exo.setRepeatMode(Player.REPEAT_MODE_ONE);
-		// No captions over Shorts (the extraction comes with every subtitle track)
+		// no captions over Shorts (extraction brings every track)
 		exo.setTrackSelectionParameters(exo.getTrackSelectionParameters().buildUpon()
 						.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
 						.build());
@@ -123,7 +123,7 @@ public final class ShortsEngine {
 				if (exo == player) {
 					if (listener != null) listener.onError(error);
 				} else {
-					// The preloaded one broke (expired link etc.); play() will just start fresh
+					// preloaded one broke (expired link etc), play() starts fresh
 					standbyId = null;
 				}
 			}
@@ -131,7 +131,7 @@ public final class ShortsEngine {
 		return exo;
 	}
 
-	/** The player on screen; changes when a preloaded Short takes over, see {@link #play}. */
+	/** Player on screen; changes when a preloaded Short takes over, see {@link #play}. */
 	@NonNull
 	public Player player() {
 		return player;
@@ -142,10 +142,9 @@ public final class ShortsEngine {
 	}
 
 	/**
-	 * Starts a Short from the beginning. Returns true when the preloaded player took over, so the
-	 * view has to show {@link #player()} now.
-	 *
-	 * @throws IllegalArgumentException when the extraction has nothing playable
+	 * Starts a Short from the top. True when the preloaded player took over, so the view has to
+	 * show {@link #player()} now.
+	 * @throws IllegalArgumentException when nothing is playable
 	 */
 	public boolean play(@NonNull PlaybackDetails details) {
 		String id = details.video().getId();
@@ -154,7 +153,7 @@ public final class ShortsEngine {
 			player = standby;
 			standby = previous;
 			standbyId = null;
-			// Its first frame is already there, nothing to time
+			// first frame's already there, nothing to time
 			firstFrameStarted = Timing.OFF;
 			previous.stop();
 			previous.clearMediaItems();
@@ -172,7 +171,7 @@ public final class ShortsEngine {
 		return false;
 	}
 
-	/** Loads a Short in the background so it starts at once when it's swiped to. */
+	/** Loads a Short in the background so it starts instantly when swiped to. */
 	public void preload(@NonNull PlaybackDetails details) {
 		String id = details.video().getId();
 		if (id == null || id.equals(standbyId)) return;
@@ -187,10 +186,7 @@ public final class ShortsEngine {
 		standby.prepare();
 	}
 
-	/**
-	 * Caches the first seconds of a Short further down the feed. Skipped when the video cache
-	 * setting says not to load ahead.
-	 */
+	/** Caches the first seconds of a Short further down. Skipped if the cache setting says no preload. */
 	public void warm(@NonNull PlaybackDetails details) {
 		String id = details.video().getId();
 		if (id == null || id.equals(standbyId) || !AppSettings.videoCache().preloadsNext) return;
@@ -223,7 +219,7 @@ public final class ShortsEngine {
 		player.clearMediaItems();
 	}
 
-	/** Played share of the Short, 0 to 1. */
+	/** Played share, 0 to 1. */
 	public float progress() {
 		long duration = player.getDuration();
 		if (duration == C.TIME_UNSET || duration <= 0) return 0f;

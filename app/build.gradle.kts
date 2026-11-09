@@ -5,15 +5,20 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
-val appVersionName = "v3.0.3"
-val appVersionCode = 30003
+val appVersionName = "v3.0.4"
+val appVersionCode = 30004
 val apkBaseName = "testtube" + appVersionName.removePrefix("v")
+
+// standard = TestTube (YouTube only), plus = TestTube+ (Spotify, Facebook, SoundCloud too). Same id
+// and key so either installs over the other. The updater matches these names (Edition.APK_PREFIX);
+// testtube<version>.apk has to stay the standard one, old updaters grab the first APK of a release.
+val editionApkPrefix = mapOf("standard" to "testtube", "plus" to "testtubeplus")
 
 base {
     archivesName.set(apkBaseName)
 }
 
-// Release signing comes from BUILD.sh through environment variables; no secrets in the repo.
+// release signing comes from BUILD.sh via env vars, no secrets in the repo
 val releaseKeystoreFile: String? = System.getenv("TESTTUBE_KEYSTORE_FILE")?.takeIf { it.isNotBlank() }
 
 android {
@@ -35,7 +40,7 @@ android {
         versionName = appVersionName
 
         ndk {
-            // ARM only, to keep the APK small. Add "x86_64" for emulators and Intel Chromebooks.
+            // ARM only to keep it small; add "x86_64" for emulators and Intel Chromebooks
             abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a"))
         }
     }
@@ -50,6 +55,17 @@ android {
                 enableV2Signing = true
                 enableV3Signing = true
             }
+        }
+    }
+
+    flavorDimensions += "edition"
+    productFlavors {
+        create("standard") {
+            dimension = "edition"
+            isDefault = true
+        }
+        create("plus") {
+            dimension = "edition"
         }
     }
 
@@ -72,7 +88,7 @@ android {
     }
 
     androidResources {
-        // Only the app's own languages; the libraries ship dozens more.
+        // only our languages, the libraries ship dozens more
         localeFilters += listOf("en", "es", "fr", "ja", "ko", "ru", "tr", "zh", "zh-rTW")
     }
 
@@ -89,7 +105,8 @@ android {
 
     packaging {
         resources {
-            excludes += "META-INF/services/javax.script.ScriptEngineFactory"
+            // only for Kotlin reflection and debuggers, we use neither
+            excludes += listOf("kotlin/**", "META-INF/*.kotlin_module", "META-INF/*.version", "DebugProbesKt.bin")
         }
         jniLibs {
             useLegacyPackaging = true
@@ -147,7 +164,7 @@ abstract class ExportApkTask : DefaultTask() {
         target.parentFile.mkdirs()
         val source = File(apk.outputFile)
         source.copyTo(target, overwrite = true)
-        // Keep only the renamed copy in dist/.
+        // only keep the renamed copy in dist/
         source.delete()
         logger.lifecycle("APK: ${target.absolutePath}")
     }
@@ -156,10 +173,13 @@ abstract class ExportApkTask : DefaultTask() {
 androidComponents {
     onVariants { variant ->
         val variantName = variant.name.replaceFirstChar { it.uppercase() }
+        val edition = variant.productFlavors.firstOrNull { it.first == "edition" }?.second ?: "standard"
+        val prefix = editionApkPrefix[edition] ?: throw GradleException("Unknown edition $edition")
+        val baseName = prefix + appVersionName.removePrefix("v")
         val fileName = if (variant.buildType == "release") {
-            "$apkBaseName.apk"
+            "$baseName.apk"
         } else {
-            "$apkBaseName-${variant.name}.apk"
+            "$baseName-${variant.buildType}.apk"
         }
         val exportTask = tasks.register<ExportApkTask>("export${variantName}Apk") {
             apkFolder.set(variant.artifacts.get(SingleArtifact.APK))

@@ -1,11 +1,13 @@
 package com.testtube.app.extractor;
 
+import android.content.Context;
 import android.util.LruCache;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.testtube.app.Constant;
+import com.testtube.app.playlist.LocalPlaylists;
 
 import org.schabi.newpipe.extractor.ListExtractor;
 import org.schabi.newpipe.extractor.Page;
@@ -25,14 +27,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 
-/** Videos of a playlist or mix for the watch screen and playlist navigation. Cached in memory. */
+/** Playlist or mix videos for the watch screen and playlist nav. Cached in memory. */
 public final class PlaylistSource {
 	private static final int MAX_ITEMS = 500;
 	private static final int MAX_PAGES = 12;
 
-	/**
-	 * @param items the videos in playlist order
-	 */
+	/** @param items videos in playlist order */
 	public record Playlist(@NonNull String id, @Nullable String title, @NonNull List<FeedItem> items) {
 		public int indexOf(@Nullable String videoId) {
 			if (videoId == null) return -1;
@@ -50,6 +50,8 @@ public final class PlaylistSource {
 	}
 
 	@NonNull
+	private final Context context;
+	@NonNull
 	private final DownloaderImpl downloader;
 	@NonNull
 	private final NativeAuth auth;
@@ -60,17 +62,19 @@ public final class PlaylistSource {
 	@NonNull
 	private final Map<String, CompletableFuture<Playlist>> running = new ConcurrentHashMap<>();
 
-	public PlaylistSource(@NonNull DownloaderImpl downloader, @NonNull NativeAuth auth, @NonNull Executor executor) {
+	public PlaylistSource(@NonNull Context context, @NonNull DownloaderImpl downloader, @NonNull NativeAuth auth,
+	                      @NonNull Executor executor) {
+		this.context = context.getApplicationContext();
 		this.downloader = downloader;
 		this.auth = auth;
 		this.executor = executor;
 	}
 
-	/**
-	 * @param videoId a video of the playlist; mixes are generated from it
-	 */
+	/** @param videoId a video in the playlist; mixes are generated from it */
 	@NonNull
 	public CompletableFuture<Playlist> load(@NonNull String listId, @Nullable String videoId) {
+		String localId = LocalPlaylists.idOfList(listId);
+		if (localId != null) return CompletableFuture.completedFuture(local(listId, localId));
 		String key = isMix(listId) ? listId + "|" + videoId : listId;
 		Playlist cached = cache.get(key);
 		if (cached != null) return CompletableFuture.completedFuture(cached);
@@ -113,7 +117,7 @@ public final class PlaylistSource {
 			ListExtractor.InfoItemsPage<StreamInfoItem> page = PlaylistInfo.getMoreItems(ServiceList.YouTube, url, next);
 			int before = items.size();
 			add(items, seen, page.getItems());
-			// Mixes are endless, stop once a page adds nothing new.
+			// mixes never end, stop when a page adds nothing new
 			if (items.size() == before) break;
 			next = page.hasNextPage() ? page.getNextPage() : null;
 		}
@@ -133,6 +137,23 @@ public final class PlaylistSource {
 							stream.getViewCount(), stream.getTextualUploadDate(), false, stream.isShortFormContent(),
 							FeedClient.avatar(stream.getUploaderAvatars())));
 		}
+	}
+
+	/** A playlist on the phone, read fresh every time since it changes right here. Empty if deleted. */
+	@NonNull
+	private Playlist local(@NonNull String listId, @NonNull String localId) {
+		LocalPlaylists.Playlist saved = LocalPlaylists.of(context).get(localId);
+		if (saved == null) return new Playlist(listId, null, List.of());
+		List<LocalPlaylists.Entry> entries = saved.items();
+		List<FeedItem> items = new ArrayList<>(entries.size());
+		for (int i = 0; i < entries.size(); i++) {
+			LocalPlaylists.Entry entry = entries.get(i);
+			String title = entry.title();
+			items.add(new FeedItem(FeedItem.Kind.VIDEO, LocalPlaylists.watchUrl(entry.videoId(), localId, i), entry.videoId(),
+							title != null ? title : "", entry.author(), entry.authorUrl(), entry.thumbnailUrl(),
+							-1, -1, null, false, false, null));
+		}
+		return new Playlist(listId, saved.name(context), Collections.unmodifiableList(items));
 	}
 
 	public static boolean isMix(@NonNull String listId) {

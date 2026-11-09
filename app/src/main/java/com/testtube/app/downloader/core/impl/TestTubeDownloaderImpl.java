@@ -76,7 +76,7 @@ public class TestTubeDownloaderImpl implements TestTubeDownloader {
 				if (tasks.containsKey(task.videoId())) {
 					complete(task.videoId(), outputFile(task));
 				} else {
-					// Cancelled while downloading.
+					// cancelled mid-download
 					StreamIOUtils.deleteQuietly(outputFile(task));
 				}
 			} catch (Exception e) {
@@ -89,7 +89,7 @@ public class TestTubeDownloaderImpl implements TestTubeDownloader {
 	}
 
 	private void downloadMedia(Task task) {
-		// Download audio and video separately, then merge when needed.
+		// video and audio separately, merged after
 		int threads = task.threadCount();
 		File vF = tmp(task, "_v"), aF = tmp(task, "_a"), out = outputFile(task);
 		long vSz = len(task.video()), aSz = len(task.audio());
@@ -146,6 +146,11 @@ public class TestTubeDownloaderImpl implements TestTubeDownloader {
 		if (task.video() != null) streamDL.resume(task.video().getContent());
 		if (task.audio() != null) streamDL.resume(task.audio().getContent());
 		return task.video() != null || task.audio() != null;
+	}
+
+	@Override
+	public boolean hasTasks() {
+		return !tasks.isEmpty() || !sideTasks.isEmpty();
 	}
 
 	@Override

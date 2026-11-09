@@ -14,8 +14,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
 /**
- * Keeps the error that closed the app, so the next start can show it and people can paste it
- * into a bug report instead of "it crashed". Stays on the phone; nothing is sent anywhere.
+ * Keeps the error that closed the app so the next start can show it and people can paste it
+ * into a bug report instead of "it crashed". Stays on the phone, nothing is sent.
  */
 public final class CrashLog {
 	private static final String FILE = "last_crash.txt";
@@ -37,13 +37,13 @@ public final class CrashLog {
 								+ "\nThread: " + thread.getName() + "\n\n" + trace;
 				Files.write(file.toPath(), report.getBytes(StandardCharsets.UTF_8));
 			} catch (Throwable ignored) {
-				// Writing the report must never hide the real error
+				// writing the report must never hide the real error
 			}
 			if (previous != null) previous.uncaughtException(thread, error);
 		});
 	}
 
-	/** The report of the last crash, once; null when the app closed normally. */
+	/** Last crash report, once; null if the app closed normally. */
 	@Nullable
 	public static String take(@NonNull Context context) {
 		File file = new File(context.getFilesDir(), FILE);

@@ -1,49 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-        The app's own colour roles, next to Material's (colorPrimary, colorSurface…). Each theme
-        (Dark and Light in themes.xml, NiiX in themes_niix.xml) gives them a value, so layouts,
-        drawables and code pick them up with ?attr/… and follow the chosen theme.
+        Our own colour roles next to Material's. Every theme (themes.xml, themes_niix.xml) sets them,
+        so layouts, drawables and code use ?attr/… and follow the chosen theme.
     -->
 
-    <!-- Brand fills: LIVE and "Now playing" badges, thumbnail placeholders, the video's progress -->
+    <!-- Brand fills: LIVE and "Now playing" badges, placeholders, video progress -->
     <attr name="ttBrand" format="color" />
-    <!-- The faint logo behind Home -->
+    <!-- Faint logo behind Home -->
     <attr name="ttLogoWatermark" format="color" />
-    <!-- SponsorBlock marks on the video's progress bar -->
+    <!-- SponsorBlock marks on the progress bar -->
     <attr name="ttSponsorSegment" format="color" />
 
-    <!-- Frosted glass of the mini player and the bottom bar -->
+    <!-- Frosted glass of the mini player and bottom bar -->
     <attr name="ttGlassBar" format="color" />
-    <!-- The bars when there is nothing behind them to blur -->
+    <!-- Bars with nothing behind to blur -->
     <attr name="ttGlassBarSolid" format="color" />
-    <!-- The line along the top of the bars -->
+    <!-- Line along the top of the bars -->
     <attr name="ttGlassHairline" format="color" />
-    <!-- The line around every dialog (transparent for none) -->
+    <!-- Line around dialogs (transparent for none) -->
     <attr name="ttGlassEdge" format="color" />
     <attr name="ttGlassDialog" format="color" />
     <attr name="ttGlassSheet" format="color" />
-    <!-- The long-press menu and the settings: the player's colour -->
+    <!-- Long-press menu and settings: the player's colour -->
     <attr name="ttGlassDialogPage" format="color" />
 
-    <!-- The selected bottom tab's pill -->
+    <!-- Selected bottom tab pill -->
     <attr name="ttNavIndicator" format="color" />
-    <!-- The Library's pages and its selected tab -->
+    <!-- Library pages and their selected tab -->
     <attr name="ttLibraryPage" format="color" />
-    <!-- Behind a group of settings rows -->
+    <!-- Behind a settings group -->
     <attr name="ttSettingsGroup" format="color" />
-    <!-- Revealed under a list row while it is swiped, and the logo and label (Add, Follow) on it -->
+    <!-- Under a row while it's swiped, plus its logo and label (Add, Follow) -->
     <attr name="ttSwipeBackground" format="color" />
     <attr name="ttSwipeContent" format="color" />
 
-    <!-- Accent on top of the video, which is always dark: loading spinners. White, pink in NiiX -->
+    <!-- Accent on top of video (always dark): spinners. White, pink in NiiX -->
     <attr name="ttOnVideoAccent" format="color" />
-    <!-- The username above a comment -->
+    <!-- Username above a comment -->
     <attr name="ttCommentAuthor" format="color" />
 
     <!--
-        Typefaces: a system family name ("sans-serif") or a bundled font (@font/…). Regular and
-        medium follow Material's type scale; mono is for logs.
+        Typefaces: a system family ("sans-serif") or bundled font (@font/…). Regular and medium follow
+        Material's type scale, mono is for logs.
     -->
     <attr name="ttFontRegular" format="reference|string" />
     <attr name="ttFontMedium" format="reference|string" />

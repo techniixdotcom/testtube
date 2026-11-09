@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-/** Last loaded list per feed, shown when a fresh load fails (e.g. offline). */
+/** Last list per feed, shown when a reload fails (offline etc). */
 public final class FeedCache {
 	private static final int MAX_ITEMS = 60;
 	private static final String PREFIX = "feed_cache_";
@@ -27,14 +27,14 @@ public final class FeedCache {
 	private FeedCache() {
 	}
 
-	/** Rows are immutable, so a copy of the list can be written out off the main thread. */
+	/** Rows are immutable, so a copy can be written off the main thread. */
 	public static void save(@NonNull String key, @NonNull List<FeedItem> items) {
 		List<FeedItem> kept = new ArrayList<>(items.subList(0, Math.min(items.size(), MAX_ITEMS)));
 		WRITER.execute(() -> {
 			try {
 				MMKV.defaultMMKV().encode(PREFIX + key, Json.GSON.toJson(kept, LIST_TYPE));
 			} catch (RuntimeException ignored) {
-				// The cache is only a convenience.
+				// just a convenience
 			}
 		});
 	}

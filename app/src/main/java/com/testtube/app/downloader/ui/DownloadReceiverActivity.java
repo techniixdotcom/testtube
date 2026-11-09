@@ -19,7 +19,7 @@ public class DownloadReceiverActivity extends AppCompatActivity {
 		if (intent != null) {
 			Intent forwardIntent = new Intent(this, MainActivity.class);
 			forwardIntent.setAction("TRIGGER_DOWNLOAD_FROM_SHARE");
-			// Forward only the shared link, not the other extras.
+			// only forward the link, not the other extras
 			CharSequence text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
 			if (text != null && text.length() <= 4096) forwardIntent.putExtra(Intent.EXTRA_TEXT, text.toString());
 			Uri data = intent.getData();

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Library: Queue, History and Downloads as browser-style tabs across the top. The bin at the
-    end of the tab row clears whichever tab is open.
+    Library: Queue, Playlists, History and Downloads as tabs across the top, only the open one
+    labelled. The button at the end acts on the open tab.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -19,23 +19,61 @@
         android:paddingTop="8dp"
         android:paddingEnd="4dp">
 
-        <TextView
+        <LinearLayout
             android:id="@+id/library_tab_queue"
             style="@style/Widget.TestTube.LibraryTab"
-            android:drawableStart="@drawable/ic_queue"
-            android:text="@string/queue" />
+            android:contentDescription="@string/queue">
 
-        <TextView
+            <ImageView
+                style="@style/Widget.TestTube.LibraryTabIcon"
+                android:src="@drawable/ic_queue" />
+
+            <TextView
+                style="@style/Widget.TestTube.LibraryTabLabel"
+                android:text="@string/queue" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/library_tab_playlists"
+            style="@style/Widget.TestTube.LibraryTab"
+            android:contentDescription="@string/library_playlists">
+
+            <ImageView
+                style="@style/Widget.TestTube.LibraryTabIcon"
+                android:src="@drawable/ic_playlist" />
+
+            <TextView
+                style="@style/Widget.TestTube.LibraryTabLabel"
+                android:text="@string/library_playlists" />
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/library_tab_history"
             style="@style/Widget.TestTube.LibraryTab"
-            android:drawableStart="@drawable/ic_history"
-            android:text="@string/library_history" />
+            android:contentDescription="@string/library_history">
 
-        <TextView
+            <ImageView
+                style="@style/Widget.TestTube.LibraryTabIcon"
+                android:src="@drawable/ic_history" />
+
+            <TextView
+                style="@style/Widget.TestTube.LibraryTabLabel"
+                android:text="@string/library_history" />
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/library_tab_downloads"
             style="@style/Widget.TestTube.LibraryTab"
-            android:drawableStart="@drawable/ic_download"
-            android:text="@string/library_downloads" />
+            android:contentDescription="@string/library_downloads">
+
+            <ImageView
+                style="@style/Widget.TestTube.LibraryTabIcon"
+                android:src="@drawable/ic_download" />
+
+            <TextView
+                style="@style/Widget.TestTube.LibraryTabLabel"
+                android:text="@string/library_downloads" />
+        </LinearLayout>
 
         <ImageButton
             android:id="@+id/library_clear"
@@ -50,7 +88,7 @@
             app:tint="?attr/colorOnSurfaceVariant" />
     </LinearLayout>
 
-    <!-- The selected tab has the pages' colour, so the two read as one piece -->
+    <!-- selected tab has the page colour so they read as one piece -->
     <FrameLayout
         android:id="@+id/library_pages"
         android:layout_width="match_parent"
@@ -100,6 +138,11 @@
                 android:drawableTop="@drawable/ic_history"
                 android:text="@string/watch_history_empty" />
         </FrameLayout>
+
+        <include
+            android:id="@+id/library_page_playlists"
+            layout="@layout/view_playlists"
+            android:visibility="gone" />
 
         <include
             android:id="@+id/library_page_downloads"

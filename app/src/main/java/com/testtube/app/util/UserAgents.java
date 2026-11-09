@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
 
 /**
  * One user agent for everything (pages, player, extractor): the WebView's Chrome version in
- * Chrome's reduced form, without the device model.
+ * Chrome's reduced form, no device model.
  */
 public final class UserAgents {
 	private static final Pattern CHROME = Pattern.compile("Chrome/(\\d+)");

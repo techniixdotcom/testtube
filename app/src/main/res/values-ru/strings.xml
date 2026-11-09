@@ -13,7 +13,7 @@
     <string name="close">Закрыть</string>
     <string name="share">Поделиться</string>
     <string name="action_pause">Пауза</string>
-    <string name="action_play">Играть</string>
+    <string name="action_play">Воспроизвести</string>
     <string name="action_previous">Перейти к предыдущему</string>
     <string name="action_next">Перейти к следующему</string>
     <string name="action_quit">Выйти</string>
@@ -58,7 +58,12 @@
     <string name="threads">Потоки</string>
     <string name="clear">Очистить</string>
     <string name="download_tasks_added">Задачи на загрузку добавлены</string>
-    <string name="download_tasks_added_count">Добавлено %1$d задач в очередь</string>
+    <plurals name="download_tasks_added_count">
+        <item quantity="one">%1$d задача добавлена в очередь</item>
+        <item quantity="few">%1$d задачи добавлены в очередь</item>
+        <item quantity="many">%1$d задач добавлено в очередь</item>
+        <item quantity="other">%1$d задачи добавлено в очередь</item>
+    </plurals>
     <string name="download_history">Загрузки</string>
     <string name="no_download_records">Нет записей о загрузках</string>
     <string name="file_not_found">Файл не найден</string>
@@ -107,7 +112,12 @@
     <string name="download_playlist_summary">%1$d / %2$d элементов\n(%3$d%%)</string>
     <string name="preparing_download">Подготовка загрузки…</string>
     <string name="downloading_file">Загрузка: %1$s</string>
-    <string name="downloads_running">%1$d загрузок в процессе</string>
+    <plurals name="downloads_running">
+        <item quantity="one">%1$d загрузка в процессе</item>
+        <item quantity="few">%1$d загрузки в процессе</item>
+        <item quantity="many">%1$d загрузок в процессе</item>
+        <item quantity="other">%1$d загрузки в процессе</item>
+    </plurals>
     <string name="playlist_download_title_placeholder">Плейлист</string>
     <string name="playlist_download_summary">Выбрано %1$d / готово %2$d / всего %3$d</string>
     <string name="playlist_download_select_all">Выбрать все</string>
@@ -123,8 +133,18 @@
     <string name="playlist_download_status_queued">В очереди</string>
     <string name="playlist_download_status_partial">Частично</string>
     <string name="playlist_download_status_canceled">Отменено</string>
-    <string name="playlist_download_batch_added">Добавлено элементов: %1$d</string>
-    <string name="playlist_download_batch_added_before_cancel">Добавлено %1$d элементов до отмены пакета</string>
+    <plurals name="playlist_download_batch_added">
+        <item quantity="one">Добавлен %1$d элемент</item>
+        <item quantity="few">Добавлено %1$d элемента</item>
+        <item quantity="many">Добавлено %1$d элементов</item>
+        <item quantity="other">Добавлено %1$d элемента</item>
+    </plurals>
+    <plurals name="playlist_download_batch_added_before_cancel">
+        <item quantity="one">До отмены добавлен %1$d элемент</item>
+        <item quantity="few">До отмены добавлено %1$d элемента</item>
+        <item quantity="many">До отмены добавлено %1$d элементов</item>
+        <item quantity="other">До отмены добавлено %1$d элемента</item>
+    </plurals>
     <string name="playlist_download_batch_segment_partial">Частично: %1$d</string>
     <string name="playlist_download_batch_segment_failed">Сбой: %1$d</string>
     <string name="playlist_download_started">Загрузка плейлиста начата</string>
@@ -254,7 +274,12 @@
     <string name="subs_export_failed">Не удалось сохранить файл</string>
     <string name="subs_followed">Вы подписались на канал</string>
     <string name="subs_import">Импорт</string>
-    <string name="subs_import_done">Импортировано каналов: %d</string>
+    <plurals name="subs_import_done">
+        <item quantity="one">Импортирован %d канал</item>
+        <item quantity="few">Импортировано %d канала</item>
+        <item quantity="many">Импортировано %d каналов</item>
+        <item quantity="other">Импортировано %d канала</item>
+    </plurals>
     <string name="subs_import_export">Импорт / экспорт</string>
     <string name="subs_import_failed">Не удалось прочитать файл</string>
     <string name="subs_local_empty">Каналов пока нет. Нажмите «Управление», чтобы добавить или импортировать каналы, или подпишитесь на них из видео.</string>
@@ -295,7 +320,12 @@
     <string name="update_progress">%1$s из %2$s</string>
     <string name="update_title">Доступно обновление</string>
     <string name="watch_chat_hint">Чат работает во время трансляций и премьер.</string>
-    <string name="watch_comment_likes">Нравится: %d</string>
+    <plurals name="watch_comment_likes">
+        <item quantity="one">%d лайк</item>
+        <item quantity="few">%d лайка</item>
+        <item quantity="many">%d лайков</item>
+        <item quantity="other">%d лайка</item>
+    </plurals>
     <string name="watch_comment_pinned">Закреплено</string>
     <string name="watch_comments_disabled">Комментарии к этому видео отключены</string>
     <string name="watch_comments_empty">Комментариев нет</string>
@@ -303,7 +333,7 @@
     <string name="watch_tab_chat">Чат</string>
     <string name="watch_tab_comments">Комментарии</string>
     <string name="watch_tab_description">Описание</string>
-    <!-- Library, settings groups and notifications -->
+    <!-- Library, settings groups, notifications -->
     <string name="nav_library">Библиотека</string>
     <string name="library_history">История</string>
     <string name="library_downloads">Загрузки</string>
@@ -348,7 +378,7 @@
     <string name="failure_unsupported">Этот тип видео не поддерживается (например, платный контент или только для Premium).</string>
     <string name="failure_unavailable">Это видео недоступно. Возможно, оно удалено.</string>
     <string name="failure_other">При загрузке видео что-то пошло не так. Повторите попытку или нажмите «Подробнее», чтобы узнать причину.</string>
-    <!-- Minimizing, floating window and gestures -->
+    <!-- Minimizing, floating window, gestures -->
     <string name="setting_minimize_to">Сворачивать в</string>
     <string name="setting_minimize_summary">Нижняя панель или плавающее окно</string>
     <string name="minimize_bottom_bar">Нижнюю панель</string>
@@ -391,4 +421,60 @@
     <string name="update_title_prerelease">Доступна предварительная версия</string>
     <string name="clear_cache_confirm">Удалить %1$s сохранённых видео, изображений и веб-данных? Загрузки, история, очередь, вход в аккаунт и настройки сохранятся.</string>
     <string name="cache_cleared">Кэш очищен</string>
+    <!-- Opening links from other apps (12+: allowed in system settings) -->
+    <string name="links_prompt_title">Открывать ссылки в %1$s?</string>
+    <string name="links_prompt_message">Android позволяет приложению открывать ссылки только с вашего разрешения. На следующем экране включите «Открывать поддерживаемые ссылки», нажмите «Добавить» и оставьте отмеченными все ссылки: присланные вам ссылки будут открываться здесь, а не в браузере.</string>
+    <string name="links_prompt_open">Открыть настройки</string>
+    <string name="links_prompt_later">Не сейчас</string>
+    <string name="setting_open_links">Открывать ссылки в этом приложении</string>
+    <string name="setting_open_links_summary">Ссылки из других приложений открываются здесь, а не в браузере</string>
+    <string name="setting_open_links_all">Все</string>
+    <string name="setting_open_links_count">%1$d из %2$d</string>
+
+    <!-- Playlists and Watch later -->
+    <string name="action_done">Готово</string>
+    <string name="action_delete">Удалить</string>
+    <string name="library_playlists">Плейлисты</string>
+    <string name="playlist_save">Сохранить</string>
+    <string name="playlist_save_title">Сохранить в…</string>
+    <string name="playlist_watch_later">Смотреть позже</string>
+    <string name="playlist_new">Новый плейлист</string>
+    <string name="playlist_name_hint">Название</string>
+    <string name="playlist_rename">Переименовать</string>
+    <string name="playlist_delete">Удалить плейлист</string>
+    <string name="playlist_delete_confirm">Удалить «%1$s»? Видео останутся на YouTube.</string>
+    <string name="playlist_saved_to">Сохранено в «%1$s»</string>
+    <string name="playlist_removed_from">Удалено из «%1$s»</string>
+    <string name="playlist_full">Не удалось сохранить: слишком много плейлистов или видео</string>
+    <string name="playlist_empty">Здесь пока пусто. Удерживайте видео и нажмите «Сохранить».</string>
+    <string name="playlist_play_all">Воспроизвести все</string>
+    <string name="playlist_shuffle">Перемешать</string>
+    <string name="playlist_remove_watched">Удалить просмотренные видео</string>
+    <string name="playlist_remove_watched_confirm">Удалить просмотренные видео из «%1$s»?</string>
+    <string name="playlist_import_export">Импорт или экспорт</string>
+    <string name="playlist_import">Импортировать плейлисты</string>
+    <string name="playlist_export">Экспортировать плейлисты</string>
+    <string name="playlist_import_failed">Это не файл плейлистов TestTube</string>
+    <string name="playlist_export_done">Плейлисты экспортированы</string>
+    <string name="playlist_export_failed">Не удалось экспортировать плейлисты</string>
+    <string name="playlist_options">Параметры плейлиста</string>
+    <string name="playlist_back">Назад к плейлистам</string>
+    <plurals name="playlist_count">
+        <item quantity="one">%d видео</item>
+        <item quantity="few">%d видео</item>
+        <item quantity="many">%d видео</item>
+        <item quantity="other">%d видео</item>
+    </plurals>
+    <plurals name="playlist_removed_watched">
+        <item quantity="one">Удалено %d видео</item>
+        <item quantity="few">Удалено %d видео</item>
+        <item quantity="many">Удалено %d видео</item>
+        <item quantity="other">Удалено %d видео</item>
+    </plurals>
+    <plurals name="playlist_import_done">
+        <item quantity="one">Импортировано %d видео</item>
+        <item quantity="few">Импортировано %d видео</item>
+        <item quantity="many">Импортировано %d видео</item>
+        <item quantity="other">Импортировано %d видео</item>
+    </plurals>
 </resources>

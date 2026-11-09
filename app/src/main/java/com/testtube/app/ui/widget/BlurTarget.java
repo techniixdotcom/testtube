@@ -13,17 +13,16 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
 /**
- * A screen the frosted glass (GlassBackground) can show blurred. On Android 12+ the children go
- * into a RenderNode of our own, which is drawn here as usual and drawn a second time, blurred, by
- * the glass. Nothing gets copied or redrawn for that: change a child and both places show it.
- * Older Android just draws normally and the glass stays solid.
+ * A screen the frosted glass (GlassBackground) can blur. On 12+ the children go into our own
+ * RenderNode, drawn here as usual and again, blurred, by the glass. Nothing gets copied: change a
+ * child and both show it. Older Android just draws normally and the glass is solid.
  * <p>
- * Don't put the glass inside its own target, or it blurs itself and the whole thing goes to hell.
+ * Don't put the glass inside its own target or it blurs itself and the whole thing goes to hell.
  */
 public class BlurTarget extends FrameLayout {
 	@Nullable
 	private Content content;
-	/** The children have been recorded into the content node at least once. */
+	/** Children recorded into the node at least once. */
 	private boolean recorded;
 
 	public BlurTarget(@NonNull Context context) {
@@ -57,16 +56,12 @@ public class BlurTarget extends FrameLayout {
 		super.dispatchDraw(canvas);
 	}
 
-	/**
-	 * Whether the children have been recorded for the glass (Android 12+, after the first frame).
-	 */
+	/** Children recorded for the glass (12+, after the first frame). */
 	boolean hasContent() {
 		return recorded;
 	}
 
-	/**
-	 * The recorded children, or null before the first hardware frame and below Android 12.
-	 */
+	/** Recorded children, or null before the first hardware frame and below 12. */
 	@Nullable
 	@RequiresApi(Build.VERSION_CODES.S)
 	RenderNode contentNode() {

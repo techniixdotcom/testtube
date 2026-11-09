@@ -29,12 +29,9 @@ import java.util.Set;
 
 import javax.net.ssl.SSLException;
 
-/**
- * What went wrong with a request, in terms the app can act on and explain: whether retrying
- * could help, after how long, and what to tell the person.
- */
+/** What went wrong in terms we can act on: retryable or not, after how long, what to tell the user. */
 public enum Failure {
-	/** YouTube asked this network to confirm it isn't a bot, or answered 429. */
+	/** Bot check or 429. */
 	SLOW_DOWN(R.string.failure_slow_down, R.string.failure_slow_down_feed, true),
 	OFFLINE(R.string.failure_offline, R.string.failure_offline_feed, true),
 	TIMEOUT(R.string.failure_timeout, R.string.failure_timeout_feed, true),
@@ -47,10 +44,10 @@ public enum Failure {
 
 	@StringRes
 	public final int message;
-	/** Shorter text for an empty list that couldn't load. */
+	/** Shorter text for an empty list that failed. */
 	@StringRes
 	public final int feedMessage;
-	/** Trying again later can work (as opposed to a private or removed video). */
+	/** Retrying later can work (unlike private or removed). */
 	public final boolean retryable;
 
 	Failure(@StringRes int message, @StringRes int feedMessage, boolean retryable) {
@@ -60,8 +57,8 @@ public enum Failure {
 	}
 
 	/**
-	 * What to say when a playlist or queue moves past a video because of this, e.g. "Private
-	 * video, skipped". Only for failures that retrying can't fix.
+	 * What to say when a playlist or queue skips a video for this ("Private video, skipped").
+	 * Only for failures retrying can't fix.
 	 */
 	@StringRes
 	public int skippedMessage() {
@@ -82,7 +79,7 @@ public enum Failure {
 	@NonNull
 	public static Failure of(@Nullable Throwable error) {
 		List<Throwable> chain = chain(error);
-		// Most specific first. YouTube loves wrapping its damn bot check in a "not available" error
+		// most specific first. YouTube loves wrapping its damn bot check in a "not available" error
 		if (has(chain, SignInConfirmNotBotException.class) || has(chain, ReCaptchaException.class)
 						|| has(chain, RequestPacer.PausedException.class)) {
 			return SLOW_DOWN;
@@ -109,9 +106,9 @@ public enum Failure {
 	}
 
 	/**
-	 * Classifies an error the person will hear about, and reacts to YouTube's bot check: requests
-	 * pause for a while and the next ones come from a new signed-out visitor, which often clears
-	 * the check. A pause that is already running isn't made longer.
+	 * Classifies an error the user will see and reacts to the bot check: requests pause, then the
+	 * next ones come from a fresh signed-out visitor, which often clears it. A running pause isn't
+	 * extended.
 	 */
 	@NonNull
 	public static Failure report(@Nullable Throwable error) {
@@ -123,7 +120,7 @@ public enum Failure {
 		return failure;
 	}
 
-	/** Whether the error only means the work was no longer wanted (another video was picked). */
+	/** Just means nobody wants the result anymore (another video was picked). */
 	public static boolean isCancellation(@Nullable Throwable error) {
 		for (Throwable t : chain(error)) {
 			if (t instanceof InterruptedException || t instanceof java.util.concurrent.CancellationException) {

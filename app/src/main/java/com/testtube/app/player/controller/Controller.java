@@ -135,7 +135,7 @@ public class Controller {
 	private final TabManager tabManager;
 	@NonNull
 	private final Handler handler = new Handler(Looper.getMainLooper());
-	// Kept as one instance so a newer hint can cancel the pending hide of the previous one
+	// one instance so a newer hint cancels the pending hide of the old one
 	private final Runnable hideHintRunnable = this::hideHint;
 	@Nullable
 	private TextView hintText;
@@ -245,7 +245,7 @@ public class Controller {
 		gestureListener.setLongPressAction(action);
 	}
 
-	/** Lets a downward swipe on the video drag it to the bottom bar. */
+	/** Lets a swipe down drag the video to the bar. */
 	public void setWatchDrag(@Nullable WatchDrag drag) {
 		gestureListener.setWatchDrag(drag);
 	}
@@ -260,7 +260,7 @@ public class Controller {
 			if (gestureListener.isDragging()) {
 				gestureListener.onDragTouch(ev);
 				if (!gestureListener.isDragging()) {
-					// The detector still thinks the finger is down; let it forget this gesture
+					// detector still thinks the finger is down, make it forget
 					MotionEvent cancel = MotionEvent.obtain(ev);
 					cancel.setAction(MotionEvent.ACTION_CANCEL);
 					detector.onTouchEvent(cancel);
@@ -700,7 +700,8 @@ public class Controller {
 				sb.append(activity.getString(R.string.sample_rate)).append(": ").append(aF.sampleRate).append(" Hz\n");
 		}
 		String q = engine.getQuality();
-		for (VideoStream vs : details.getVideoStreams())
+		VideoStream playing = engine.getVideoStream();
+		for (VideoStream vs : playing != null ? List.of(playing) : details.getVideoStreams())
 			if (vs.getResolution().equals(q)) {
 				sb.append(activity.getString(R.string.active_stream_video, 1, activity.getString(R.string.active_label), vs.getResolution(), vs.getFormat() != null ? vs.getFormat().name() : activity.getString(R.string.unknown), vs.getCodec())).append("\n");
 				break;
@@ -719,8 +720,8 @@ public class Controller {
 	}
 
 	/**
-	 * Fullscreen is entered with the button or an upward swipe and locks the orientation to the
-	 * video's. Rotating doesn't leave it; only the minimize button or back does.
+	 * Fullscreen via the button or swipe up, locks to the video's orientation. Rotating doesn't
+	 * leave it, only minimize or back does.
 	 */
 	public void enterFullscreen() {
 		if (state.isFullscreen()) return;
@@ -743,7 +744,7 @@ public class Controller {
 		state = state.exitFullscreen();
 		applyControllerState(previousState, true);
 		zoomListener.reset();
-		// Fullscreen swipes always change the brightness; outside it only if the gestures say so
+		// fullscreen swipes always do brightness, outside only if the gestures say so
 		if (AppSettings.gestureLeft() != GestureAction.Vertical.BRIGHTNESS
 						&& AppSettings.gestureRight() != GestureAction.Vertical.BRIGHTNESS) {
 			gestureListener.resetBrightness();

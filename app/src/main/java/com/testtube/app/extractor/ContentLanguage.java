@@ -18,26 +18,24 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/**
- * Picks the YouTube content language and country from the system locale.
- */
+/** YouTube content language and country from the system locale. */
 public final class ContentLanguage {
 	private static volatile Locale applied;
 
 	private ContentLanguage() {
 	}
 
-	/** Main thread only. Does nothing if the locale hasn't changed. */
+	/** Main thread. No-op if the locale didn't change. */
 	public static void apply(@NonNull Context context) {
 		Locale locale = context.getResources().getConfiguration().getLocales().get(0);
 		if (locale == null) locale = Locale.getDefault();
 		if (locale.equals(applied)) return;
 		synchronized (ContentLanguage.class) {
 			applied = locale;
-			// English number words until the ones for this locale are ready
+			// English number words until this locale's are ready
 			Utils.setNumberWords(Map.of());
 		}
-		// Resolve both first so other threads never see a half-applied locale
+		// resolve both first so other threads never see half a locale
 		Localization language = closest(new Localization(locale.getLanguage(), region(locale)));
 		ContentCountry country = new ContentCountry(country(context, locale));
 		NewPipe.setPreferredLocalization(language);
@@ -49,18 +47,18 @@ public final class ContentLanguage {
 			try {
 				Map<String, Long> found = numberWords(language);
 				synchronized (ContentLanguage.class) {
-					// The locale may have changed again in the meantime
+					// locale may have changed again meanwhile
 					if (started.equals(applied)) Utils.setNumberWords(found);
 				}
 			} catch (RuntimeException ignored) {
-				// No ICU data for this locale, keep the English words
+				// no ICU data, keep English
 			}
 		}, "testtube-number-words");
 		words.setDaemon(true);
 		words.start();
 	}
 
-	/** Closest language YouTube supports, e.g. "es" for es-ES or "en" for en-CA. */
+	/** Closest language YouTube supports (es-ES to "es", en-CA to "en"). */
 	@NonNull
 	private static Localization closest(@NonNull Localization wanted) {
 		List<Localization> supported = ServiceList.YouTube.getSupportedLocalizations();
@@ -71,7 +69,7 @@ public final class ContentLanguage {
 		return Localization.DEFAULT;
 	}
 
-	/** YouTube has separate variants for Latin American Spanish and for Chinese. */
+	/** YouTube has separate Latin American Spanish and Chinese variants. */
 	@NonNull
 	private static String region(@NonNull Locale locale) {
 		String country = locale.getCountry();
@@ -98,15 +96,15 @@ public final class ContentLanguage {
 					if (country == null || country.isEmpty()) country = phone.getSimCountryIso();
 				}
 			} catch (RuntimeException ignored) {
-				// Newer Android versions throw on devices without telephony. Yes, really. Just a getter.
+				// newer Android throws on devices without telephony. Yes, really. A getter.
 			}
 		}
 		return country == null ? "" : country.toUpperCase(Locale.ROOT);
 	}
 
 	/**
-	 * Compact number suffixes of the language ("mil", "M", "万", ...), found by formatting every
-	 * power of ten with ICU (1000 is "1 mil" in Spanish).
+	 * Compact number suffixes ("mil", "M", "万"...), found by formatting every power of ten with
+	 * ICU (1000 is "1 mil" in Spanish).
 	 */
 	@NonNull
 	private static Map<String, Long> numberWords(@NonNull Localization language) {

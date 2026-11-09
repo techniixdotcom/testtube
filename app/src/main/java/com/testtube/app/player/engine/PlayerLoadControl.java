@@ -9,7 +9,7 @@ class PlayerLoadControl {
 	private PlayerLoadControl() {
 	}
 
-	/** Starts after a second of video; after a stall it waits for 4 so it doesn't stall again at once. */
+	/** Starts after 1 s of video; after a stall waits for 4 so it doesn't stall again right away. */
 	private static final int START_BUFFER_MS = 1_000;
 	private static final int REBUFFER_MS = 4_000;
 	private static final int MIN_BUFFER_MS = 15_000;

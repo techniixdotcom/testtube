@@ -27,9 +27,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Profile images of channels, for the uploader avatar in list rows. Images seen in any list are
- * remembered on the phone; channels whose image was never seen (followed channels without an
- * account, playlist entries) are looked up once, a few at a time, newest request first.
+ * Channel avatars for list rows. Anything seen in a list is remembered; channels never seen
+ * (followed without an account, playlist entries) get looked up once, a few at a time, newest first.
  */
 public final class AvatarCache {
 	private static final String TAG = "AvatarCache";
@@ -37,22 +36,22 @@ public final class AvatarCache {
 	private static final int MAX_STORED = 4000;
 	private static final long STALE_MS = TimeUnit.DAYS.toMillis(30);
 	private static final long RETRY_MS = TimeUnit.MINUTES.toMillis(10);
-	/** Lookups per app run, so a long scroll never turns into a flood of channel requests. */
+	/** Lookup cap per run so long scrolls don't flood YouTube. */
 	private static final int MAX_LOOKUPS_PER_RUN = 80;
 	private static final int LOOKUP_THREADS = 2;
-	/** Size a row needs: 36dp at xxhdpi. */
+	/** 36dp at xxhdpi. */
 	private static final String ROW_SIZE = "=s108";
 	private static final Pattern IMAGE_SIZE = Pattern.compile("=s\\d{2,4}(?=-|$)");
 	private static final Pattern CHANNEL_PATH = Pattern.compile(
 					"^https?://(?:[a-z0-9-]+\\.)?youtube\\.com/((?:@|c/|user/)[^/?#]+)", Pattern.CASE_INSENSITIVE);
 
-	/** Fetches the profile image of a channel. Called on a background thread. */
+	/** Fetches a channel's avatar. Background thread. */
 	public interface Loader {
 		@Nullable
 		String load(@NonNull String channelUrl) throws Exception;
 	}
 
-	/** Notified on the main thread when the image of a channel becomes known. */
+	/** Called on the main thread when an avatar becomes known. */
 	public interface Listener {
 		@MainThread
 		void onAvatar(@NonNull String key);
@@ -73,7 +72,7 @@ public final class AvatarCache {
 	private final Set<String> inFlight = ConcurrentHashMap.newKeySet();
 	@NonNull
 	private final Map<String, Long> failed = new ConcurrentHashMap<>();
-	/** Held weakly, so a screen that is gone can't be kept alive by the cache. Main thread only. */
+	/** Weak, so dead screens aren't kept alive. Main thread only. */
 	@NonNull
 	private final Set<Listener> listeners = Collections.newSetFromMap(new WeakHashMap<>());
 	@NonNull
@@ -88,7 +87,7 @@ public final class AvatarCache {
 
 	private AvatarCache() {
 		AtomicInteger count = new AtomicInteger();
-		// LIFO, so the rows currently on screen (requested last) go first
+		// LIFO: rows on screen right now asked last, go first
 		pool = new ThreadPoolExecutor(LOOKUP_THREADS, LOOKUP_THREADS, 30L, TimeUnit.SECONDS,
 						new LinkedBlockingDeque<>() {
 							@Override
@@ -133,10 +132,7 @@ public final class AvatarCache {
 		listeners.remove(listener);
 	}
 
-	/**
-	 * The same key for every link of a channel: its id when the link has one, otherwise its
-	 * handle or custom path.
-	 */
+	/** Same key for every link to a channel: id if present, else handle or custom path. */
 	@Nullable
 	public static String key(@Nullable String channelUrl) {
 		if (channelUrl == null || channelUrl.isBlank()) return null;
@@ -146,10 +142,7 @@ public final class AvatarCache {
 		return matcher.find() ? matcher.group(1).toLowerCase(Locale.ROOT) : null;
 	}
 
-	/**
-	 * Asks YouTube's image server for the size a list row needs. Links in another format are
-	 * left alone.
-	 */
+	/** Asks YouTube's image server for row size. Other link formats stay as they are. */
 	@Nullable
 	public static String rowSize(@Nullable String imageUrl) {
 		if (imageUrl == null || imageUrl.isBlank()) return null;
@@ -162,7 +155,7 @@ public final class AvatarCache {
 		return matcher.find() ? matcher.replaceFirst(ROW_SIZE) : url;
 	}
 
-	/** The image of the channel behind a link, or null when it isn't known yet. */
+	/** Avatar for a channel link, or null if not known yet. */
 	@Nullable
 	public String find(@Nullable String channelUrl) {
 		String key = key(channelUrl);
@@ -175,17 +168,14 @@ public final class AvatarCache {
 		rememberKey(key(channelUrl), avatarUrl);
 	}
 
-	/** Keeps the images that came with the rows of a list. */
+	/** Stores the avatars that came with a list. */
 	public void rememberAll(@NonNull List<FeedItem> items) {
 		for (FeedItem item : items) {
 			if (item.authorAvatarUrl() != null) remember(item.authorUrl(), item.authorAvatarUrl());
 		}
 	}
 
-	/**
-	 * Looks up the image of a channel in the background when it is unknown or old. Listeners hear
-	 * about the result.
-	 */
+	/** Looks up unknown or stale avatars in the background and tells the listeners. */
 	public void request(@Nullable String channelUrl) {
 		Loader current = loader;
 		String key = key(channelUrl);
@@ -205,7 +195,7 @@ public final class AvatarCache {
 
 	private void lookup(@NonNull Loader current, @NonNull String key, @NonNull String channelUrl) {
 		try {
-			// Another list may have brought the image while this request waited
+			// another list may have brought it meanwhile
 			Cached cached = cached(key);
 			if (cached != null && cached.url() != null && System.currentTimeMillis() - cached.time() < STALE_MS) return;
 			if (lookups.incrementAndGet() > MAX_LOOKUPS_PER_RUN) return;
@@ -229,7 +219,7 @@ public final class AvatarCache {
 		if (key == null || url == null) return;
 		long now = System.currentTimeMillis();
 		Cached previous = cached(key);
-		// Unchanged and recent: nothing to write
+		// same and recent, nothing to write
 		if (previous != null && url.equals(previous.url()) && now - previous.time() < STALE_MS / 2) return;
 		memory.put(key, new Cached(url, now));
 		MMKV storage = storage();
@@ -280,11 +270,11 @@ public final class AvatarCache {
 		if (store != null || storeFailed) return store;
 		try {
 			MMKV opened = MMKV.mmkvWithID(STORE_ID);
-			// Rarely reached; starting over is cheaper than tracking ages
+			// rare, starting over beats tracking ages
 			if (opened.count() > MAX_STORED) opened.clearAll();
 			store = opened;
 		} catch (RuntimeException | UnsatisfiedLinkError e) {
-			// No storage (MMKV not initialized): keep images in memory only
+			// no MMKV, memory only
 			storeFailed = true;
 		}
 		return store;

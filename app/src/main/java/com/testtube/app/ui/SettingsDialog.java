@@ -32,6 +32,7 @@ import com.testtube.app.AppSettings;
 import com.testtube.app.R;
 import com.testtube.app.filter.AiChannelList;
 import com.testtube.app.filter.ContentFilters;
+import com.testtube.app.links.LinkDefaults;
 import com.testtube.app.player.common.PlayerPreferences;
 import com.testtube.app.player.controller.gesture.GestureAction;
 import com.testtube.app.update.UpdateManager;
@@ -40,8 +41,8 @@ import com.testtube.app.util.ToastUtils;
 import com.testtube.app.util.ViewUtils;
 
 /**
- * The welcome dialog on the first start and the settings behind the TestTube logo. Both show the
- * same choices, grouped by topic; they are saved when the dialog closes.
+ * Welcome dialog on first start and the settings behind the logo. Same choices grouped by topic,
+ * saved on close.
  */
 final class SettingsDialog {
 	private static final float DISABLED_ALPHA = 0.38f;
@@ -50,8 +51,8 @@ final class SettingsDialog {
 	}
 
 	/**
-	 * @param onShortsChanged runs when Shorts were switched on or off, so the lists can reload
-	 * @param onSaved         runs after the choices are saved
+	 * @param onShortsChanged Shorts toggled, lists should reload
+	 * @param onSaved         after saving
 	 */
 	static void showWelcome(@NonNull Activity activity,
 	                        @NonNull UpdateManager updates,
@@ -71,6 +72,15 @@ final class SettingsDialog {
 	                         @NonNull Runnable onShortsChanged,
 	                         @NonNull Runnable onSaved) {
 		show(activity, updates, aiChannels, prefs, filters, false, onShortsChanged, onSaved);
+	}
+
+	/** "All", or how many links open here ("2 of 4"). */
+	@NonNull
+	private static String openLinksValue(@NonNull Activity activity) {
+		LinkDefaults.Status status = LinkDefaults.status(activity);
+		if (status == null) return "";
+		return status.allApproved() ? activity.getString(R.string.setting_open_links_all)
+						: activity.getString(R.string.setting_open_links_count, status.approved(), status.total());
 	}
 
 	private static void show(@NonNull Activity activity,
@@ -104,6 +114,18 @@ final class SettingsDialog {
 		MaterialSwitch aiFilter = form.toggle(feeds, R.string.setting_ai_filter, R.string.setting_ai_filter_summary,
 						aiChannels.isEnabled());
 
+		// 12+: whether other apps' links open here (system setting)
+		if (!welcome && LinkDefaults.supported()) {
+			View openLinks = form.value(feeds, R.string.setting_open_links, R.string.setting_open_links_summary,
+							openLinksValue(activity));
+			TextView openLinksValue = openLinks.findViewById(R.id.setting_value);
+			openLinks.setOnClickListener(v -> LinkDefaults.openSettings(activity));
+			// back from Android's screen, show what was picked
+			openLinks.getViewTreeObserver().addOnWindowFocusChangeListener(hasFocus -> {
+				if (hasFocus) openLinksValue.setText(openLinksValue(activity));
+			});
+		}
+
 		ViewGroup watched = form.section(R.string.settings_section_watched);
 		MaterialSwitch greyWatched = form.toggle(watched, R.string.setting_grey_watched,
 						R.string.setting_grey_watched_summary, AppSettings.greyOutWatched());
@@ -112,7 +134,7 @@ final class SettingsDialog {
 		Slider threshold = form.percentSlider(watched, R.string.setting_watched_threshold_title,
 						R.string.setting_watched_threshold_summary, R.string.setting_watched_threshold_description,
 						50, 100, filters.watchedThreshold());
-		// The darkness only matters while watched videos are greyed out
+		// darkness only matters while greying is on
 		View dimRow = (View) dim.getParent();
 		enable(dimRow, dim, greyWatched.isChecked());
 		greyWatched.setOnCheckedChangeListener((button, checked) -> enable(dimRow, dim, checked));
@@ -168,7 +190,7 @@ final class SettingsDialog {
 		ChoiceRow<GestureAction.DoubleTap> doubleTap = new ChoiceRow<>(form, gestures,
 						R.string.setting_gesture_double_tap, 0, doubleTapValues, labels(doubleTapValues),
 						AppSettings.savedGestureDoubleTap());
-		// The choices only apply with custom gestures on
+		// only apply with custom gestures on
 		ChoiceRow<?>[] gestureRows = {left, right, horizontal, doubleTap};
 		for (ChoiceRow<?> row : gestureRows) row.setEnabled(customGestures.isChecked());
 		customGestures.setOnCheckedChangeListener((button, checked) -> {
@@ -184,7 +206,7 @@ final class SettingsDialog {
 						updates.autoCheckEnabled());
 		MaterialSwitch prereleases = form.toggle(app, R.string.setting_prereleases,
 						R.string.setting_prereleases_summary, updates.prereleasesEnabled());
-		// Saved right away, so "Check for updates" below already uses it
+		// saved now so "Check for updates" below already uses it
 		prereleases.setOnCheckedChangeListener((button, checked) -> updates.setPrereleases(checked));
 		if (!welcome) {
 			form.value(app, R.string.update_check_now, 0, "").setOnClickListener(v -> updates.check(activity, true));
@@ -206,7 +228,7 @@ final class SettingsDialog {
 							AppSettings.setShowShorts(shorts.isChecked());
 							AppSettings.setShowSubscriptions(subscriptions.isChecked());
 							AppSettings.setSearchOnlyHome(searchOnlyHome.isChecked());
-							// Downloads the list when switched on; the lists refresh once it is loaded
+							// downloads the list when turned on; lists refresh once it's in
 							aiChannels.setEnabled(aiFilter.isChecked());
 							AppSettings.setFullChannelPages(channelPages.isChecked());
 							AppSettings.setGreyOutWatched(greyWatched.isChecked());
@@ -220,7 +242,7 @@ final class SettingsDialog {
 								AppGraph.of(activity).applyVideoCacheSize();
 							}
 							AppSettings.setClearCacheOnExit(clearOnExit.isChecked());
-							// Next video on (the one playing keeps its streams)
+							// applies from the next video (the current one keeps its streams)
 							AppSettings.setAllowHdr(allowHdr.isChecked());
 							AppSettings.setPreferAvc(preferAvc.isChecked());
 							AppSettings.setGesturesEnabled(customGestures.isChecked());
@@ -238,19 +260,16 @@ final class SettingsDialog {
 		showMoreArrow(settingsDialog, view.findViewById(R.id.settings_scroll));
 	}
 
-	/**
-	 * Switches the colours right away. The screen is built again when they change, and an open
-	 * video reopens where it was.
-	 */
+	/** Switches colours now. The screen rebuilds and an open video reopens where it was. */
 	private static void applyTheme(@NonNull Activity activity, @NonNull AppSettings.Theme previous,
 	                               @NonNull AppSettings.Theme theme) {
 		boolean wasNight = isNight(activity.getResources().getConfiguration());
 		AppCompatDelegate.setDefaultNightMode(theme.nightMode);
 		boolean night = theme.nightMode == AppCompatDelegate.MODE_NIGHT_YES
 						|| theme == AppSettings.Theme.SYSTEM && isNight(Resources.getSystem().getConfiguration());
-		// Dark and NiiX are both night mode, but different themes: that needs a rebuild too
+		// Dark and NiiX are both night mode but different themes, needs a rebuild too
 		if (night == wasNight && theme.style == previous.style) return;
-		// Once the dialog is fully gone, not from inside its dismiss
+		// once the dialog is fully gone, not inside its dismiss
 		activity.getWindow().getDecorView().post(() -> {
 			if (activity.isFinishing() || activity.isDestroyed()) return;
 			if (activity instanceof MainActivity main) {
@@ -262,10 +281,9 @@ final class SettingsDialog {
 	}
 
 	/**
-	 * A down arrow on the button row, centred, level with Close: there while more settings are
-	 * further down, gone at the end. Tapping it scrolls most of a screen down. It sits on the
-	 * button row so it never covers a setting; people kept missing everything below the fold,
-	 * damn it.
+	 * Down arrow on the button row, level with Close, while there are more settings below. Tapping
+	 * scrolls most of a screen. On the button row so it never covers a setting; people kept missing
+	 * everything below the fold, damn it.
 	 */
 	private static void showMoreArrow(@NonNull AlertDialog dialog, @NonNull NestedScrollView scroll) {
 		FrameLayout content = dialog.findViewById(android.R.id.content);
@@ -287,7 +305,7 @@ final class SettingsDialog {
 		arrow.setVisibility(View.GONE);
 		content.addView(arrow, new FrameLayout.LayoutParams(size, size, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
 
-		// Level with Close: the two centres on one line, wherever the dialog ends up on screen
+		// level with Close: centres on one line wherever the dialog sits
 		int[] closeAt = new int[2];
 		int[] contentAt = new int[2];
 		Runnable place = () -> {
@@ -300,7 +318,7 @@ final class SettingsDialog {
 		content.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or, ob) -> place.run());
 		scroll.setOnScrollChangeListener((NestedScrollView.OnScrollChangeListener)
 						(v, x, y, oldX, oldY) -> update.run());
-		// Rows that appear or grow (a switch showing more options) change what's left below
+		// rows that show or grow change what's left below
 		View.OnLayoutChangeListener relayout = (v, l, t, r, b, ol, ot, or, ob) -> update.run();
 		scroll.addOnLayoutChangeListener(relayout);
 		if (scroll.getChildCount() > 0) scroll.getChildAt(0).addOnLayoutChangeListener(relayout);
@@ -319,13 +337,13 @@ final class SettingsDialog {
 		AppGraph app = AppGraph.of(activity);
 		app.executor().execute(() -> {
 			long bytes = app.cacheSize();
-			activity.runOnUiThread(() -> view.setText(Formatter.formatShortFileSize(activity, bytes)));
+			activity.runOnUiThread(() -> view.setText(Formatter.formatFileSize(activity, bytes)));
 		});
 	}
 
 	/**
-	 * Empties the WebViews' cache (which has to happen on the main thread) and then the app's own
-	 * caches in the background; downloads, history, the queue, sign-in and settings stay.
+	 * Clears the WebView cache (main thread) then our caches in the background. Downloads, history,
+	 * queue, sign-in and settings stay.
 	 */
 	private static void clearCache(@NonNull Activity activity, @NonNull TextView sizeView) {
 		AppGraph app = AppGraph.of(activity);
@@ -335,7 +353,7 @@ final class SettingsDialog {
 			app.clearCaches();
 			long bytes = app.cacheSize();
 			activity.runOnUiThread(() -> {
-				sizeView.setText(Formatter.formatShortFileSize(activity, bytes));
+				sizeView.setText(Formatter.formatFileSize(activity, bytes));
 				ToastUtils.show(activity, R.string.cache_cleared);
 			});
 		});
@@ -357,7 +375,7 @@ final class SettingsDialog {
 	}
 
 	private record Form(@NonNull Activity activity, @NonNull LayoutInflater inflater, @NonNull ViewGroup content) {
-		/** Adds a titled group and returns the container for its rows. */
+		/** Adds a titled group, returns the container for its rows. */
 		@NonNull
 		ViewGroup section(@StringRes int title) {
 			View section = inflater.inflate(R.layout.item_settings_section, content, false);
@@ -375,7 +393,7 @@ final class SettingsDialog {
 			return toggle;
 		}
 
-		/** A 0–100 % slider whose value shows next to the title. */
+		/** 0–100% slider with the value next to the title. */
 		@NonNull
 		Slider percentSlider(@NonNull ViewGroup group, @StringRes int title, @StringRes int summary,
 		                     @StringRes int description, int from, int to, int value) {
@@ -385,7 +403,7 @@ final class SettingsDialog {
 			slider.setValueFrom(from);
 			slider.setValueTo(to);
 			slider.setStepSize(5);
-			// The slider only accepts whole steps inside its range
+			// slider only takes whole steps in range
 			int clamped = Math.max(from, Math.min(to, value));
 			slider.setValue(from + Math.round((clamped - from) / 5f) * 5);
 			slider.setContentDescription(activity.getString(description));
@@ -395,7 +413,7 @@ final class SettingsDialog {
 			return slider;
 		}
 
-		/** A row showing a value; returns the row so the caller can make it open a choice. */
+		/** Row showing a value; returned so the caller can make it open a picker. */
 		@NonNull
 		View value(@NonNull ViewGroup group, @StringRes int title, @StringRes int summary, @NonNull String value) {
 			View row = row(group, R.layout.item_settings_value, title, summary);
@@ -456,8 +474,8 @@ final class SettingsDialog {
 		}
 
 		/**
-		 * @param labels      the choices as listed when picking one
-		 * @param shortLabels the same, short enough to show next to the title
+		 * @param labels      choices as listed in the picker
+		 * @param shortLabels same, short enough for next to the title
 		 */
 		ChoiceRow(@NonNull Form form, @NonNull ViewGroup group, @StringRes int title, @StringRes int summary,
 		          @NonNull T[] values, @NonNull int[] labels, @NonNull int[] shortLabels, @NonNull T current) {
@@ -518,7 +536,7 @@ final class SettingsDialog {
 			});
 		}
 
-		/** The offered quality nearest to the saved one, which may be a player pick like "720p60". */
+		/** Offered quality closest to the saved one (could be a player pick like "720p60"). */
 		private static int closest(@NonNull String[] options, @NonNull String quality) {
 			int height = StringUtils.parseHeight(quality);
 			int best = -1;

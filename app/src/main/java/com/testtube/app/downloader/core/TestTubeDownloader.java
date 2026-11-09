@@ -13,4 +13,7 @@ public interface TestTubeDownloader {
 	boolean resume(@NonNull String videoId);
 
 	void cancel(@NonNull String videoId);
+
+	/** A download is running or paused, its part files are in use. */
+	boolean hasTasks();
 }

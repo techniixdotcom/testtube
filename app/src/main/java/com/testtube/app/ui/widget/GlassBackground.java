@@ -23,13 +23,13 @@ import androidx.annotation.RequiresApi;
 import java.util.Arrays;
 
 /**
- * Frosted glass background for a bar that floats over the screens: what is behind it, blurred,
- * under a translucent tint, with a hairline along the top edge.
+ * Frosted glass for bars floating over the screens: what's behind, blurred, under a translucent
+ * tint, with a hairline on top.
  * <p>
- * On Android 12+ the blur is a RenderEffect over the BlurTargets' own RenderNodes, done on the
- * render thread. The bar is only drawn again when it or a target moves, shows or hides, never just
- * because a list scrolls behind it. Below Android 12 there's no cheap way to blur, so screw it: the
- * bar is a plain solid colour then, and also with nothing to blur or no hardware acceleration.
+ * On 12+ it's a RenderEffect over the BlurTargets' RenderNodes, on the render thread. The bar only
+ * redraws when it or a target moves, shows or hides, never just because a list scrolls behind it.
+ * Below 12 there's no cheap blur, so screw it: solid colour. Same with nothing to blur or no
+ * hardware acceleration.
  */
 public final class GlassBackground extends Drawable {
 	private static final int STATE_SLOTS_PER_TARGET = 5;
@@ -58,7 +58,7 @@ public final class GlassBackground extends Drawable {
 	private final int[] hostLocation = new int[2];
 	@NonNull
 	private final int[] targetLocation = new int[2];
-	/** Where the host and each target were when the glass was last drawn. */
+	/** Where host and targets were at the last draw. */
 	@NonNull
 	private int[] drawnState = new int[0];
 	@NonNull
@@ -71,13 +71,13 @@ public final class GlassBackground extends Drawable {
 	private final ViewTreeObserver.OnPreDrawListener preDrawListener;
 
 	/**
-	 * @param host         the view this drawable is the background of
-	 * @param glassColor   the translucent tint over the blur
-	 * @param solidColor   the colour when there is nothing to blur
-	 * @param baseColor    the page colour under the screens, behind anything transparent in them
-	 * @param hairline     the line along the top edge, or 0 for none
-	 * @param blurRadiusPx the blur radius in pixels
-	 * @param targets      the screens that can be behind the bar
+	 * @param host         view this is the background of
+	 * @param glassColor   translucent tint over the blur
+	 * @param solidColor   colour when there's nothing to blur
+	 * @param baseColor    page colour under the screens, behind anything transparent in them
+	 * @param hairline     top edge line, 0 for none
+	 * @param blurRadiusPx blur radius in px
+	 * @param targets      screens that can be behind the bar
 	 */
 	public GlassBackground(@NonNull View host,
 	                       @ColorInt int glassColor,
@@ -110,9 +110,7 @@ public final class GlassBackground extends Drawable {
 		if (host.isAttachedToWindow()) host.getViewTreeObserver().addOnPreDrawListener(preDrawListener);
 	}
 
-	/**
-	 * Sets the glass as the host's background, so it is redrawn with it.
-	 */
+	/** Sets the glass as the host's background so they redraw together. */
 	public static void install(@NonNull View host,
 	                                      @ColorInt int glassColor,
 	                                      @ColorInt int solidColor,
@@ -125,8 +123,8 @@ public final class GlassBackground extends Drawable {
 	}
 
 	/**
-	 * Draws the bar again when it or a target moved, showed or hid since it was last drawn. What
-	 * the targets show needs no redraw here: the blur reads their RenderNodes as they change.
+	 * Redraws the bar when it or a target moved, showed or hid since the last draw. Target content
+	 * needs no redraw here, the blur reads their RenderNodes live.
 	 */
 	private boolean onPreDraw() {
 		if (host.isShown() && !Arrays.equals(captureState(), drawnState)) invalidateSelf();
@@ -139,7 +137,7 @@ public final class GlassBackground extends Drawable {
 		if (bounds.isEmpty()) return;
 		drawnState = captureState().clone();
 		boolean blurred = false;
-		// A solid glass colour (Dark and Light) hides the blur anyway, so don't bother making one
+		// a solid glass colour (Dark, Light) hides the blur anyway, skip it
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && canvas.isHardwareAccelerated()
 						&& blurRadiusPx > 0f && Color.alpha(glassColor) < 255) {
 			if (blur == null) blur = new Blur(blurRadiusPx);
@@ -151,10 +149,7 @@ public final class GlassBackground extends Drawable {
 		}
 	}
 
-	/**
-	 * The host's place in the window, then for each target whether it is on screen (and recorded),
-	 * its place and size.
-	 */
+	/** Host position, then per target: on screen (and recorded), position, size. */
 	@NonNull
 	private int[] captureState() {
 		int size = 2 + targets.length * STATE_SLOTS_PER_TARGET;
@@ -167,7 +162,7 @@ public final class GlassBackground extends Drawable {
 			BlurTarget target = targets[i];
 			int at = 2 + i * STATE_SLOTS_PER_TARGET;
 			boolean shown = target.isShown();
-			// 2 once the target has been recorded, so the first frame with its content draws the blur
+			// 2 once recorded, so the first frame with content draws the blur
 			state[at] = shown ? (target.hasContent() ? 2 : 1) : 0;
 			if (shown) {
 				target.getLocationInWindow(targetLocation);
@@ -233,9 +228,7 @@ public final class GlassBackground extends Drawable {
 			node.setRenderEffect(RenderEffect.createBlurEffect(radiusPx, radiusPx, Shader.TileMode.CLAMP));
 		}
 
-		/**
-		 * @return false when no target is on screen, so there is nothing to blur
-		 */
+		/** @return false if no target is on screen */
 		boolean draw(@NonNull GlassBackground glass, @NonNull Canvas canvas, @NonNull Rect bounds) {
 			int[] state = glass.drawnState;
 			int hostX = state[0];

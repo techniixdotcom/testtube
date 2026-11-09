@@ -26,7 +26,7 @@ dependencyResolutionManagement {
     }
 }
 
-// NewPipe Extractor is built from the vendored sources in ./newpipe-extractor.
+// NewPipe Extractor builds from the vendored copy in ./newpipe-extractor
 includeBuild("newpipe-extractor") {
     dependencySubstitution {
         substitute(module("net.newpipe:extractor")).using(project(":extractor"))

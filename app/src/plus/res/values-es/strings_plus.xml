@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TestTube+ only: name and texts for Spotify, Facebook and SoundCloud links. -->
+<resources>
+    <string name="app_name">TestTube+</string>
+    <string name="link_spotify_reading">Abriendo el enlace de Spotify…</string>
+    <plurals name="link_spotify_finding">
+        <item quantity="one">Buscando %d canción en YouTube…</item>
+        <item quantity="other">Buscando %d canciones en YouTube…</item>
+    </plurals>
+    <string name="link_spotify_done">Se encontraron %1$d de %2$d canciones en YouTube: suena la primera y el resto está en la cola</string>
+    <string name="link_spotify_not_found">No se encontró en YouTube; estos son los resultados de búsqueda</string>
+    <string name="link_spotify_failed">No se pudo leer este enlace de Spotify</string>
+    <string name="link_facebook_video">Vídeo de Facebook</string>
+    <string name="link_facebook_login">Este vídeo de Facebook no es público. TestTube+ solo reproduce vídeos públicos, sin cuenta de Facebook.</string>
+    <string name="link_facebook_no_video">No hay ningún vídeo en este enlace de Facebook, o se ha eliminado.</string>
+    <string name="link_facebook_failed">No se pudo cargar este vídeo de Facebook. Puede que Facebook haya cambiado su página; una actualización lo solucionará.</string>
+    <string name="link_external_network">No se pudo conectar con el sitio. Comprueba la conexión y vuelve a intentarlo.</string>
+    <string name="link_soundcloud_reading">Abriendo el enlace de SoundCloud…</string>
+    <plurals name="link_soundcloud_queued">
+        <item quantity="one">%d canción más de SoundCloud está en la cola</item>
+        <item quantity="other">%d canciones más de SoundCloud están en la cola</item>
+    </plurals>
+    <string name="link_soundcloud_empty">Esta lista de SoundCloud no tiene canciones que se puedan reproducir.</string>
+    <string name="link_soundcloud_not_found">No se encontró esta pista de SoundCloud. Puede que sea privada o se haya eliminado.</string>
+    <string name="link_soundcloud_blocked">Esta pista de SoundCloud no está disponible en tu país.</string>
+    <string name="link_soundcloud_unplayable">SoundCloud solo ofrece esta pista en un formato protegido que no se puede reproducir aquí.</string>
+    <string name="link_soundcloud_preview_youtube">SoundCloud solo tiene un avance de 30 segundos de esta canción: se reproduce desde YouTube.</string>
+    <string name="link_soundcloud_preview_only">SoundCloud solo tiene un avance de 30 segundos de esta canción y no está en YouTube.</string>
+    <string name="link_soundcloud_failed">No se pudo cargar este enlace de SoundCloud. Puede que SoundCloud haya cambiado algo; una actualización lo solucionará.</string>
+</resources>

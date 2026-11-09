@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    JetBrains Mono 2.304, the typeface of niixa.org, for all text in the app.
-    SIL Open Font License 1.1, see assets/licenses/JetBrainsMono-OFL.txt.
+    JetBrains Mono 2.304, niixa.org's typeface, for all text in NiiX.
+    SIL OFL 1.1, see assets/licenses/JetBrainsMono-OFL.txt.
 
-    Trimmed to what text needs: Latin (with Turkish and Vietnamese), Greek, Cyrillic,
-    punctuation, currency, arrows, maths and common symbols, ligatures included. Box drawing,
-    block elements, Braille and the like were dropped; the odd title using them falls back to
-    the phone's font for just those characters. Nothing asks for ExtraBold, so it's gone too.
+    Subset to Latin (Turkish, Vietnamese), Greek, Cyrillic, punctuation, currency, arrows, maths and
+    common symbols, ligatures kept, hinting stripped (Android doesn't use it). Box drawing, blocks,
+    Braille etc. fall back to the system font. No ExtraBold, nothing used it.
 -->
 <font-family xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">

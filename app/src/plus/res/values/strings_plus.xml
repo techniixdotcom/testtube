@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TestTube+ only: name and texts for Spotify, Facebook and SoundCloud links. -->
+<resources>
+    <string name="app_name">TestTube+</string>
+    <string name="link_spotify_reading">Opening the Spotify link…</string>
+    <plurals name="link_spotify_finding">
+        <item quantity="one">Finding %d song on YouTube…</item>
+        <item quantity="other">Finding %d songs on YouTube…</item>
+    </plurals>
+    <string name="link_spotify_done">Found %1$d of %2$d songs on YouTube: the first one plays, the rest are in the queue</string>
+    <string name="link_spotify_not_found">Couldn\'t find it on YouTube, here are the search results</string>
+    <string name="link_spotify_failed">Couldn\'t read this Spotify link</string>
+    <string name="link_facebook_video">Facebook video</string>
+    <string name="link_facebook_login">This Facebook video isn\'t public. TestTube+ only plays public videos, without a Facebook account.</string>
+    <string name="link_facebook_no_video">There\'s no video at this Facebook link, or it was removed.</string>
+    <string name="link_facebook_failed">Couldn\'t load this Facebook video. Facebook may have changed its page; an update will fix it.</string>
+    <string name="link_external_network">Couldn\'t reach the site. Check your connection and try again.</string>
+    <string name="link_soundcloud_reading">Opening the SoundCloud link…</string>
+    <plurals name="link_soundcloud_queued">
+        <item quantity="one">%d more song from SoundCloud is in the queue</item>
+        <item quantity="other">%d more songs from SoundCloud are in the queue</item>
+    </plurals>
+    <string name="link_soundcloud_empty">This SoundCloud set has no songs that can be played.</string>
+    <string name="link_soundcloud_not_found">This SoundCloud track wasn\'t found. It may be private or removed.</string>
+    <string name="link_soundcloud_blocked">This SoundCloud track isn\'t available in your country.</string>
+    <string name="link_soundcloud_unplayable">SoundCloud only offers this track in a protected format that can\'t be played here.</string>
+    <string name="link_soundcloud_preview_youtube">SoundCloud only has a 30-second preview of this song: playing it from YouTube.</string>
+    <string name="link_soundcloud_preview_only">SoundCloud only has a 30-second preview of this song, and it isn\'t on YouTube.</string>
+    <string name="link_soundcloud_failed">Couldn\'t load this SoundCloud link. SoundCloud may have changed something; an update will fix it.</string>
+</resources>

@@ -13,6 +13,7 @@ import org.schabi.newpipe.extractor.stream.VideoStream;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -66,7 +67,7 @@ public final class PlayerUtils {
 		return sorted;
 	}
 
-	/** Height in pixels, read from the label ("1080p60") when the stream doesn't say. */
+	/** Height in px, from the label ("1080p60") when the stream doesn't say. */
 	public static int streamHeight(@NonNull VideoStream stream) {
 		int height = stream.getHeight();
 		return height > 0 ? height : StringUtils.parseHeight(stream.getResolution());
@@ -88,20 +89,74 @@ public final class PlayerUtils {
 		return s1.getBitrate() > s2.getBitrate();
 	}
 
+	/**
+	 * Playback preference at the same size: hardware AV1, hardware VP9 (both much smaller than
+	 * H.264), H.264, then software VP9 and AV1, which drain the battery.
+	 */
 	public static int getCodecPriority(@Nullable String codec) {
 		if (codec == null) return 0;
-		// With HDR off, an HDR stream loses to any SDR one of the same size
+		// with HDR off, HDR loses to any SDR of the same size
 		if (isLikelyHdr(codec) && !AppSettings.allowHdr()) return -1;
-		String lower = codec.toLowerCase(Locale.ROOT);
-		if (isAvc(codec)) return 4;
-		if (lower.contains("vp9") || lower.contains("vp8")) return 3;
-		if (lower.contains("h265")) return 2;
-		if (lower.contains("av01")) return 1;
-
-		return 0;
+		return switch (codecFamily(codec)) {
+			case "av1" -> DecoderSupport.hardwareAv1() ? 6 : 1;
+			case "vp9" -> DecoderSupport.hardwareVp9() ? 5 : 3;
+			case "avc" -> 4;
+			case "hevc" -> 2;
+			default -> 0;
+		};
 	}
 
-	/** H.264. YouTube never sends it as HDR. */
+	/** "avc", "vp9" (VP8 too), "hevc", "av1" or "other". */
+	@NonNull
+	public static String codecFamily(@Nullable String codec) {
+		if (codec == null) return "other";
+		String lower = codec.toLowerCase(Locale.ROOT);
+		if (isAvc(codec)) return "avc";
+		if (lower.contains("vp9") || lower.contains("vp09") || lower.contains("vp8")) return "vp9";
+		if (lower.contains("h265") || lower.contains("hev") || lower.contains("hvc")) return "hevc";
+		if (lower.contains("av01")) return "av1";
+		return "other";
+	}
+
+	/** AV1 this phone would decode in software. */
+	public static boolean isSoftwareAv1(@Nullable String codec) {
+		return "av1".equals(codecFamily(codec)) && !DecoderSupport.hardwareAv1();
+	}
+
+	/**
+	 * One stream per quality the way downloads always picked them: H.264 first (it merges into
+	 * MP4 reliably), then VP9, H.265, AV1; then frame rate and bitrate.
+	 */
+	@NonNull
+	public static List<VideoStream> downloadStreams(@NonNull List<VideoStream> streams) {
+		Map<String, VideoStream> best = new LinkedHashMap<>();
+		for (VideoStream stream : streams) {
+			String key = stream.getResolution() + "#" + stream.getFps();
+			VideoStream prev = best.get(key);
+			if (prev == null || downloadRank(stream, prev) > 0) best.put(key, stream);
+		}
+		return new ArrayList<>(best.values());
+	}
+
+	private static int downloadRank(@NonNull VideoStream first, @NonNull VideoStream second) {
+		int codec = Integer.compare(downloadCodecRank(first.getCodec()), downloadCodecRank(second.getCodec()));
+		if (codec != 0) return codec;
+		int fps = Integer.compare(first.getFps(), second.getFps());
+		if (fps != 0) return fps;
+		return Integer.compare(first.getBitrate(), second.getBitrate());
+	}
+
+	private static int downloadCodecRank(@Nullable String codec) {
+		return switch (codecFamily(codec)) {
+			case "avc" -> 4;
+			case "vp9" -> 3;
+			case "hevc" -> 2;
+			case "av1" -> 1;
+			default -> 0;
+		};
+	}
+
+	/** H.264. Never HDR on YouTube. */
 	public static boolean isAvc(@Nullable String codec) {
 		if (codec == null) return false;
 		String lower = codec.toLowerCase(Locale.ROOT);
@@ -109,10 +164,9 @@ public final class PlayerUtils {
 	}
 
 	/**
-	 * HDR (10 bits or more) going by the codec string: VP9 profile 2 or 3 ("vp09.02.…") or an AV1
-	 * bit depth of 10 or 12 ("av01.0.12M.10"). Read field by field, not by searching for ".10", which
-	 * an AV1 level like "10M" would match too. Anything unclear counts as SDR, so nothing playable
-	 * gets thrown out by mistake.
+	 * HDR (10+ bit) by codec string: VP9 profile 2/3 ("vp09.02.…") or AV1 depth 10/12
+	 * ("av01.0.12M.10"). Parsed by field, not by searching ".10", which an AV1 level like "10M" would
+	 * match. Unclear means SDR so nothing playable gets dropped.
 	 */
 	public static boolean isLikelyHdr(@Nullable String codec) {
 		if (codec == null) return false;
@@ -142,7 +196,7 @@ public final class PlayerUtils {
 		return streams.get(0);
 	}
 
-	/** The first audio track, which is the one YouTube plays by default. */
+	/** First audio track, YouTube's default. */
 	@Nullable
 	public static AudioStream defaultAudioStream(@Nullable List<AudioStream> streams) {
 		return streams == null || streams.isEmpty() ? null : streams.get(0);

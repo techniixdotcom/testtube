@@ -23,8 +23,8 @@ public final class InfoCache {
 	private static final int PRUNE_EVERY_WRITES = 50;
 
 	/**
-	 * Separate store, so pruning never touches the settings. Expiry times have their own keys, so
-	 * pruning doesn't need to parse the values.
+	 * Own store so pruning never touches settings. Expiry has its own keys so pruning doesn't parse
+	 * values.
 	 */
 	@NonNull
 	private final MMKV store;
@@ -51,7 +51,7 @@ public final class InfoCache {
 
 	public void putPlaybackDetails(@NonNull String videoId,
 	                               @NonNull PlaybackDetails details) {
-		// Stream URLs last for hours; an expired one just triggers a new extraction.
+		// stream URLs last hours; an expired one just means a new extraction
 		write(STREAM_KEY + language() + videoId, details, TimeUnit.MINUTES.toMillis(30));
 	}
 
@@ -70,7 +70,7 @@ public final class InfoCache {
 		write(RELATED_KEY + language() + videoId, items.toArray(new RelatedVideo[0]), TimeUnit.HOURS.toMillis(6));
 	}
 
-	/** Titles are localized, so keys include the content language. */
+	/** Titles are localized, so the content language is part of the key. */
 	@NonNull
 	private static String language() {
 		return NewPipe.getPreferredLocalization().getLocalizationCode() + ":";
@@ -97,7 +97,7 @@ public final class InfoCache {
 	private void write(@NonNull String key,
 	                   @NonNull Object value,
 	                   final long ttlMs) {
-		// Expiry first, so a concurrent prune never sees a value without one.
+		// expiry first so a concurrent prune never sees a value without one
 		store.encode(UNTIL_PREFIX + key, System.currentTimeMillis() + ttlMs);
 		store.encode(key, gson.toJson(value));
 		if (writes.incrementAndGet() % PRUNE_EVERY_WRITES == 0) {

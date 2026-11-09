@@ -22,20 +22,17 @@ import com.testtube.app.player.TestTubePlayerView;
 import com.testtube.app.player.controller.Controller;
 import com.testtube.app.player.engine.Engine;
 
-
 /**
- * Tap toggles the controls. The rest follows the gesture settings ({@link AppSettings}): by default
- * double tap skips ten seconds (or plays and pauses in the middle), horizontal swipes seek, and
- * vertical swipes drag the video down to minimize it (to the bottom bar or the floating window) or
- * up to fullscreen. With custom gestures each half of the video can instead change the brightness
- * or the volume, or do nothing. In fullscreen, vertical swipes always change the brightness (left)
- * and the volume (right).
+ * Tap toggles the controls. Everything else follows the gesture settings ({@link AppSettings}).
+ * Default: double tap skips 10 s (middle plays/pauses), sideways seeks, down drags the video to
+ * minimize, up goes fullscreen. Custom gestures can make each half do brightness, volume or
+ * nothing. Fullscreen always does brightness (left) and volume (right).
  */
 @UnstableApi
 public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListener {
 	private static final int AUTO_HIDE_DELAY_MS = 200;
 	private static final int SEEK_WINDOW_MS = 600;
-	/** Fully dark would leave nothing to see the next swipe on. */
+	/** Fully dark leaves nothing to see the next swipe on. */
 	private static final float MIN_BRIGHTNESS = 0.01f;
 
 	private final Activity activity;
@@ -57,7 +54,7 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 	private Runnable longPressAction;
 	@Nullable
 	private WatchDrag watchDrag;
-	/** The finger is dragging the video; its moves go to {@link #onDragTouch} instead of the detector. */
+	/** Finger is dragging the video; moves go to {@link #onDragTouch} instead of the detector. */
 	private boolean dragging;
 	private float dragStartY;
 	@Nullable
@@ -103,8 +100,8 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 	}
 
 	/**
-	 * Follows the finger once a drag started. Screen coordinates are used because the video itself
-	 * moves and shrinks under the finger.
+	 * Follows the finger once a drag started. Screen coordinates because the video moves and shrinks
+	 * under the finger.
 	 */
 	public void onDragTouch(@NonNull MotionEvent ev) {
 		WatchDrag drag = watchDrag;
@@ -150,7 +147,7 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 		}
 	}
 
-	/** Long press on the video; opens the same menu as in the lists. */
+	/** Long press opens the same menu as the lists. */
 	public void setLongPressAction(@Nullable Runnable action) {
 		this.longPressAction = action;
 	}
@@ -308,9 +305,8 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 	}
 
 	/**
-	 * What a vertical swipe does on the half of the video where it started. In fullscreen it is
-	 * always brightness (left) and volume (right), whatever the settings say; Back or the button
-	 * in the corner leave fullscreen.
+	 * What a vertical swipe does on the half it started on. Fullscreen is always brightness (left)
+	 * and volume (right); Back or the corner button leave fullscreen.
 	 */
 	@NonNull
 	private GestureMode verticalMode(@NonNull MotionEvent start) {
@@ -338,7 +334,7 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 		}
 	}
 
-	/** Fraction of the player height swiped upwards since the gesture started (negative when down). */
+	/** Fraction of player height swiped up since the start (negative going down). */
 	private float swipedUp(@NonNull MotionEvent e1, @NonNull MotionEvent e2) {
 		float height = playerView.getHeight();
 		return height <= 0f ? 0f : (e1.getY() - e2.getY()) / height;
@@ -377,7 +373,7 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 		}
 	}
 
-	/** Gives the brightness back to the system, e.g. when the player is minimized or closed. */
+	/** Hands brightness back to the system (minimized or closed). */
 	public void resetBrightness() {
 		Window window = activity.getWindow();
 		WindowManager.LayoutParams params = window.getAttributes();
@@ -393,7 +389,7 @@ public class PlayerGestureListener extends GestureDetector.SimpleOnGestureListen
 
 	private enum GestureMode {
 		NONE,
-		/** A swipe whose gesture is switched off: swallowed until the finger lifts. */
+		/** Swipe with its gesture off: swallowed until the finger lifts. */
 		IGNORED,
 		SEEK,
 		MINIMIZE,

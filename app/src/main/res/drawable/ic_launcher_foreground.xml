@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Launcher icon: white test tube with bubbles from corner to corner, red play in front.
-     Scaled into the adaptive icon's safe zone so round and squircle masks keep the tube's ends. -->
+<!--
+    Launcher icon: white test tube with bubbles corner to corner, red play in front. Scaled into the
+    safe zone so round and squircle masks keep the tube's ends.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -16,7 +18,7 @@
             android:translateX="54"
             android:translateY="54">
             <clip-path android:pathData="M-14,-38 V32 A14,14 0 0,0 14,32 V-38 Z" />
-            <!-- Undo the tilt so the liquid's surface stays level -->
+            <!-- undo the tilt so the liquid stays level -->
             <group android:rotation="-45">
                 <path
                     android:fillColor="#FFFFFF"
@@ -49,7 +51,7 @@
         <path
             android:fillColor="#FFFFFF"
             android:pathData="M43.1,9 a1.9,1.9 0 1,0 3.8,0 a1.9,1.9 0 1,0 -3.8,0 Z" />
-        <!-- A black edge keeps the play apart from the tube's lines -->
+        <!-- black edge keeps the play apart from the tube -->
         <path
             android:fillColor="#000000"
             android:pathData="M42,36 V74 L74,55 Z"

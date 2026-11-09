@@ -20,9 +20,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * YouTube streams over HttpEngine. The request is shaped the same way as in
- * {@link YoutubeHttpDataSource} (see {@link YoutubeRequests}); Media3's HttpEngineDataSource does
- * the actual transfer, with its timeouts, redirects and cancellation.
+ * YouTube streams over HttpEngine. Requests look like {@link YoutubeHttpDataSource}'s (see
+ * {@link YoutubeRequests}); Media3's HttpEngineDataSource does the transfer, timeouts, redirects
+ * and cancelling.
  */
 @UnstableApi
 @RequiresExtension(extension = Build.VERSION_CODES.S, version = 7)
@@ -60,7 +60,7 @@ final class YoutubeHttpEngineDataSource extends BaseDataSource implements HttpDa
 
 		DataSpec.Builder request = dataSpec.buildUpon().setUri(Uri.parse(requestUrl));
 		if (playback && rangeParameterEnabled) {
-			// The range is in the URL now; a Range header on top of it would confuse googlevideo
+			// range is in the URL now, a Range header on top confuses googlevideo
 			request.setPosition(0).setLength(C.LENGTH_UNSET);
 		}
 		if (playback) {
@@ -72,7 +72,7 @@ final class YoutubeHttpEngineDataSource extends BaseDataSource implements HttpDa
 		request.setHttpRequestHeaders(headers);
 
 		long length = upstream.open(request.build());
-		// Never hand over more than was asked for, even if the server ignores the range
+		// never return more than asked, even if the server ignores the range
 		bytesRemaining = dataSpec.length != C.LENGTH_UNSET ? dataSpec.length : length;
 		opened = true;
 		transferStarted(dataSpec);

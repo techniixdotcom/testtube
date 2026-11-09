@@ -41,7 +41,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DownloadService extends Service {
 	private static final String TAG = "DownloadService";
 	public static final String ACTION_DOWNLOAD_RECORD_UPDATED = "com.testtube.app.action.DOWNLOAD_RECORD_UPDATED";
-	/** Opens the app on the Library's Downloads tab (the notification's tap action). */
+	/** Opens Library > Downloads (notification tap). */
 	public static final String ACTION_OPEN_DOWNLOADS = "OPEN_DOWNLOADS";
 	public static final String EXTRA_TASK_ID = "extra_task_id";
 	private static final String CHANNEL_ID = "download_channel";
@@ -124,7 +124,7 @@ public class DownloadService extends Service {
 		File expectedOut = expectedOutputFile(task, type);
 		long now = System.currentTimeMillis();
 
-		// Keep the record in sync before the download callbacks start.
+		// record first, before callbacks start
 		DownloadRecord prev = historyRepository.findByTaskId(taskId);
 		long createdAt = prev != null ? prev.getCreatedAt() : now;
 		DownloadRecord record = new DownloadRecord();
@@ -333,17 +333,16 @@ public class DownloadService extends Service {
 				startForeground(NOTIFICATION_ID, notificationBuilder.build());
 			}
 		} catch (IllegalStateException e) {
-			// Android 12+ refuses this while the app is in the background (the next part of a
-			// playlist download, say). The open app keeps the service bound, so the download goes
-			// on; only the notification isn't a foreground one.
+			// 12+ refuses this in the background (next part of a playlist download). The open app keeps the
+			// service bound so it carries on, the notification just isn't a foreground one.
 			Log.w(TAG, "download notification not in the foreground: " + e.getMessage());
 			notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build());
 		}
 	}
 
 	/**
-	 * Android 15+ gives data downloads 6 hours a day in the foreground. When that's used up the
-	 * service has to step back right away, or the system closes the app.
+	 * 15+ gives dataSync 6 h a day in the foreground. When that runs out we have to step back now
+	 * or the system kills the app.
 	 */
 	@Override
 	public void onTimeout(int startId, int fgsType) {
@@ -380,10 +379,10 @@ public class DownloadService extends Service {
 						.setProgress(0, 0, remaining > 1)
 						.setContentTitle(remaining == 1
 										? getString(R.string.downloading_file, fileName)
-										: getString(R.string.downloads_running, remaining))
+										: getResources().getQuantityString(R.plurals.downloads_running, remaining, remaining))
 						.setContentText(remaining == 1
 										? getString(R.string.status_queued)
-										: getString(R.string.downloads_running, remaining));
+										: getResources().getQuantityString(R.plurals.downloads_running, remaining, remaining));
 		notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build());
 	}
 

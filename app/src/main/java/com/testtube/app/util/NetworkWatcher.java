@@ -15,9 +15,8 @@ import androidx.annotation.Nullable;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Whether the phone is on Wi-Fi or on mobile data, kept up to date while the app runs. Listeners
- * hear about a change once the connection has settled for a moment, so a short drop while
- * switching networks doesn't count.
+ * Wi-Fi or mobile data, kept current while the app runs. Listeners hear about a change once it
+ * settled for a moment, so a blip while switching doesn't count.
  */
 public final class NetworkWatcher {
 	private static final String TAG = "NetworkWatcher";
@@ -50,7 +49,7 @@ public final class NetworkWatcher {
 				}
 			}, main);
 		} catch (RuntimeException e) {
-			// Some devices refuse the callback (too many registered); the type then stays as read
+			// some devices refuse the callback (too many registered), the type stays as read
 			Log.w(TAG, "network changes won't be noticed", e);
 		}
 	}
@@ -84,8 +83,8 @@ public final class NetworkWatcher {
 	}
 
 	/**
-	 * Wi-Fi and Ethernet count as Wi-Fi, a mobile network as mobile data. Anything else (a VPN
-	 * that hides its network, Bluetooth tethering) goes by whether it is metered.
+	 * Wi-Fi and Ethernet count as Wi-Fi, cellular as mobile. Anything else (VPN hiding its network,
+	 * Bluetooth tethering) goes by metered.
 	 */
 	private static boolean isMobile(@Nullable NetworkCapabilities capabilities) {
 		if (capabilities == null) return false;

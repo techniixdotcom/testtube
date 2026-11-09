@@ -14,9 +14,7 @@ import java.util.Locale;
 public final class UrlUtils {
 	private static final Locale NORMAL_LOCALE = Locale.ROOT;
 
-	/**
-	 * True for https links to youtube.com (and its subdomains) or youtu.be.
-	 */
+	/** https links to youtube.com (and subdomains) or youtu.be. */
 	public static boolean isYoutubeLink(@Nullable String url) {
 		if (url == null || url.isEmpty()) return false;
 		try {
@@ -75,7 +73,7 @@ public final class UrlUtils {
 		}
 	}
 
-	/** Channel URLs, including all of the channel's tabs. */
+	/** Channel URLs, all tabs included. */
 	public static boolean isNativeChannelUrl(@Nullable String url) {
 		List<String> segments = youtubePath(url);
 		if (segments == null || segments.isEmpty()) return false;

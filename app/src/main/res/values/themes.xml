@@ -1,10 +1,9 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!--
-        The Dark and Light themes, following the phone unless one is chosen in the settings (the
-        colours come from values/colors.xml or values-notnight/colors.xml). The NiiX theme builds
-        on this one (themes_niix.xml). Every colour role, Material's and the app's own (attrs.xml),
-        is mapped once here, so buttons, switches, sliders, tabs, progress bars, dialogs, sheets,
-        menus and the bars share the same accent and surfaces without per-view colours.
+        Dark and Light, following the phone unless one is picked in settings (colours from
+        values/colors.xml or values-notnight/colors.xml). NiiX builds on this (themes_niix.xml). Every
+        colour role, Material's and ours (attrs.xml), is mapped once here so everything shares the same
+        accent and surfaces without per-view colours.
     -->
     <style name="Base.Theme.TestTube" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/accent</item>
@@ -48,7 +47,7 @@
         <item name="android:textColorHighlight">@color/text_highlight</item>
         <item name="android:textColorLink">@color/link</item>
 
-        <!-- The app's own roles (attrs.xml) -->
+        <!-- Our own roles (attrs.xml) -->
         <item name="ttBrand">@color/brand_red</item>
         <item name="ttLogoWatermark">@color/logo_watermark</item>
         <item name="ttSponsorSegment">@color/sponsor_segment</item>
@@ -67,7 +66,7 @@
         <item name="ttCommentAuthor">@color/on_surface_variant</item>
         <item name="ttOnVideoAccent">@android:color/white</item>
 
-        <!-- The system font, in the weights of Material's type scale -->
+        <!-- System font in Material's type scale weights -->
         <item name="ttFontRegular">sans-serif</item>
         <item name="ttFontMedium">sans-serif-medium</item>
         <item name="ttFontMono">monospace</item>
@@ -80,14 +79,13 @@
 
         <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="28">shortEdges</item>
         <!--
-            The app has its own dark and light colours. Without this, a phone in dark mode darkens
-            the light theme by itself (inverting cards, switches and icons in dialogs).
+            We have our own dark and light colours. Without this a dark mode phone darkens the light theme
+            itself (inverting cards, switches and dialog icons).
         -->
         <item name="android:forceDarkAllowed" tools:targetApi="29">false</item>
         <!--
-            Android 16's "expanded dark theme" inverts every app whose theme says it is light, and
-            doesn't ask forceDarkAllowed. Like hell: Light was picked on purpose in the settings, so
-            it stays light.
+            Android 16's "expanded dark theme" inverts every app whose theme says light and ignores
+            forceDarkAllowed. Like hell: Light was picked on purpose, it stays light.
         -->
         <item name="android:isLightTheme" tools:targetApi="29">false</item>
     </style>
@@ -95,11 +93,11 @@
     <style name="Theme.TestTube" parent="Base.Theme.TestTube" />
 
     <!--
-        On the video, which stays dark in every theme: white icons and light ripples. Set on the
-        player, the floating window and Shorts.
+        On video, dark in every theme: white icons, light ripples. Used by the player, floating window
+        and Shorts.
     -->
     <style name="ThemeOverlay.TestTube.OnVideo" parent="">
-        <!-- The player's buffering spinner takes this one -->
+        <!-- player's buffering spinner uses this -->
         <item name="android:colorControlActivated">?attr/ttOnVideoAccent</item>
         <item name="colorControlActivated">?attr/ttOnVideoAccent</item>
         <item name="colorControlNormal">#FFFFFF</item>
@@ -107,7 +105,7 @@
         <item name="android:colorControlHighlight">#33FFFFFF</item>
     </style>
 
-    <!-- Transparent host for the share-to-download entry point -->
+    <!-- Transparent host for share-to-download -->
     <style name="Theme.Transparent" parent="Theme.TestTube">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsTranslucent">true</item>
@@ -117,8 +115,8 @@
     </style>
 
     <!--
-        Dialogs: the theme's surface (see-through in NiiX), soft dim and a short fade-and-grow (the
-        screen behind is blurred on Android 12+, see values-v31)
+        Dialogs: theme surface (see-through in NiiX), soft dim, short fade and grow (blurred behind on
+        12+, see values-v31)
     -->
     <style name="Base.ThemeOverlay.TestTube.AlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
         <item name="alertDialogStyle">@style/MaterialAlertDialog.TestTube</item>
@@ -132,10 +130,7 @@
 
     <style name="ThemeOverlay.TestTube.AlertDialog" parent="Base.ThemeOverlay.TestTube.AlertDialog" />
 
-    <!--
-        The long-press menu and the settings: the same dialog (blur, dim, animation) on the
-        player's background colour instead of the raised grey
-    -->
+    <!-- Long-press menu and settings: same dialog on the player's colour instead of raised grey -->
     <style name="MaterialAlertDialog.TestTube.Page">
         <item name="backgroundTint">?attr/ttGlassDialogPage</item>
     </style>
@@ -171,8 +166,8 @@
     </style>
 
     <!--
-        The bottom bar. Its background is set in code (GlassBackground, frosted in NiiX), so it has
-        no shadow: a translucent bar would show the shadow through itself.
+        Bottom bar. Background set in code (GlassBackground), so no shadow: a translucent bar would show
+        it through itself.
     -->
     <style name="Widget.TestTube.BottomNav" parent="Widget.Material3.BottomNavigationView">
         <item name="android:minHeight">0dp</item>
@@ -185,7 +180,7 @@
         <item name="itemTextAppearanceActive">@style/TextAppearance.TestTube.NavLabel.Active</item>
         <item name="itemTextAppearanceInactive">@style/TextAppearance.TestTube.NavLabel</item>
         <item name="itemActiveIndicatorStyle">@style/Widget.TestTube.BottomNav.Indicator</item>
-        <!-- Labels on every tab, also with four of them -->
+        <!-- Labels on every tab, even with four -->
         <item name="labelVisibilityMode">labeled</item>
     </style>
 
@@ -195,7 +190,7 @@
         <item name="android:color">?attr/ttNavIndicator</item>
     </style>
 
-    <!-- One of the Library's browser-style tabs -->
+    <!-- One Library tab: icon, plus its label while it's the open one -->
     <style name="Widget.TestTube.LibraryTab" parent="">
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">match_parent</item>
@@ -206,16 +201,31 @@
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>
         <item name="android:gravity">center</item>
+        <item name="android:orientation">horizontal</item>
         <item name="android:paddingHorizontal">8dp</item>
-        <item name="android:drawablePadding">6dp</item>
-        <item name="android:drawableTint">@color/library_tab_content</item>
+    </style>
+
+    <style name="Widget.TestTube.LibraryTabIcon" parent="">
+        <item name="android:layout_width">18dp</item>
+        <item name="android:layout_height">18dp</item>
+        <item name="android:importantForAccessibility">no</item>
+        <item name="android:duplicateParentState">true</item>
+        <item name="tint">@color/library_tab_content</item>
+    </style>
+
+    <style name="Widget.TestTube.LibraryTabLabel" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginStart">6dp</item>
+        <item name="android:importantForAccessibility">no</item>
+        <item name="android:duplicateParentState">true</item>
         <item name="android:textColor">@color/library_tab_content</item>
         <item name="android:textAppearance">?attr/textAppearanceLabelLarge</item>
         <item name="android:ellipsize">end</item>
         <item name="android:maxLines">1</item>
     </style>
 
-    <!-- One row of a menu: icon and label, a rounded highlight when touched (NiiX tints the icon in code) -->
+    <!-- Menu row: icon and label, rounded highlight on touch (NiiX tints the icon in code) -->
     <style name="Widget.TestTube.MenuRow" parent="">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">52dp</item>
@@ -234,7 +244,7 @@
         <item name="android:maxLines">1</item>
     </style>
 
-    <!-- Centred icon and message shown when a list has nothing in it -->
+    <!-- Centred icon and message for an empty list -->
     <style name="Widget.TestTube.EmptyState" parent="">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">match_parent</item>
@@ -248,8 +258,8 @@
     </style>
 
     <!--
-        Text. The app's own text appearances take their typeface from the theme (ttFontRegular,
-        ttFontMedium), so they follow the NiiX theme's font as well.
+        Text. Our text appearances take the typeface from the theme (ttFontRegular, ttFontMedium) so
+        they follow NiiX's font too.
     -->
     <style name="TextAppearance.TestTube.NavLabel" parent="TextAppearance.Material3.LabelMedium">
         <item name="android:fontFamily">?attr/ttFontMedium</item>
@@ -269,7 +279,7 @@
         <item name="textAllCaps">false</item>
     </style>
 
-    <!-- Small accent heading above a group of settings -->
+    <!-- Small accent heading above a settings group -->
     <style name="TextAppearance.TestTube.SectionHeader" parent="TextAppearance.Material3.LabelLarge">
         <item name="android:fontFamily">?attr/ttFontMedium</item>
         <item name="fontFamily">?attr/ttFontMedium</item>
@@ -290,7 +300,7 @@
         <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
     </style>
 
-    <!-- Title and meta lines shared by the Queue, History and Downloads rows -->
+    <!-- Title and meta lines for Queue, History and Downloads rows -->
     <style name="TextAppearance.TestTube.ListTitle" parent="TextAppearance.Material3.BodyMedium">
         <item name="android:fontFamily">?attr/ttFontRegular</item>
         <item name="fontFamily">?attr/ttFontRegular</item>

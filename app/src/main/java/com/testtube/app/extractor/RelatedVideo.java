@@ -4,8 +4,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 /**
- * A suggested video and its channel. Display fields may be null/-1 in entries cached by old
- * versions; the uploader image is null there too.
+ * A suggested video and its channel. Old cache entries may have null/-1 display fields and no
+ * avatar.
  */
 public record RelatedVideo(@NonNull String id,
                            @Nullable String uploaderName,

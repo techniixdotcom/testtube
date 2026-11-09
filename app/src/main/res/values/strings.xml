@@ -77,7 +77,10 @@
     <string name="threads">Threads</string>
     <string name="clear">Clear</string>
     <string name="download_tasks_added">Download tasks added</string>
-    <string name="download_tasks_added_count" tools:ignore="PluralsCandidate">%1$d tasks added to queue</string>
+    <plurals name="download_tasks_added_count">
+        <item quantity="one">%1$d task added to the queue</item>
+        <item quantity="other">%1$d tasks added to the queue</item>
+    </plurals>
     <string name="download_history">Downloads</string>
     <string name="no_download_records">No download records</string>
     <string name="file_not_found">File not found</string>
@@ -109,7 +112,10 @@
     <string name="filename">Filename</string>
     <string name="preparing_download">Preparing download…</string>
     <string name="downloading_file">Downloading: %1$s</string>
-    <string name="downloads_running" tools:ignore="PluralsCandidate">%1$d downloads in progress</string>
+    <plurals name="downloads_running">
+        <item quantity="one">%1$d download in progress</item>
+        <item quantity="other">%1$d downloads in progress</item>
+    </plurals>
     <string name="playlist_download_title_placeholder">Playlist</string>
     <string name="playlist_download_summary" tools:ignore="PluralsCandidate">%1$d selected / %2$d ready / %3$d total</string>
     <string name="playlist_download_select_all">Select all</string>
@@ -125,8 +131,14 @@
     <string name="playlist_download_status_queued">Queued</string>
     <string name="playlist_download_status_partial">Partial</string>
     <string name="playlist_download_status_canceled">Canceled</string>
-    <string name="playlist_download_batch_added" tools:ignore="PluralsCandidate">%1$d items added</string>
-    <string name="playlist_download_batch_added_before_cancel" tools:ignore="PluralsCandidate">%1$d items added before batch was canceled</string>
+    <plurals name="playlist_download_batch_added">
+        <item quantity="one">%1$d item added</item>
+        <item quantity="other">%1$d items added</item>
+    </plurals>
+    <plurals name="playlist_download_batch_added_before_cancel">
+        <item quantity="one">%1$d item added before the batch was canceled</item>
+        <item quantity="other">%1$d items added before the batch was canceled</item>
+    </plurals>
     <string name="playlist_download_batch_segment_partial" tools:ignore="PluralsCandidate">%1$d partial</string>
     <string name="playlist_download_batch_segment_failed" tools:ignore="PluralsCandidate">%1$d failed</string>
     <string name="playlist_download_started">Playlist download started</string>
@@ -235,7 +247,10 @@
     <string name="watch_tab_comments">Comments</string>
     <string name="watch_comments_empty">No comments</string>
     <string name="watch_comments_disabled">Comments are turned off for this video</string>
-    <string name="watch_comment_likes">%d likes</string>
+    <plurals name="watch_comment_likes">
+        <item quantity="one">%d like</item>
+        <item quantity="other">%d likes</item>
+    </plurals>
     <string name="watch_comment_pinned">Pinned</string>
     <string name="subs_local_empty">No channels yet. Tap Manage to add or import channels, or follow them from a video.</string>
     <string name="subs_manage">Manage</string>
@@ -247,7 +262,10 @@
     <string name="subs_add_failed">Could not find that channel</string>
     <string name="subs_followed">Channel followed</string>
     <string name="subs_import">Import</string>
-    <string name="subs_import_done">%d channels imported</string>
+    <plurals name="subs_import_done">
+        <item quantity="one">%d channel imported</item>
+        <item quantity="other">%d channels imported</item>
+    </plurals>
     <string name="subs_import_failed">Could not read that file</string>
     <string name="subs_unfollow">Unfollow</string>
     <string name="subs_unfollow_confirm">Unfollow %s?</string>
@@ -285,7 +303,7 @@
     <string name="update_allow_install">Allow TestTube to install apps, then tap Update again</string>
     <string name="update_check_now">Check for updates</string>
     <string name="update_close">Close</string>
-    <!-- Library, settings groups and notifications -->
+    <!-- Library, settings groups, notifications -->
     <string name="nav_library">Library</string>
     <string name="library_history">History</string>
     <string name="library_downloads">Downloads</string>
@@ -331,7 +349,7 @@
     <string name="failure_unsupported">This kind of video isn\'t supported (for example paid or Premium-only content).</string>
     <string name="failure_unavailable">This video isn\'t available. It may have been removed.</string>
     <string name="failure_other">Something went wrong while loading this video. Try again, or tap Details to see what happened.</string>
-    <!-- Minimizing, floating window and gestures -->
+    <!-- Minimizing, floating window, gestures -->
     <string name="setting_minimize_to">Minimize to</string>
     <string name="setting_minimize_summary">Bottom bar or floating window</string>
     <string name="minimize_bottom_bar">Bottom bar</string>
@@ -374,7 +392,7 @@
     <string name="update_title_prerelease">Pre-release available</string>
     <string name="clear_cache_confirm">Delete %1$s of saved video, pictures and web data? Downloads, history, the queue, your sign-in and settings stay.</string>
     <string name="cache_cleared">Cache cleared</string>
-    <!-- Home falls back to these searches when there is little watch history. -->
+    <!-- Home falls back to these searches when there's little history. -->
     <string-array name="discover_queries">
         <item>trending</item>
         <item>popular today</item>
@@ -393,5 +411,54 @@
         <item>sports highlights</item>
         <item>podcast</item>
     </string-array>
-</resources>
+    <!-- Opening links from other apps (12+: allowed in system settings) -->
+    <string name="links_prompt_title">Open links in %1$s?</string>
+    <string name="links_prompt_message">Android only lets an app open links after you allow it. On the next screen, turn on Open supported links, tap Add and keep every link ticked: links people send you then open here instead of in the browser.</string>
+    <string name="links_prompt_open">Open settings</string>
+    <string name="links_prompt_later">Not now</string>
+    <string name="setting_open_links">Open links in this app</string>
+    <string name="setting_open_links_summary">Links from other apps open here instead of in the browser</string>
+    <string name="setting_open_links_all">All</string>
+    <string name="setting_open_links_count">%1$d of %2$d</string>
 
+    <!-- Playlists and Watch later -->
+    <string name="action_done">Done</string>
+    <string name="action_delete">Delete</string>
+    <string name="library_playlists">Playlists</string>
+    <string name="playlist_save">Save</string>
+    <string name="playlist_save_title">Save to…</string>
+    <string name="playlist_watch_later">Watch later</string>
+    <string name="playlist_new">New playlist</string>
+    <string name="playlist_name_hint">Name</string>
+    <string name="playlist_rename">Rename</string>
+    <string name="playlist_delete">Delete playlist</string>
+    <string name="playlist_delete_confirm">Delete “%1$s”? The videos stay on YouTube.</string>
+    <string name="playlist_saved_to">Saved to %1$s</string>
+    <string name="playlist_removed_from">Removed from %1$s</string>
+    <string name="playlist_full">Couldn’t save, too many playlists or videos</string>
+    <string name="playlist_empty">Nothing here yet. Long-press a video and tap Save.</string>
+    <string name="playlist_play_all">Play all</string>
+    <string name="playlist_shuffle">Shuffle</string>
+    <string name="playlist_remove_watched">Remove watched videos</string>
+    <string name="playlist_remove_watched_confirm">Remove the videos you’ve watched from %1$s?</string>
+    <string name="playlist_import_export">Import or export</string>
+    <string name="playlist_import">Import playlists</string>
+    <string name="playlist_export">Export playlists</string>
+    <string name="playlist_import_failed">That isn’t a TestTube playlists file</string>
+    <string name="playlist_export_done">Playlists exported</string>
+    <string name="playlist_export_failed">Couldn’t export playlists</string>
+    <string name="playlist_options">Playlist options</string>
+    <string name="playlist_back">Back to playlists</string>
+    <plurals name="playlist_count">
+        <item quantity="one">%d video</item>
+        <item quantity="other">%d videos</item>
+    </plurals>
+    <plurals name="playlist_removed_watched">
+        <item quantity="one">Removed %d video</item>
+        <item quantity="other">Removed %d videos</item>
+    </plurals>
+    <plurals name="playlist_import_done">
+        <item quantity="one">%d video imported</item>
+        <item quantity="other">%d videos imported</item>
+    </plurals>
+</resources>

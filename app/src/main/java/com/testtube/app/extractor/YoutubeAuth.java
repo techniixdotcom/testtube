@@ -15,9 +15,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/**
- * Builds YouTube auth headers from the current session snapshot.
- */
+/** YouTube auth headers from the current session. */
 public final class YoutubeAuth {
 	private YoutubeAuth() {
 	}

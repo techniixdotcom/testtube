@@ -1,8 +1,8 @@
 [versions]
 agp = "9.4.0"
 desugar_jdk_libs_nio = "2.1.5"
-gson = "2.14.0"
-# isoparser 1.1.x pulls in a shaded AspectJ runtime; 1.0.6 is the lean, Android-safe line.
+gson = "2.15.0"
+# 1.1.x drags in a shaded AspectJ runtime, 1.0.6 is the lean one
 #noinspection GradleDependency
 isoparser = "1.0.6"
 junit = "4.13.2"
@@ -10,17 +10,17 @@ appcompat = "1.8.0"
 material = "1.14.0"
 media3 = "1.11.1"
 mockito = "5.24.0"
-# MMKV 2.x dropped 32-bit ABIs and Android < 6, 1.3.x keeps every device working.
+# 2.x dropped 32-bit ABIs, 1.3.x keeps every device working
 #noinspection GradleDependency
 mmkv = "1.3.17"
 activity = "1.13.0"
 constraintlayout = "2.2.2"
 media = "1.8.0"
-newpipeextractor = "v0.26.5-dev-2f7d9da"
+newpipeextractor = "v0.27.0"
 glide = "5.0.9"
 swiperefreshlayout = "1.2.0"
 webkit = "1.17.1"
-okhttp = "5.5.0"
+okhttp = "5.5.1"
 recyclerview = "1.4.0"
 lifecycle = "2.11.0"
 profileinstaller = "1.4.1"

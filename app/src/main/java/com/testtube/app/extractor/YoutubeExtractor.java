@@ -15,6 +15,7 @@ import org.schabi.newpipe.extractor.MediaFormat;
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.ServiceList;
 import org.schabi.newpipe.extractor.exceptions.ExtractionException;
+import org.schabi.newpipe.extractor.localization.DateWrapper;
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor;
 import org.schabi.newpipe.extractor.stream.AudioStream;
 import org.schabi.newpipe.extractor.stream.Description;
@@ -77,7 +78,7 @@ public final class YoutubeExtractor {
 	private final ConcurrentMap<String, Task> tasks = new ConcurrentHashMap<>();
 	@NonNull
 	private final ContentFilters filters;
-	/** Likes, suggestions and chapters still on their way, by video. */
+	/** Likes, suggestions and chapters still in flight, per video. */
 	@NonNull
 	private final ConcurrentMap<String, CompletableFuture<Void>> extras = new ConcurrentHashMap<>();
 	@Nullable
@@ -98,7 +99,7 @@ public final class YoutubeExtractor {
 						gson,
 						auth,
 						filters);
-		// Don't reset the language and country set by ContentLanguage.
+		// don't reset what ContentLanguage set
 		NewPipe.init(downloader, NewPipe.getPreferredLocalization(), NewPipe.getPreferredContentCountry());
 		YoutubeStreamExtractor.setPoTokenProvider(testtubePoTokenProvider);
 	}
@@ -156,9 +157,7 @@ public final class YoutubeExtractor {
 		return StreamInfo.getInfo(ServiceList.YouTube.getStreamExtractor(url));
 	}
 
-	/**
-	 * Returns the InnerTube client that produced a googlevideo URL (the {@code c} query parameter).
-	 */
+	/** InnerTube client that made a googlevideo URL (its {@code c} param). */
 	@Nullable
 	private static String clientOf(@Nullable String url) {
 		if (url == null) return null;
@@ -172,10 +171,7 @@ public final class YoutubeExtractor {
 		return getInfo(videoUrl, session, false);
 	}
 
-	/**
-	 * Loads playback details. {@code refresh} skips the cache, e.g. after the stream URLs expired or
-	 * were rejected.
-	 */
+	/** Loads playback details. {@code refresh} skips the cache (expired or rejected URLs). */
 	@NonNull
 	public CompletableFuture<PlaybackDetails> getInfo(@NonNull String videoUrl,
 	                                                  @Nullable ExtractionSession session,
@@ -184,8 +180,8 @@ public final class YoutubeExtractor {
 	}
 
 	/**
-	 * Same as {@link #getInfo(String, ExtractionSession, boolean)} for a Short: only what's needed to
-	 * play it, no likes or suggestions, so it starts sooner.
+	 * {@link #getInfo(String, ExtractionSession, boolean)} for a Short: just what playing needs, no
+	 * likes or suggestions, so it starts sooner.
 	 */
 	@NonNull
 	public CompletableFuture<PlaybackDetails> getShort(@NonNull String videoUrl,
@@ -219,9 +215,7 @@ public final class YoutubeExtractor {
 		return task.attach(session);
 	}
 
-	/**
-	 * Suggested videos for the watch screen, without videos of blocked channels.
-	 */
+	/** Watch screen suggestions minus blocked channels. */
 	@NonNull
 	public CompletableFuture<List<RelatedVideo>> getRelatedVideos(@NonNull String videoId) {
 		List<RelatedVideo> cached = cache.getRelatedVideos(videoId);
@@ -230,7 +224,7 @@ public final class YoutubeExtractor {
 		if (cached != null && !stale) {
 			return CompletableFuture.completedFuture(allowed(cached));
 		}
-		// Old cache entries have no titles, extract again. The suggestions come a moment after the video.
+		// old cache entries have no titles, extract again; suggestions show up a moment after the video
 		return getInfo(WATCH_URL + videoId, null, stale)
 						.thenCompose(ignored -> extras.getOrDefault(videoId, CompletableFuture.completedFuture(null)))
 						.handle((ignored, error) -> {
@@ -243,14 +237,14 @@ public final class YoutubeExtractor {
 	}
 
 	/**
-	 * Called (on a background thread) when likes, suggestions and chapters of a video arrive after it
-	 * started playing, with its details as they are now.
+	 * Called on a background thread when likes, suggestions and chapters arrive after playback
+	 * started, with the current details.
 	 */
 	public void setExtrasListener(@NonNull Consumer<PlaybackDetails> listener) {
 		extrasListener = listener;
 	}
 
-	/** Unless a newer screen set its own already. */
+	/** Unless a newer screen already set its own. */
 	public void removeExtrasListener(@NonNull Consumer<PlaybackDetails> listener) {
 		if (extrasListener == listener) extrasListener = null;
 	}
@@ -277,15 +271,15 @@ public final class YoutubeExtractor {
 		ensureNotCancelled(session);
 
 		if (!refresh) {
-			// A fresh object from the stored JSON, nobody else holds it
+			// fresh object from JSON, nobody else has it
 			PlaybackDetails cached = cache.getPlaybackDetails(videoId);
 			if (cached != null) {
 				return cached;
 			}
 		}
 
-		// Likes, suggestions and chapters come from a second request that playing doesn't need, so
-		// don't wait for it; Shorts don't show any of it, so don't even send it
+		// likes, suggestions and chapters are a second request playing doesn't need, so don't wait.
+		// Shorts show none of it, so don't even send it.
 		YoutubeStreamExtractor.setNextMode(shortVideo
 						? YoutubeStreamExtractor.NextMode.SKIP : YoutubeStreamExtractor.NextMode.LATER);
 		StreamInfo streamInfo;
@@ -326,7 +320,7 @@ public final class YoutubeExtractor {
 						copyList(orEmpty(streamInfo.getStreamSegments())),
 						copyList(orEmpty(streamInfo.getSubtitles())));
 		details.video().setLive(isLive(streamInfo.getStreamType()));
-		// The player has the title and channel name as written; lists showing this video use them too
+		// the player has the original title and channel; lists showing this video use them too
 		Originals.get().remember(streamInfo.getId(), streamInfo.getName(), streamInfo.getUploaderName());
 		ensurePlayableSources(videoId, details.deliveries(), details.plan());
 		cache.putPlaybackDetails(videoId, details);
@@ -335,11 +329,11 @@ public final class YoutubeExtractor {
 		} else if (!shortVideo) {
 			cache.putRelatedVideos(videoId, collectRelated(streamInfo.getRelatedItems(), videoId));
 		}
-		// Only Task hands it out, as a copy for each caller
+		// only Task hands it out, a copy per caller
 		return details;
 	}
 
-	/** Reads likes, suggestions and chapters once their request is back, and passes them on. */
+	/** Reads likes, suggestions and chapters once their request is back and passes them on. */
 	private void loadExtras(@NonNull String videoId, @NonNull YoutubeStreamExtractor later) {
 		CompletableFuture<Void> done = later.nextDone().thenAcceptAsync(ignored -> {
 			later.awaitNext();
@@ -353,6 +347,13 @@ public final class YoutubeExtractor {
 			PlaybackDetails cached = cache.getPlaybackDetails(videoId);
 			if (cached == null) return;
 			VideoDetails video = cached.video();
+			try {
+				// WEB answer came in after the start
+				DateWrapper date = later.getUploadDate();
+				if (date != null) video.setUploadDate(Date.from(date.getInstant()));
+			} catch (ExtractionException | RuntimeException ignoredError) {
+				// keep what we had
+			}
 			try {
 				video.setLikeCount(later.getLikeCount());
 			} catch (ExtractionException | RuntimeException ignoredError) {
@@ -503,6 +504,10 @@ public final class YoutubeExtractor {
 			if (height != 0) return height;
 			int fps = Integer.compare(videoFps(second), videoFps(first));
 			if (fps != 0) return fps;
+			// same size: the codec playback prefers comes first, that's the one it picks
+			int codec = Integer.compare(PlayerUtils.getCodecPriority(second.getCodec()),
+							PlayerUtils.getCodecPriority(first.getCodec()));
+			if (codec != 0) return codec;
 			return Integer.compare(videoBitrate(second), videoBitrate(first));
 		});
 		return result;
@@ -601,7 +606,10 @@ public final class YoutubeExtractor {
 
 	@NonNull
 	private String videoKey(@NonNull VideoStream stream) {
-		return stream.getResolution() + "#" + stream.getFps();
+		// one per codec (and HDR or not), so playback and the fallbacks can pick between them
+		String codec = stream.getCodec();
+		return stream.getResolution() + "#" + stream.getFps() + "#" + PlayerUtils.codecFamily(codec)
+						+ (PlayerUtils.isLikelyHdr(codec) ? "#hdr" : "");
 	}
 
 	@NonNull
@@ -611,8 +619,6 @@ public final class YoutubeExtractor {
 	}
 
 	private boolean isBetterVideo(@NonNull VideoStream first, @NonNull VideoStream second) {
-		int codec = Integer.compare(codecPriority(first.getCodec()), codecPriority(second.getCodec()));
-		if (codec != 0) return codec > 0;
 		int fps = Integer.compare(videoFps(first), videoFps(second));
 		if (fps != 0) return fps > 0;
 		return videoBitrate(first) > videoBitrate(second);
@@ -620,16 +626,6 @@ public final class YoutubeExtractor {
 
 	private boolean isBetterAudio(@NonNull AudioStream first, @NonNull AudioStream second) {
 		return PlaybackPlanner.audioBitrate(first) > PlaybackPlanner.audioBitrate(second);
-	}
-
-	private int codecPriority(@Nullable String codec) {
-		if (codec == null) return 0;
-		String lower = codec.toLowerCase(Locale.ROOT);
-		if (lower.startsWith("avc") || lower.startsWith("h264")) return 4;
-		if (lower.contains("vp9") || lower.contains("vp09") || lower.contains("vp8")) return 3;
-		if (lower.contains("h265") || lower.contains("hev") || lower.contains("hvc")) return 2;
-		if (lower.contains("av01")) return 1;
-		return 0;
 	}
 
 	private int videoFps(@NonNull VideoStream stream) {
@@ -699,7 +695,7 @@ public final class YoutubeExtractor {
 		@NonNull
 		private CompletableFuture<PlaybackDetails> attach(@Nullable ExtractionSession session) {
 			refs.incrementAndGet();
-			// Someone is waiting for it now (e.g. the prefetched Short was swiped to): full speed
+			// someone's waiting for it now (prefetched Short got swiped to): full speed
 			if (session == null || !session.isBackground()) root.setBackground(false);
 			AtomicBoolean done = new AtomicBoolean();
 			CompletableFuture<PlaybackDetails> future = new CompletableFuture<>();

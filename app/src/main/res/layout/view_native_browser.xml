@@ -146,7 +146,7 @@
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:visibility="gone" />
 
-            <!-- Search-only Home: the logo, the name and a search bar, nothing suggested -->
+            <!-- Search-only Home: logo, name and a search bar, nothing suggested -->
             <LinearLayout
                 android:id="@+id/browser_start"
                 android:layout_width="match_parent"

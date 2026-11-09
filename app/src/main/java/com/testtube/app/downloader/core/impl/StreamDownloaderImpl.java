@@ -6,6 +6,7 @@ import androidx.annotation.Nullable;
 import com.tencent.mmkv.MMKV;
 import com.testtube.app.downloader.core.ProgressCallback;
 import com.testtube.app.downloader.core.StreamDownloader;
+import com.testtube.app.util.StringUtils;
 
 import okhttp3.Dispatcher;
 import okhttp3.OkHttpClient;
@@ -34,9 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 
-/**
- * Streams a file by chunk and keeps resume state in MMKV.
- */
+/** Chunked download with resume state in MMKV. */
 public class StreamDownloaderImpl implements StreamDownloader {
 	private final OkHttpClient client;
 	private final MMKV mmkv;
@@ -44,8 +43,7 @@ public class StreamDownloaderImpl implements StreamDownloader {
 	private final Map<String, TaskContext> tasks = new ConcurrentHashMap<>();
 	private static final long CHUNK_BYTES = 512L * 1024L;
 	private static final int MAX_THREADS = 8;
-	private static final char[] HEX = "0123456789abcdef".toCharArray();
-	/** Resume state key. "dl2_" since the chunk layout changed; old "dl_" entries are deleted. */
+	/** Resume key. "dl2_" since the chunk layout changed, old "dl_" ones get deleted. */
 	private static final String KEY_PREFIX = "dl2_";
 	private static final String LEGACY_KEY_PREFIX = "dl_";
 
@@ -122,10 +120,9 @@ public class StreamDownloaderImpl implements StreamDownloader {
 
 	@NonNull
 	private static Request.Builder streamRequest(@NonNull String url) {
-		// No HTTP cache for downloads, it would only double the disk usage.
+		// no HTTP cache, it'd just double disk use
 		Request.Builder builder = new Request.Builder().url(url).header("Cache-Control", "no-store");
-		// googlevideo rejects stream requests whose user agent does not match the client that
-		// produced the URL.
+		// googlevideo rejects requests whose user agent doesn't match the client that made the URL
 		if (YoutubeParsingHelper.isVisionOsStreamingUrl(url)) {
 			builder.header("User-Agent", YoutubeParsingHelper.getVisionOsUserAgent(null));
 		}
@@ -135,7 +132,7 @@ public class StreamDownloaderImpl implements StreamDownloader {
 	private void runTask(TaskContext task) {
 		RandomAccessFile raf = null;
 		try {
-			// 1. fetch metadata
+			// metadata
 			final long total;
 			final boolean range;
 			try (Response head = client.newCall(streamRequest(task.url).head().build()).execute()) {
@@ -144,16 +141,15 @@ public class StreamDownloaderImpl implements StreamDownloader {
 				range = head.code() == 206 || "bytes".equalsIgnoreCase(head.header("Accept-Ranges"));
 			}
 
-			// 2. calculate chunk count
 			int chunks;
 			if (total <= 0 || !range) chunks = 1;
 			else {
-				// One chunk per 512 KB, between 1 and 128 chunks.
+				// one chunk per 512 KB, 1 to 128
 				chunks = (int) Math.max(1L, Math.min(128L, total / CHUNK_BYTES));
 			}
 			long part = total > 0 ? total / chunks : total;
 
-			// 3. resume or initialize
+			// resume or start fresh
 			byte[] saved = mmkv.decodeBytes(task.key);
 			BitSet bits = (range && saved != null) ? BitSet.valueOf(saved) : new BitSet();
 			task.done.set(bits.cardinality());
@@ -169,10 +165,9 @@ public class StreamDownloaderImpl implements StreamDownloader {
 			if (total > 0) raf.setLength(total);
 			else raf.setLength(0);
 
-			// 4. submit task
 			if (task.done.get() < chunks) {
 				RandomAccessFile finalRaf = raf;
-				// One worker per connection, each taking the next unfinished chunk.
+				// one worker per connection, each grabs the next unfinished chunk
 				ConcurrentLinkedQueue<Integer> pending = new ConcurrentLinkedQueue<>();
 				IntStream.range(0, chunks).filter(i -> !bits.get(i)).forEach(pending::add);
 				int workers = Math.min(task.threads, pending.size());
@@ -189,7 +184,6 @@ public class StreamDownloaderImpl implements StreamDownloader {
 				CompletableFuture.allOf(running).join();
 			}
 
-			// 5. clean up
 			if (!task.isInactive()) {
 				mmkv.removeValueForKey(task.key);
 				tasks.remove(task.url);
@@ -278,13 +272,7 @@ public class StreamDownloaderImpl implements StreamDownloader {
 
 	private static String md5(String s) {
 		try {
-			byte[] b = MessageDigest.getInstance("MD5").digest(s.getBytes(StandardCharsets.UTF_8));
-			char[] out = new char[b.length * 2];
-			for (int i = 0; i < b.length; i++) {
-				out[i * 2] = HEX[(b[i] >> 4) & 0xF];
-				out[i * 2 + 1] = HEX[b[i] & 0xF];
-			}
-			return new String(out);
+			return StringUtils.hex(MessageDigest.getInstance("MD5").digest(s.getBytes(StandardCharsets.UTF_8)));
 		} catch (Exception e) {
 			return String.valueOf(s.hashCode());
 		}

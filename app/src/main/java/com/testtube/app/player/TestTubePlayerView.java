@@ -48,7 +48,7 @@ import java.util.function.Supplier;
 public class TestTubePlayerView extends PlayerView {
 	private static final float SUBTITLE_LINE_FRACTION = 0.92f;
 	private static final float SUBTITLE_POSITION_FRACTION = 0.5f;
-	/** Widest and tallest shapes Android allows for a picture-in-picture window. */
+	/** Widest and tallest PiP shapes Android allows. */
 	private static final float MAX_PIP_ASPECT = 2.39f;
 	private static final float PIP_ELEVATION_DP = 64f;
 	@NonNull
@@ -145,9 +145,7 @@ public class TestTubePlayerView extends PlayerView {
 		}
 	}
 
-	/**
-	 * @return false when the device has no picture-in-picture, or it is turned off for the app
-	 */
+	/** @return false if there's no PiP or it's off for the app */
 	public boolean enterPiP() {
 		if (activity.isInPictureInPictureMode()) return true;
 		if (!activity.getPackageManager().hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return false;
@@ -156,7 +154,7 @@ public class TestTubePlayerView extends PlayerView {
 		try {
 			if (activity.enterPictureInPictureMode(buildPiPParams(true))) return true;
 		} catch (IllegalStateException e) {
-			// Thrown on devices where picture-in-picture is unavailable after all
+			// thrown where PiP isn't available after all
 		}
 		normalHeight = previousHeight;
 		return false;
@@ -166,16 +164,13 @@ public class TestTubePlayerView extends PlayerView {
 		this.pipActions = actions;
 	}
 
-	/**
-	 * Updates the floating window: its buttons and shape, and whether leaving the app opens it by
-	 * itself (Android 12 and newer; older versions are handled on leaving).
-	 */
+	/** Updates the PiP params: buttons, shape, and auto-enter on leave (12+, older is handled on leave). */
 	public void updatePiPParams(boolean autoEnter) {
 		if (!activity.getPackageManager().hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return;
 		try {
 			activity.setPictureInPictureParams(buildPiPParams(autoEnter));
 		} catch (IllegalArgumentException | IllegalStateException e) {
-			// The activity is finishing or picture-in-picture is turned off for the app
+			// activity finishing or PiP off for the app
 		}
 	}
 
@@ -200,7 +195,7 @@ public class TestTubePlayerView extends PlayerView {
 						.setAspectRatio(pipAspectRatio());
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
 			builder.setAutoEnterEnabled(autoEnter);
-			// Resizing a playing video smoothly costs more than it looks
+			// seamless resize of a playing video costs more than it looks
 			builder.setSeamlessResizeEnabled(false);
 		}
 		Supplier<List<RemoteAction>> actions = pipActions;
@@ -216,7 +211,7 @@ public class TestTubePlayerView extends PlayerView {
 		return builder.build();
 	}
 
-	/** The video's own shape, within what Android allows; 16:9 until the video is known. */
+	/** Video's own shape within what Android allows; 16:9 until known. */
 	@NonNull
 	private Rational pipAspectRatio() {
 		Player player = getPlayer();
@@ -364,10 +359,7 @@ public class TestTubePlayerView extends PlayerView {
 		super.onDetachedFromWindow();
 	}
 
-	/**
-	 * Sizes the player to 16:9 of the screen width, at most 60% of the screen height, outside
-	 * fullscreen and picture-in-picture.
-	 */
+	/** Player is 16:9 of the screen width, max 60% of its height, outside fullscreen and PiP. */
 	public void fitToWidth() {
 		if (activity.isInPictureInPictureMode() || isFs) return;
 		View parent = getParent() instanceof View view ? view : null;

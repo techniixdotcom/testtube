@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TestTube+ only, merged into the main manifest: Spotify, Facebook and SoundCloud links. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+
+        <activity android:name=".ui.MainActivity">
+
+            <!-- Spotify: tracks, albums, playlists, artists, podcasts (played from YouTube) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="open.spotify.com" />
+                <data android:pathPrefix="/track/" />
+                <data android:pathPrefix="/album/" />
+                <data android:pathPrefix="/playlist/" />
+                <data android:pathPrefix="/artist/" />
+                <data android:pathPrefix="/episode/" />
+                <data android:pathPrefix="/show/" />
+                <data android:pathPrefix="/intl-" />
+            </intent-filter>
+
+            <!-- Spotify short links -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="spotify.link" />
+                <data android:host="spotify.app.link" />
+            </intent-filter>
+
+            <!-- Facebook: video links only, nothing else from Facebook -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="www.facebook.com" />
+                <data android:host="m.facebook.com" />
+                <data android:host="facebook.com" />
+                <data android:host="web.facebook.com" />
+                <data android:pathPrefix="/watch" />
+                <data android:pathPrefix="/reel/" />
+                <data android:pathPrefix="/share/v/" />
+                <data android:pathPrefix="/share/r/" />
+                <data android:pathPrefix="/video.php" />
+                <data android:pathPattern="/.*/videos/.*" />
+            </intent-filter>
+
+            <!-- Facebook short video links -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="fb.watch" />
+            </intent-filter>
+
+            <!-- SoundCloud: tracks, sets and artists; other pages go on to the browser -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="soundcloud.com" />
+                <data android:host="www.soundcloud.com" />
+                <data android:host="m.soundcloud.com" />
+                <data android:host="on.soundcloud.com" />
+                <data android:pathPattern="/..*" />
+            </intent-filter>
+        </activity>
+
+    </application>
+</manifest>

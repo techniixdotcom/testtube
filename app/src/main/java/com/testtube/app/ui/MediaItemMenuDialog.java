@@ -25,6 +25,8 @@ import com.testtube.app.nav.MediaItemMenuPayload;
 import com.testtube.app.player.TestTubePlayer;
 import com.testtube.app.player.queue.QueueItem;
 import com.testtube.app.player.queue.QueueRepository;
+import com.testtube.app.playlist.LocalPlaylists;
+import com.testtube.app.playlist.PlaylistDialogs;
 import com.testtube.app.util.ImageUtils;
 import com.testtube.app.util.ToastUtils;
 import com.testtube.app.util.ViewUtils;
@@ -35,7 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @UnstableApi
 public final class MediaItemMenuDialog {
 	private static final float MENU_ICON_DP = 24f;
-	private static final int[] MENU_ROWS = {R.id.action_queue, R.id.action_play_next, R.id.action_share,
+	private static final int[] MENU_ROWS = {R.id.action_queue, R.id.action_play_next, R.id.action_save, R.id.action_share,
 					R.id.action_download, R.id.action_toggle_watched, R.id.action_block_channel};
 	@NonNull
 	private final Context context;
@@ -60,7 +62,9 @@ public final class MediaItemMenuDialog {
 	                           @NonNull ContentFilters filters,
 	                           @NonNull Runnable onFiltersChanged) {
 		this.context = context;
-		this.item = item;
+		// a local playlist link means nothing outside this app (share, download, queue)
+		this.item = new MediaItemMenuPayload(item.videoId(), LocalPlaylists.withoutLocalList(item.videoUrl(), item.videoId()),
+						item.title(), item.author(), item.thumbnailUrl(), item.channelUrl());
 		this.extractor = extractor;
 		this.queue = queue;
 		this.player = player;
@@ -83,8 +87,8 @@ public final class MediaItemMenuDialog {
 		author.setVisibility(item.author() != null && !item.author().isBlank() ? View.VISIBLE : View.GONE);
 
 		ImageUtils.load(thumb, thumbUrl, R.drawable.ic_thumbnail_placeholder);
-		// The icons come in two sizes; every row shows them at one. They're in the text colour (the
-		// style), unless the theme has a colour of its own for them (pink in NiiX).
+		// icons come in two sizes, every row shows one. Text colour from the style unless the theme has
+		// its own (pink in NiiX).
 		int iconRes = AppSettings.theme().menuIcon;
 		ColorStateList iconColor = iconRes != 0 ? ColorStateList.valueOf(ContextCompat.getColor(context, iconRes)) : null;
 		for (int id : MENU_ROWS) {
@@ -101,6 +105,10 @@ public final class MediaItemMenuDialog {
 		view.findViewById(R.id.action_play_next).setOnClickListener(v -> {
 			dialog.dismiss();
 			playNext();
+		});
+		view.findViewById(R.id.action_save).setOnClickListener(v -> {
+			dialog.dismiss();
+			PlaylistDialogs.save(context, item);
 		});
 		view.findViewById(R.id.action_share).setOnClickListener(v -> {
 			share();
@@ -139,15 +147,12 @@ public final class MediaItemMenuDialog {
 		dialog.show();
 	}
 
-	/**
-	 * Looks up the channel from the video (lists don't always have it), then asks for
-	 * confirmation.
-	 */
+	/** Looks up the video's channel (lists don't always have it), then asks to confirm. */
 	private void resolveChannelAndConfirm(@Nullable String pageChannel) {
 		ToastUtils.show(context, R.string.looking_up_channel);
 		Handler main = new Handler(Looper.getMainLooper());
 		AtomicBoolean handled = new AtomicBoolean(false);
-		// Fall back to the name shown on the page if the lookup takes too long.
+		// lookup too slow: use the name on the page
 		main.postDelayed(() -> {
 			if (!handled.compareAndSet(false, true)) return;
 			if (pageChannel != null && !pageChannel.isEmpty()) {
@@ -207,7 +212,7 @@ public final class MediaItemMenuDialog {
 	}
 
 	private void addToQueue() {
-		// Reject queue items that are missing core metadata.
+		// reject queue items missing basic metadata
 		QueueItem queueItem = item.toQueueItem();
 		String videoId = queueItem.getVideoId();
 		if (queueItem.getVideoUrl() == null || videoId == null || videoId.isBlank()

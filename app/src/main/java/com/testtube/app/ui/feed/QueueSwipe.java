@@ -18,26 +18,19 @@ import com.testtube.app.R;
 import com.testtube.app.extractor.FeedItem;
 import com.testtube.app.util.ViewUtils;
 
-/**
- * Swipe right to queue a video, left to follow its channel (where that is offered). The row
- * slides back afterwards.
- */
+/** Swipe right queues, left follows the channel (where offered). The row slides back after. */
 final class QueueSwipe extends ItemTouchHelper.SimpleCallback {
 	interface Target {
-		/**
-		 * @return the video behind this row, or null when the row cannot be swiped
-		 */
+		/** @return the row's video, or null if the row can't be swiped */
 		@Nullable
 		FeedItem itemFor(@NonNull RecyclerView.ViewHolder holder);
 
 		void enqueue(@NonNull FeedItem item);
 
-		/**
-		 * Follows the channel of this video (swipe to the left).
-		 */
+		/** Follows the video's channel (swipe left). */
 		void follow(@NonNull FeedItem item);
 
-		/** False where following makes no sense, such as on the channel's own page. */
+		/** False where following makes no sense, like the channel's own page. */
 		default boolean canFollow() {
 			return true;
 		}
@@ -120,7 +113,7 @@ final class QueueSwipe extends ItemTouchHelper.SimpleCallback {
 			int logoSize = (int) (40 * density);
 			int gap = (int) (6 * density);
 			int block = logoSize + gap + (int) (16 * density);
-			// Draw the icon and label once there is room for them
+			// draw icon and label once there's room
 			if (logo != null && width > block + 16 * density) {
 				float centerX = right ? row.getLeft() + 56 * density : row.getRight() - 56 * density;
 				int top = row.getTop() + (row.getHeight() - block) / 2;

@@ -24,7 +24,6 @@ dependencies {
     compileOnly(libs.google.jsr305)
     implementation(libs.google.protobuf)
     implementation(libs.mozilla.rhino.core)
-    implementation(libs.mozilla.rhino.engine)
 }
 
 protobuf {

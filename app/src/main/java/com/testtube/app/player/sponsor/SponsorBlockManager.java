@@ -10,6 +10,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.testtube.app.player.common.PlayerPreferences;
+import com.testtube.app.util.StringUtils;
 
 import okhttp3.Call;
 import okhttp3.HttpUrl;
@@ -35,9 +36,9 @@ public final class SponsorBlockManager {
 	@NonNull
 	private final PlayerPreferences preferences;
 	@NonNull
-	// Written by the loader thread, read by the player thread.
+	// written by the loader, read by the player thread
 	private volatile List<long[]> segments = Collections.emptyList();
-	/** Incremented on every load and clear so stale requests can't publish their results. */
+	/** Bumped on every load and clear so stale requests can't publish. */
 	private final AtomicInteger loadToken = new AtomicInteger();
 	private volatile Call inFlight;
 
@@ -47,9 +48,7 @@ public final class SponsorBlockManager {
 		this.preferences = preferences;
 	}
 
-	/**
-	 * Drops the current segments and cancels any request still running.
-	 */
+	/** Drops the segments and cancels any running request. */
 	public void clear() {
 		loadToken.incrementAndGet();
 		segments = Collections.emptyList();
@@ -114,14 +113,7 @@ public final class SponsorBlockManager {
 
 	@NonNull
 	private String sha256(@NonNull String s) throws Exception {
-		byte[] hash = MessageDigest.getInstance("SHA-256").digest(s.getBytes(StandardCharsets.UTF_8));
-		StringBuilder hexString = new StringBuilder(hash.length * 2);
-		for (byte b : hash) {
-			String hex = Integer.toHexString(0xFF & b);
-			if (hex.length() == 1) hexString.append('0');
-			hexString.append(hex);
-		}
-		return hexString.toString();
+		return StringUtils.hex(MessageDigest.getInstance("SHA-256").digest(s.getBytes(StandardCharsets.UTF_8)));
 	}
 
 	public List<long[]> getSegments() {

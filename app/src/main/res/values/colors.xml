@@ -1,42 +1,41 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-        TestTube palette for the Dark theme (the default when the phone is dark). The Light theme
-        overrides the same names in values-notnight; the NiiX theme has its own palette in
-        colors_niix.xml. Layouts, drawables and code never use these directly: they go through the
-        theme (?attr/colorPrimary, ?attr/ttGlassBar…), so the chosen theme decides.
+        Dark theme palette (default when the phone is dark). Light overrides the same names in
+        values-notnight, NiiX has colors_niix.xml. Nothing uses these directly, always through the theme
+        (?attr/colorPrimary, ?attr/ttGlassBar…).
 
-        One rule, like YouTube: everything you can tap or toggle is black and white. Red is only
-        the brand (LIVE, "Now playing") and the progress of the video itself.
+        One rule, like YouTube: anything you can tap or toggle is black and white. Red is only the brand
+        (LIVE, "Now playing") and the video's progress.
 
-        The greys are TestTube's original dark palette:
+        Greys:
         - page (surface #0F0F0F): every screen and the Library
         - bars and sheets (surface_container_low #151515), solid
-        - cards on a page (surface_container #1B1B1B), dialogs (surface_container_high #222222)
-        - small fills (surface_container_highest #2C2C2C): chips, pills, placeholders, toggles
-          that are off, the playing queue row, the settings groups
+        - cards (surface_container #1B1B1B), dialogs (surface_container_high #222222)
+        - small fills (surface_container_highest #2C2C2C): chips, pills, placeholders, off toggles,
+          the playing queue row, settings groups
     -->
 
-    <!-- Brand: solid fills (LIVE and "Now playing" badges, placeholders, the video's progress) -->
+    <!-- Brand: LIVE and "Now playing" badges, placeholders, video progress -->
     <color name="brand_red">#FF0033</color>
     <color name="logo_watermark">#8B0000</color>
 
-    <!-- Accent: everything interactive or highlighted (buttons, switches, sliders, tabs, progress) -->
+    <!-- Accent: everything interactive or highlighted -->
     <color name="accent">#F1F1F1</color>
     <color name="on_accent">#0F0F0F</color>
     <color name="accent_container">#2E2E2E</color>
     <color name="on_accent_container">#F1F1F1</color>
 
-    <!-- Links in descriptions: the text colour, underlined -->
+    <!-- Description links: text colour, underlined -->
     <color name="link">#F1F1F1</color>
 
-    <!-- Neutral tones, lightest on top -->
+    <!-- Neutrals, lightest first -->
     <color name="neutral">#C9C9C9</color>
     <color name="on_neutral">#0F0F0F</color>
     <color name="neutral_container">#2E2E2E</color>
     <color name="on_neutral_container">#F1F1F1</color>
 
-    <!-- Surfaces from the page up to raised elements (dialogs, sheets, bars) -->
+    <!-- Surfaces from page up to raised (dialogs, sheets, bars) -->
     <color name="surface">#0F0F0F</color>
     <color name="surface_container_lowest">#0A0A0A</color>
     <color name="surface_container_low">#151515</color>
@@ -48,34 +47,34 @@
     <color name="outline">#4A4A4A</color>
     <color name="outline_variant">#2E2E2E</color>
 
-    <!-- The bars, dialogs and sheets: solid in Dark and Light, only NiiX makes them see-through -->
+    <!-- Bars, dialogs, sheets: solid in Dark and Light, only NiiX is see-through -->
     <color name="glass_bar">#151515</color>
     <color name="glass_bar_solid">#151515</color>
     <color name="glass_hairline">#14FFFFFF</color>
-    <!-- No line around dialogs -->
+    <!-- No dialog outline -->
     <color name="glass_edge">#00000000</color>
     <color name="glass_dialog">#222222</color>
     <color name="glass_sheet">#151515</color>
-    <!-- The long-press menu and the settings: the same grey as every other Dark dialog -->
+    <!-- Long-press menu and settings: same grey as other Dark dialogs -->
     <color name="glass_dialog_page">#222222</color>
 
-    <!-- The selected bottom tab's pill -->
+    <!-- Selected bottom tab pill -->
     <color name="nav_indicator">#26FFFFFF</color>
 
     <!-- Selected text -->
     <color name="text_highlight">#59FFFFFF</color>
 
-    <!-- The Library's pages, under the browser-style tabs; the selected tab has the same colour -->
+    <!-- Library pages under the tabs; the selected tab matches -->
     <color name="library_page">#1B1B1B</color>
 
-    <!-- Cards holding a group of settings (flat in the Light and NiiX themes) -->
+    <!-- Settings group cards (flat in Light and NiiX) -->
     <color name="settings_group">#2C2C2C</color>
 
-    <!-- Revealed under a list row while it is swiped -->
+    <!-- Under a row while it's swiped -->
     <color name="swipe_background">#000000</color>
     <color name="swipe_content">#FFFFFF</color>
 
-    <!-- Contrasting pill (Follow button) -->
+    <!-- Contrasting pill (Follow) -->
     <color name="inverse_surface">#F1F1F1</color>
     <color name="inverse_on_surface">#0F0F0F</color>
 
@@ -84,7 +83,7 @@
     <color name="error_container">#93000A</color>
     <color name="on_error_container">#FFDAD6</color>
 
-    <!-- Overlays on video and pictures, the same in every theme -->
+    <!-- Overlays on video and pictures, same in every theme -->
     <color name="scrim_strong">#CC000000</color>
     <color name="scrim_soft">#80000000</color>
     <color name="scrubber_unplayed">#99FFFFFF</color>
@@ -94,6 +93,6 @@
     <color name="ic_launcher_background">#000000</color>
     <color name="ic_launcher_play">#E5251E</color>
 
-    <!-- Buttons of the player notification: light on the dark notification background -->
+    <!-- Notification buttons: light on the dark background -->
     <color name="notification_control">#E6FFFFFF</color>
 </resources>

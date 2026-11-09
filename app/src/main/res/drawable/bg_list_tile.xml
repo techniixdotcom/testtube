@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Row background shared by the Queue, History and Downloads lists: flat, the playing queue row is a shade lighter -->
+<!-- Row background for Queue, History and Downloads: flat, the playing queue row a shade lighter -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_activated="true">
         <shape android:shape="rectangle">

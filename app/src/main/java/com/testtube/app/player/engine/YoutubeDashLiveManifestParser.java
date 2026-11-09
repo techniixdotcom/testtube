@@ -15,7 +15,7 @@ import androidx.media3.exoplayer.dash.manifest.UtcTimingElement;
 
 import java.util.List;
 
-/** Port of NewPipe's live DASH workaround: start from the newest period, not an outdated one. */
+/** Port of NewPipe's live DASH fix: start from the newest period, not a stale one. */
 @OptIn(markerClass = UnstableApi.class)
 class YoutubeDashLiveManifestParser extends DashManifestParser {
 	@SuppressWarnings("ParameterNumber")

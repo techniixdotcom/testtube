@@ -1,9 +1,18 @@
 package com.testtube.app;
 
+import android.app.Activity;
+import android.app.Application;
+import android.app.NotificationManager;
+import android.app.usage.StorageStatsManager;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Process;
+import android.os.storage.StorageManager;
 import android.util.Log;
+import android.webkit.CookieManager;
 import android.webkit.WebView;
 
 import androidx.annotation.MainThread;
@@ -41,6 +50,7 @@ import com.testtube.app.filter.AiChannelList;
 import com.testtube.app.filter.ContentFilters;
 import com.testtube.app.history.WatchHistory;
 import com.testtube.app.player.PlayerStateStore;
+import com.testtube.app.player.common.DecoderSupport;
 import com.testtube.app.player.common.PlayerPreferences;
 import com.testtube.app.player.engine.VideoCacheEvictor;
 import com.testtube.app.player.engine.datasource.StreamHttp;
@@ -66,6 +76,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -76,6 +87,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 @UnstableApi
 public final class AppGraph {
 	private static final long HTTP_CACHE_BYTES = 64L * 1024L * 1024L;
+	/** Video cache folder. */
+	private static final String PLAYER_DIR = "player";
+	/** OkHttp cache folder. */
+	private static final String OKHTTP_DIR = "okhttp";
+	/** Last run's cache gets renamed in here at start and deleted in the background. */
+	private static final String WIPE_DIR = ".wipe";
 
 	@NonNull
 	private final Context context;
@@ -83,6 +100,7 @@ public final class AppGraph {
 	private Executor executor;
 	private MMKV mmkv;
 	private SimpleCache simpleCache;
+	private StandaloneDatabaseProvider databaseProvider;
 	private VideoCacheEvictor cacheEvictor;
 	private WatchHistory watchHistory;
 	private DownloadHistoryRepository downloadHistory;
@@ -92,7 +110,7 @@ public final class AppGraph {
 	private PoTokenHost poTokenHost;
 	private PoTokenCoordinator poTokenCoordinator;
 	private final AtomicBoolean warmedUp = new AtomicBoolean();
-	/** Where the player's requests go first (the video hosts differ per video). */
+	/** Hosts the player hits first. */
 	private static final String[] WARM_HOSTS = {"www.youtube.com", "youtubei.googleapis.com", "i.ytimg.com"};
 	private TestTubePoTokenProvider poTokenProvider;
 	private ExtractionSessionScope extractionSessionScope;
@@ -133,7 +151,7 @@ public final class AppGraph {
 			dispatcher.setMaxRequests(128);
 			dispatcher.setMaxRequestsPerHost(24);
 			okHttpClient = new OkHttpClient.Builder()
-							.cache(new Cache(new File(context.getCacheDir(), "okhttp"), HTTP_CACHE_BYTES))
+							.cache(new Cache(new File(context.getCacheDir(), OKHTTP_DIR), HTTP_CACHE_BYTES))
 							.dispatcher(dispatcher)
 							.retryOnConnectionFailure(true)
 							.connectTimeout(20L, TimeUnit.SECONDS)
@@ -145,10 +163,7 @@ public final class AppGraph {
 		return okHttpClient;
 	}
 
-	/**
-	 * Once the first screen is up: opens the connections a video needs and gets BotGuard going,
-	 * so the first tap on a video doesn't pay for any of it.
-	 */
+	/** After the first screen: warm up connections and BotGuard so the first video starts fast. */
 	public void warmUp() {
 		if (!warmedUp.compareAndSet(false, true)) return;
 		Executor background = executor();
@@ -157,14 +172,14 @@ public final class AppGraph {
 			background.execute(() -> {
 				Request request = new Request.Builder().url("https://" + host + "/generate_204").head().build();
 				try (Response ignored = client.newCall(request).execute()) {
-					// only the open connection matters
+					// only the connection matters
 				} catch (IOException | RuntimeException offline) {
-					// the real requests will say so
 				}
 			});
 		}
 		background.execute(() -> poTokenCoordinator().warmUp());
 		background.execute(() -> StreamHttp.warmUp(context));
+		background.execute(DecoderSupport::load);
 	}
 
 	@NonNull
@@ -195,12 +210,19 @@ public final class AppGraph {
 		return mmkv;
 	}
 
+	/** Video cache index. */
+	@NonNull
+	private synchronized StandaloneDatabaseProvider databaseProvider() {
+		if (databaseProvider == null) databaseProvider = new StandaloneDatabaseProvider(context);
+		return databaseProvider;
+	}
+
 	@NonNull
 	public synchronized SimpleCache simpleCache() {
 		if (simpleCache == null) {
 			cacheEvictor = new VideoCacheEvictor(playerCacheBytes());
-			simpleCache = new SimpleCache(new File(context.getCacheDir(), "player"), cacheEvictor,
-							new StandaloneDatabaseProvider(context));
+			simpleCache = new SimpleCache(new File(context.getCacheDir(), PLAYER_DIR), cacheEvictor,
+							databaseProvider());
 		}
 		return simpleCache;
 	}
@@ -209,30 +231,78 @@ public final class AppGraph {
 		return AppSettings.videoCache().maxBytes;
 	}
 
-	/** Folders in the cache directory that "Clear cache" must leave alone. */
-	private static final Set<String> KEPT_CACHE_FILES = Set.of("updates");
-	/** Cache folders emptied through their owners' APIs rather than by deleting files. */
-	private static final Set<String> SELF_MANAGED_CACHES = Set.of("player", "okhttp", TestTubeGlideModule.CACHE_DIR, "WebView");
+	/** Emptied through their own APIs, not by deleting files. */
+	private static final Set<String> SELF_MANAGED_CACHES = Set.of(PLAYER_DIR, OKHTTP_DIR, TestTubeGlideModule.CACHE_DIR, "WebView", WIPE_DIR);
+	/** How long an exit waits for screens and background work. */
+	private static final long EXIT_RETRY_MS = 100L;
+	private static final int EXIT_RETRIES = 30;
+	/** One disk block, App info's minimum per file or folder. */
+	private static final long BLOCK_BYTES = 4096L;
 
-	/**
-	 * Bytes of cache the app holds: saved video, pictures and web data. Half-finished downloads
-	 * and downloaded updates aren't counted, as "Clear cache" keeps them. Reads the disk.
-	 */
+	/** Live screens, main thread only. */
+	private int liveScreens;
+	/** Screens ever opened; lets an exit notice the app came back. */
+	private int openedScreens;
+
+	/** Counts screens so an exit only kills the process once they're all gone. */
+	@NonNull
+	Application.ActivityLifecycleCallbacks screenTracker() {
+		return new Application.ActivityLifecycleCallbacks() {
+			@Override
+			public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle savedInstanceState) {
+				liveScreens++;
+				openedScreens++;
+			}
+
+			@Override
+			public void onActivityStarted(@NonNull Activity activity) {
+			}
+
+			@Override
+			public void onActivityResumed(@NonNull Activity activity) {
+			}
+
+			@Override
+			public void onActivityPaused(@NonNull Activity activity) {
+			}
+
+			@Override
+			public void onActivityStopped(@NonNull Activity activity) {
+			}
+
+			@Override
+			public void onActivitySaveInstanceState(@NonNull Activity activity, @NonNull Bundle outState) {
+			}
+
+			@Override
+			public void onActivityDestroyed(@NonNull Activity activity) {
+				if (liveScreens > 0) liveScreens--;
+			}
+		};
+	}
+
+	/** Same number as App info (cache, code cache, external cache, whole blocks). Slow, worker thread. */
 	@WorkerThread
 	public long cacheSize() {
-		long total = 0;
-		File[] files = context.getCacheDir().listFiles();
-		if (files == null) return 0;
-		for (File file : files) {
-			if (isKeptCacheFile(file)) continue;
-			total += sizeOf(file);
+		try {
+			StorageStatsManager stats = context.getSystemService(StorageStatsManager.class);
+			StorageManager storage = context.getSystemService(StorageManager.class);
+			if (stats != null && storage != null) {
+				UUID volume = storage.getUuidForPath(context.getCacheDir());
+				// no permission needed for our own package
+				return stats.queryStatsForPackage(volume, context.getPackageName(), Process.myUserHandle()).getCacheBytes();
+			}
+		} catch (IOException | PackageManager.NameNotFoundException | RuntimeException e) {
+			Log.w("AppGraph", "Android could not tell the cache size, counting it here", e);
 		}
-		return total;
+		long total = allocatedSize(context.getCacheDir()) - BLOCK_BYTES + allocatedSize(context.getCodeCacheDir()) - BLOCK_BYTES;
+		File[] external = externalCacheDirs();
+		for (File dir : external) total += allocatedSize(dir) - BLOCK_BYTES;
+		return Math.max(0, total);
 	}
 
 	/**
-	 * The part of clearing the cache that has to run on the main thread: the WebViews' cache and
-	 * the pictures in memory. {@link #clearCaches()} does the rest.
+	 * Main thread part of clearing: WebView cache and in-memory pictures. {@link #clearCaches()} does the rest.
 	 */
 	@MainThread
 	public void clearMainThreadCaches() {
@@ -241,66 +311,126 @@ public final class AppGraph {
 			web.clearCache(true);
 			web.destroy();
 		} catch (RuntimeException e) {
-			// No WebView provider right now; the rest is still cleared
+			// no WebView, clear the rest anyway
 		}
 		Glide.get(context).clearMemory();
 	}
 
-	/**
-	 * Set while the cache may still hold something from a run that "Clear cache on exit" didn't
-	 * get to empty: the app was swiped away before a video played, or killed before the clearing
-	 * finished. The next start empties it then.
-	 */
-	private static final String KEY_EXIT_CLEAR_PENDING = "exit_cache_clear_pending";
-	/** Guards the pending flag together with {@link #cacheSession}. */
-	private final Object exitClearLock = new Object();
-	/** Raised each time a screen opens, so a clear that began earlier doesn't mark the new cache as gone. */
-	private int cacheSession;
+	/** Suffix of a moved video cache, deleted with its DB index. */
+	private static final String WIPED_PLAYER_SUFFIX = "-" + PLAYER_DIR;
+	/** Without a journal, files in OkHttp's folder are orphans. */
+	private static final String[] OKHTTP_JOURNALS = {"journal", "journal.bkp"};
 	@NonNull
 	private final Handler mainHandler = new Handler(Looper.getMainLooper());
-
-	/** A screen opened: what it caches from now on is left for the next exit, or the next start, to clear. */
-	public void markCacheInUse() {
-		synchronized (exitClearLock) {
-			cacheSession++;
-			mmkv().encode(KEY_EXIT_CLEAR_PENDING, true);
-		}
-	}
+	private int wipeCount;
 
 	/**
-	 * At process start: when "Clear cache on exit" is on and the last run's cache wasn't emptied
-	 * (Android gives no reliable last word to an app swiped away), empties it now, once the main
-	 * thread is idle so the first screen isn't held up.
+	 * Runs at process start, before any cache opens. With clear-on-exit on, whatever the last run
+	 * left (killed mid-exit, download kept it alive) goes, like App info's Clear cache. Folders are
+	 * renamed here and deleted in the background.
+	 * <p>
+	 * With the setting off only an orphaned OkHttp folder goes (see {@link #clearCaches()}).
 	 */
 	@MainThread
-	public void clearCacheLeftFromLastRun() {
-		if (!AppSettings.clearCacheOnExit() || !mmkv().decodeBool(KEY_EXIT_CLEAR_PENDING, false)) return;
-		int session;
-		synchronized (exitClearLock) {
-			session = cacheSession;
+	public void wipeCacheOnStart() {
+		File cacheDir = context.getCacheDir();
+		File wipe = new File(cacheDir, WIPE_DIR);
+		boolean clearAll = AppSettings.clearCacheOnExit();
+		if (clearAll) {
+			File[] files = cacheDir.listFiles();
+			if (files != null) {
+				for (File file : files) {
+					// nothing downloads yet, so part files are leftovers
+					if (WIPE_DIR.equals(file.getName())) continue;
+					moveToWipe(file, wipe);
+				}
+			}
+			// graphics caches, App info counts them too
+			File[] codeCache = context.getCodeCacheDir().listFiles();
+			if (codeCache != null) {
+				for (File file : codeCache) moveToWipe(file, wipe);
+			}
+		} else {
+			File okhttp = new File(cacheDir, OKHTTP_DIR);
+			if (okhttp.isDirectory() && !hasOkHttpJournal(okhttp)) moveToWipe(okhttp, wipe);
 		}
-		Looper.myQueue().addIdleHandler(() -> {
-			clearExitCaches(session, null);
-			return false;
+		if (!clearAll && !wipe.exists()) return;
+		executor().execute(() -> {
+			deleteWipe(wipe);
+			if (clearAll) deleteExternalCaches();
 		});
 	}
 
-	/**
-	 * "Clear cache on exit": empties everything {@link #clearMainThreadCaches()} and
-	 * {@link #clearCaches()} do, then remembers the cache is clean. {@code done}, if given, runs on
-	 * the main thread afterwards, also when the clearing failed.
-	 */
-	@MainThread
-	public void clearCachesOnExit(@Nullable Runnable done) {
-		int session;
-		synchronized (exitClearLock) {
-			session = cacheSession;
+	private static boolean hasOkHttpJournal(@NonNull File dir) {
+		for (String name : OKHTTP_JOURNALS) {
+			if (new File(dir, name).exists()) return true;
 		}
-		clearExitCaches(session, done);
+		return false;
 	}
 
 	@MainThread
-	private void clearExitCaches(int session, @Nullable Runnable done) {
+	private void moveToWipe(@NonNull File file, @NonNull File wipe) {
+		if (!wipe.isDirectory() && !wipe.mkdirs() && !wipe.isDirectory()) {
+			Log.w("AppGraph", "could not create " + wipe);
+			return;
+		}
+		// unique in case an old wipe never finished; keeps the name's end for the player check
+		File target = new File(wipe, System.currentTimeMillis() + "-" + (wipeCount++) + "-" + file.getName());
+		if (!file.renameTo(target)) Log.w("AppGraph", "could not move " + file + " aside");
+	}
+
+	private void deleteWipe(@NonNull File wipe) {
+		File[] files = wipe.listFiles();
+		if (files != null) {
+			for (File file : files) {
+				if (file.isDirectory() && file.getName().endsWith(WIPED_PLAYER_SUFFIX)) {
+					deleteVideoCache(file);
+				}
+				deleteRecursively(file);
+			}
+		}
+		deleteRecursively(wipe);
+	}
+
+	/** Deletes a video cache and its DB index. */
+	private void deleteVideoCache(@NonNull File dir) {
+		try {
+			SimpleCache.delete(dir, databaseProvider());
+		} catch (RuntimeException e) {
+			Log.w("AppGraph", "could not delete the video cache's index", e);
+		}
+	}
+
+	@NonNull
+	private File[] externalCacheDirs() {
+		try {
+			File[] dirs = context.getExternalCacheDirs();
+			if (dirs == null) return new File[0];
+			List<File> present = new ArrayList<>();
+			for (File dir : dirs) {
+				if (dir != null) present.add(dir);
+			}
+			return present.toArray(new File[0]);
+		} catch (RuntimeException e) {
+			return new File[0];
+		}
+	}
+
+	/** We never write there, but App info counts it. */
+	private void deleteExternalCaches() {
+		for (File dir : externalCacheDirs()) deleteChildren(dir);
+	}
+
+	/**
+	 * Clear cache on exit and Quit. {@code done} runs on the main thread afterwards, even on failure.
+	 * <p>
+	 * Once every screen is gone the leftovers (index files, folders) go too and the process ends, so
+	 * App info shows 0. Reopening, a running or paused download, or an update download keeps the
+	 * process; next start cleans up then.
+	 */
+	@MainThread
+	public void clearCachesOnExit(@Nullable Runnable done) {
+		int openedAtExit = openedScreens;
 		try {
 			clearMainThreadCaches();
 		} catch (RuntimeException e) {
@@ -309,24 +439,84 @@ public final class AppGraph {
 		executor().execute(() -> {
 			try {
 				clearCaches();
-				synchronized (exitClearLock) {
-					if (cacheSession == session) mmkv().encode(KEY_EXIT_CLEAR_PENDING, false);
-				}
 			} catch (RuntimeException e) {
-				// Stays pending, so the next start tries again
 				Log.w("AppGraph", "could not clear the cache on exit", e);
 			} finally {
-				if (done != null) mainHandler.post(done);
+				mainHandler.post(() -> {
+					try {
+						if (done != null) done.run();
+					} finally {
+						endProcessWhenClosed(openedAtExit, EXIT_RETRIES);
+					}
+				});
 			}
 		});
 	}
 
+	@MainThread
+	private void endProcessWhenClosed(int openedAtExit, int retriesLeft) {
+		// opened again, leave it
+		if (openedScreens != openedAtExit) return;
+		if (downloadsInProgress() || updateDownloading()) return;
+		// give screens a moment to close and background work (history saves) a chance to finish.
+		// An open screen keeps us alive, slow background work doesn't, Android kills closed apps anyway.
+		if (liveScreens > 0 || backgroundBusy()) {
+			if (retriesLeft > 0) {
+				mainHandler.postDelayed(() -> endProcessWhenClosed(openedAtExit, retriesLeft - 1), EXIT_RETRY_MS);
+				return;
+			}
+			if (liveScreens > 0) return;
+		}
+		// on the main thread so no screen can open and hit a deleted cache folder
+		try {
+			wipeAll();
+		} catch (RuntimeException e) {
+			Log.w("AppGraph", "could not wipe the cache on exit", e);
+		}
+		try {
+			// flush sign-in cookies
+			CookieManager.getInstance().flush();
+		} catch (RuntimeException e) {
+			// no WebView
+		}
+		NotificationManager notifications = context.getSystemService(NotificationManager.class);
+		if (notifications != null) notifications.cancel(PlaybackService.NOTIFICATION_ID);
+		Process.killProcess(Process.myPid());
+	}
+
+	/** Workers still busy. */
+	private boolean backgroundBusy() {
+		Executor current;
+		synchronized (this) {
+			current = executor;
+		}
+		return current instanceof ThreadPoolExecutor pool && (pool.getActiveCount() > 0 || !pool.getQueue().isEmpty());
+	}
+
+	/** What Android's Clear cache deletes. Only right before the process dies. */
+	@MainThread
+	private void wipeAll() {
+		File[] files = context.getCacheDir().listFiles();
+		if (files != null) {
+			for (File file : files) {
+				String name = file.getName();
+				if (PLAYER_DIR.equals(name)) {
+					deleteVideoCache(file);
+				} else if (WIPE_DIR.equals(name)) {
+					deleteWipe(file);
+				}
+				deleteRecursively(file);
+			}
+		}
+		deleteChildren(context.getCodeCacheDir());
+		deleteExternalCaches();
+	}
+
 	/**
-	 * Empties the video, HTTP and picture caches through their own APIs, so this is
-	 * safe while something plays, and deletes other leftovers in the cache directory. Downloads in
-	 * progress, downloaded updates, cookies, history, the queue and settings stay. Reads and writes
-	 * the disk; the WebView's cache and the pictures in memory have to be cleared on the main
-	 * thread by the caller.
+	 * Empties video, HTTP and picture caches through their APIs (safe while playing) and deletes
+	 * the rest of the cache dir, graphics caches and external cache. Running or paused downloads keep
+	 * their part files, an update download keeps its file. Worker thread; the caller clears the
+	 * WebView and memory caches on the main thread.
 	 */
 	@WorkerThread
 	public void clearCaches() {
@@ -342,35 +532,73 @@ public final class AppGraph {
 		if (http != null) {
 			try {
 				http.evictAll();
-			} catch (IOException e) {
+				// evictAll leaves a line per entry in the journal (can be hundreds of KB). Deleting it is fine:
+				// OkHttp keeps writing to the open file and the next start sweeps the folder.
+				http.flush();
+				File okhttp = new File(context.getCacheDir(), OKHTTP_DIR);
+				for (String name : OKHTTP_JOURNALS) {
+					File journal = new File(okhttp, name);
+					if (!journal.delete() && journal.exists()) Log.w("AppGraph", "could not delete " + journal);
+				}
+			} catch (IOException | RuntimeException e) {
 				Log.w("AppGraph", "could not clear the HTTP cache", e);
 			}
 		}
-		// Pictures; their memory cache is emptied by the caller on the main thread
+		// memory cache is cleared by the caller
 		Glide.get(context).clearDiskCache();
 		File[] files = context.getCacheDir().listFiles();
-		if (files == null) return;
-		for (File file : files) {
-			String name = file.getName();
-			// The caches above and the WebView (cleared by the caller) manage their own folders
-			if (isKeptCacheFile(file) || SELF_MANAGED_CACHES.contains(name)) continue;
-			deleteRecursively(file);
+		if (files != null) {
+			boolean downloading = downloadsInProgress();
+			boolean updating = updateDownloading();
+			for (File file : files) {
+				String name = file.getName();
+				// managed by their owners
+				if (SELF_MANAGED_CACHES.contains(name)) continue;
+				if (updating && UpdateManager.UPDATE_DIR.equals(name)) continue;
+				// download part files
+				if (downloading && file.isFile() && name.endsWith(".tmp")) continue;
+				deleteRecursively(file);
+			}
 		}
+		// graphics caches, rebuilt when needed
+		deleteChildren(context.getCodeCacheDir());
+		deleteExternalCaches();
 	}
 
-	private static boolean isKeptCacheFile(@NonNull File file) {
-		// Downloads write *.tmp files here until they are finished
-		return KEPT_CACHE_FILES.contains(file.getName()) || (file.isFile() && file.getName().endsWith(".tmp"));
+	/** A download is running or paused, its part files are in use. */
+	private boolean downloadsInProgress() {
+		TestTubeDownloader current;
+		synchronized (this) {
+			current = downloader;
+		}
+		return current != null && current.hasTasks();
 	}
 
-	private static long sizeOf(@NonNull File file) {
-		if (file.isFile()) return file.length();
-		long total = 0;
+	/** An update is downloading into the cache dir. */
+	private boolean updateDownloading() {
+		UpdateManager current;
+		synchronized (this) {
+			current = updateManager;
+		}
+		return current != null && current.isDownloading();
+	}
+
+	/** Disk usage like App info counts it: whole blocks, folders too. */
+	private static long allocatedSize(@NonNull File file) {
+		if (file.isFile()) return (file.length() + BLOCK_BYTES - 1) / BLOCK_BYTES * BLOCK_BYTES;
+		if (!file.isDirectory()) return 0;
+		long total = BLOCK_BYTES;
 		File[] children = file.listFiles();
 		if (children != null) {
-			for (File child : children) total += sizeOf(child);
+			for (File child : children) total += allocatedSize(child);
 		}
 		return total;
+	}
+
+	private static void deleteChildren(@NonNull File dir) {
+		File[] children = dir.listFiles();
+		if (children == null) return;
+		for (File child : children) deleteRecursively(child);
 	}
 
 	private static void deleteRecursively(@NonNull File file) {
@@ -381,7 +609,7 @@ public final class AppGraph {
 		if (!file.delete() && file.exists()) Log.w("AppGraph", "could not delete " + file);
 	}
 
-	/** The "Video cache" setting changed: a smaller limit frees space right away. */
+	/** Video cache setting changed; a smaller limit frees space now. */
 	public void applyVideoCacheSize() {
 		SimpleCache cache;
 		VideoCacheEvictor evictor;
@@ -470,7 +698,7 @@ public final class AppGraph {
 		if (extractorDownloader == null) {
 			extractorDownloader = new DownloaderImpl(okHttpClient(), extractionSessionScope());
 			AiChannelList aiChannels = aiChannelList();
-			// Synchronous on purpose: the rows of this very response get filtered with what it taught
+			// sync on purpose, this response's rows get filtered with what it taught
 			extractorDownloader.setResponseListener(response -> {
 				if (aiChannels.isEnabled()) aiChannels.learn(response);
 			});
@@ -501,7 +729,7 @@ public final class AppGraph {
 	@NonNull
 	public synchronized FeedClient feedClient() {
 		if (feedClient == null) {
-			youtubeExtractor(); // initializes NewPipe
+			youtubeExtractor(); // inits NewPipe
 			feedClient = new FeedClient(extractorDownloader(), nativeAuth(), executor());
 			feedClient.setTaste(this::historyTaste);
 			feedClient.setGeneralQueries(() -> Arrays.asList(context.getResources().getStringArray(R.array.discover_queries)));
@@ -514,7 +742,7 @@ public final class AppGraph {
 	@NonNull
 	public synchronized PageSource pageSource() {
 		if (pageSource == null) {
-			youtubeExtractor(); // initializes NewPipe
+			youtubeExtractor(); // inits NewPipe
 			pageSource = new PageSource(extractorDownloader(), nativeAuth(), executor());
 		}
 		return pageSource;
@@ -523,8 +751,8 @@ public final class AppGraph {
 	@NonNull
 	public synchronized PlaylistSource playlistSource() {
 		if (playlistSource == null) {
-			youtubeExtractor(); // initializes NewPipe
-			playlistSource = new PlaylistSource(extractorDownloader(), nativeAuth(), executor());
+			youtubeExtractor(); // inits NewPipe
+			playlistSource = new PlaylistSource(context, extractorDownloader(), nativeAuth(), executor());
 		}
 		return playlistSource;
 	}
@@ -540,7 +768,7 @@ public final class AppGraph {
 		if (youtubeExtractor == null) {
 			youtubeExtractor = new YoutubeExtractor(extractorDownloader(), poTokenProvider(), nativeAuth(),
 							infoCache(), executor(), gson(), contentFilters());
-			// Before anything is extracted, so even the first video can use the stored functions
+			// before any extraction, so the first video can use the stored functions
 			YoutubeJavaScriptPlayerManager.setPersistentCache(new PlayerFunctionStore(context));
 		}
 		return youtubeExtractor;

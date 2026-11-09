@@ -112,7 +112,7 @@ public final class YoutubeJavaScriptPlayerManager {
      * </p>
      *
      * @param videoId the video ID used to get the JavaScript base player file (an empty one can be
-     *                passed, even it is not recommend in order to spoof better official YouTube
+     *                passed, even it is not recommended in order to spoof better official YouTube
      *                clients)
      * @return the signature timestamp of the base JavaScript player file
      * @throws ParsingException if the extraction of the base JavaScript player file or the
@@ -126,7 +126,7 @@ public final class YoutubeJavaScriptPlayerManager {
             return cachedSignatureTimestamp;
         }
 
-        // If the signature timestamp has been not extracted on a previous call, this mean that we
+        // If the signature timestamp has been not extracted on a previous call, this means that we
         // will fail to extract it on next calls too if the player code has been not changed
         // Throw again the corresponding stored exception in this case to improve performance
         if (sigTimestampExtractionEx != null) {
@@ -176,7 +176,7 @@ public final class YoutubeJavaScriptPlayerManager {
      * </p>
      *
      * @param videoId             the video ID used to get the JavaScript base player file (an
-     *                            empty one can be passed, even it is not recommend in order to
+     *                            empty one can be passed, even it is not recommended in order to
      *                            spoof better official YouTube clients)
      * @param obfuscatedSignature the obfuscated signature of a streaming URL
      * @return the deobfuscated signature
@@ -188,7 +188,7 @@ public final class YoutubeJavaScriptPlayerManager {
             @Nonnull final String videoId,
             @Nonnull final String obfuscatedSignature) throws ParsingException {
         // If the signature deobfuscation function has been not extracted on a previous call, this
-        // mean that we will fail to extract it on next calls too if the player code has been not
+        // means that we will fail to extract it on next calls too if the player code has been not
         // changed
         // Throw again the corresponding stored exception in this case to improve performance
         if (sigDeobFuncExtractionEx != null) {
@@ -258,7 +258,7 @@ public final class YoutubeJavaScriptPlayerManager {
      * </p>
      *
      * @param videoId      the video ID used to get the JavaScript base player file (an empty one
-     *                     can be passed, even it is not recommend in order to spoof better
+     *                     can be passed, even it is not recommended in order to spoof better
      *                     official YouTube clients)
      * @param streamingUrl a streaming URL
      * @return the original streaming URL if it has no throttling parameter or a URL with a
@@ -290,8 +290,8 @@ public final class YoutubeJavaScriptPlayerManager {
         }
 
         // If the throttling parameter deobfuscation function has been not extracted on a previous
-        // call, this mean that we will fail to extract it on next calls too if the player code has
-        // been not changed
+        // call, this means that we will fail to extract it on next calls too if the player code
+        // has not been changed.
         // Throw again the corresponding stored exception in this case to improve performance
         if (throttlingDeobfFuncExtractionEx != null) {
             throw throttlingDeobfFuncExtractionEx;

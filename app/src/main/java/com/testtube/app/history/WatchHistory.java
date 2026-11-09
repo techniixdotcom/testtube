@@ -30,7 +30,7 @@ public final class WatchHistory {
 		this.store = MMKV.mmkvWithID(STORE_ID);
 	}
 
-	/** Adds a video at the top, moving it there if it is already listed. */
+	/** Adds to the top, moving it if it's already there. */
 	public synchronized void record(@Nullable String videoId,
 	                                @Nullable String title,
 	                                @Nullable String author,
@@ -47,9 +47,8 @@ public final class WatchHistory {
 	}
 
 	/**
-	 * Adds entries from a backup that are not listed yet, keeping newest first.
-	 *
-	 * @return number of entries added
+	 * Adds backup entries not listed yet, newest first.
+	 * @return how many were added
 	 */
 	public synchronized int merge(@NonNull List<Entry> incoming) {
 		List<Entry> entries = load();

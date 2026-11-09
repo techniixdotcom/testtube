@@ -15,13 +15,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A list row: a video, a channel or a playlist.
- *
- * @param durationSeconds -1 when unknown
- * @param count           views for videos, video count for playlists, subscribers for channels;
- *                        -1 when unknown
- * @param shortForm       a YouTube Short
- * @param authorAvatarUrl the uploader's profile image, null when the source has none
+ * A list row: video, channel or playlist.
+ * @param durationSeconds -1 if unknown
+ * @param count           views for videos, video count for playlists, subs for channels; -1 if unknown
+ * @param shortForm       a Short
+ * @param authorAvatarUrl uploader avatar, null if the source has none
  */
 public record FeedItem(@NonNull Kind kind,
                        @NonNull String url,
@@ -42,7 +40,7 @@ public record FeedItem(@NonNull Kind kind,
 		PLAYLIST
 	}
 
-	/** A row whose source has no uploader image (it is looked up by {@link AvatarCache}). */
+	/** Row without an uploader avatar ({@link AvatarCache} looks it up). */
 	public FeedItem(@NonNull Kind kind,
 	                @NonNull String url,
 	                @Nullable String videoId,
@@ -58,33 +56,29 @@ public record FeedItem(@NonNull Kind kind,
 						live, false, null);
 	}
 
-	/** The same row opening another url (a video inside a playlist, say). */
+	/** Same row, different url (a video inside a playlist, say). */
 	@NonNull
 	public FeedItem withUrl(@NonNull String newUrl) {
 		return new FeedItem(kind, newUrl, videoId, title, author, authorUrl, thumbnailUrl, durationSeconds, count,
 						published, live, shortForm, authorAvatarUrl);
 	}
 
-	/** The same row with another title and channel name (the original ones, say). */
+	/** Same row with another title and channel (the originals, say). */
 	@NonNull
 	public FeedItem withNames(@NonNull String newTitle, @Nullable String newAuthor) {
 		return new FeedItem(kind, url, videoId, newTitle, newAuthor, authorUrl, thumbnailUrl, durationSeconds, count,
 						published, live, shortForm, authorAvatarUrl);
 	}
 
-	/**
-	 * 320x180 (16:9) thumbnail for list rows. About a third of the size of hqdefault, and without
-	 * the black bars.
-	 */
+	/** 320x180 thumbnail for rows. A third of hqdefault's size and no black bars. */
 	@NonNull
 	public static String thumbnailFor(@NonNull String videoId) {
 		return "https://i.ytimg.com/vi/" + videoId + "/mqdefault.jpg";
 	}
 
 	/**
-	 * Sorts by upload date, newest first. Live streams go on top. A row whose date can't be read
-	 * stays right after the row it followed, and rows before the first date (upcoming premieres)
-	 * stay on top.
+	 * Newest first, live on top. Undated rows stay right after the row they followed, rows before
+	 * the first date (upcoming premieres) stay on top.
 	 */
 	public static void sortByUploadDate(@NonNull List<FeedItem> items) {
 		TimeAgoParser parser = TimeAgoPatternsManager.getTimeAgoParserFor(NewPipe.getPreferredLocalization());
@@ -98,13 +92,13 @@ public record FeedItem(@NonNull Kind kind,
 				try {
 					age = Duration.between(parser.parse(item.published()).getInstant(), now).getSeconds();
 				} catch (Exception ignored) {
-					// Keeps the previous row's age, so the row doesn't move away from it
+					// keep the previous row's age so it doesn't wander off
 				}
 			}
 			ages.put(item, age);
 			previous = age;
 		}
-		// Stable, so rows of the same age keep YouTube's order
+		// stable, same age keeps YouTube's order
 		items.sort(Comparator.comparingLong(ages::get));
 	}
 }

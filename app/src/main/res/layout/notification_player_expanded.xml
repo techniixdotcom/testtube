@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    The expanded player notification: picture, title and channel, then the buttons. Its colours
-    come from the app's theme in code; notification_player_expanded_niix is the same in JetBrains Mono.
+    Expanded player notification: picture, title, channel, buttons. Colours set from the theme in
+    code; notification_player_expanded_niix is the same in JetBrains Mono.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"

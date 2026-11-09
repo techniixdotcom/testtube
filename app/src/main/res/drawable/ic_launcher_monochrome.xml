@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Themed icon (Android 13+): one tone, so the play is cut out of the tube instead of edged. -->
+<!-- Themed icon (13+): one tone, so the play is cut out of the tube instead of edged. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -10,7 +10,7 @@
         android:pivotY="54"
         android:scaleX="0.64"
         android:scaleY="0.64">
-        <!-- The whole tile minus a gap around the play (opposite winding makes the hole) -->
+        <!-- whole tile minus a gap around the play (opposite winding makes the hole) -->
         <clip-path android:pathData="M0,0 H108 V108 H0 Z M37,27.2 L37,82.8 L83.8,55 Z" />
         <group
             android:rotation="45"

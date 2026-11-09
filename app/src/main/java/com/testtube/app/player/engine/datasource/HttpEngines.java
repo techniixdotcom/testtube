@@ -17,11 +17,10 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
 /**
- * Android's built-in Chromium network stack (HttpEngine), shared by every player. It speaks
- * HTTP/3 over QUIC to googlevideo, the same way YouTube's own app does, and falls back to HTTP/2
- * or 1.1 by itself. It remembers which servers do QUIC between launches, so even the first
- * request after a cold start can skip the TCP and TLS round trips. Nothing gets bundled: it's part
- * of the system, so older phones without it keep using HttpURLConnection.
+ * Android's built-in Chromium stack (HttpEngine), shared by all players. Speaks HTTP/3 over
+ * QUIC to googlevideo like YouTube's app and falls back to HTTP/2 or 1.1 by itself. Remembers QUIC
+ * hosts across launches, so even the first request after a cold start skips TCP and TLS. It's
+ * part of the system, nothing bundled; older phones keep using HttpURLConnection.
  */
 @UnstableApi
 @RequiresExtension(extension = Build.VERSION_CODES.S, version = 7)
@@ -30,7 +29,7 @@ final class HttpEngines {
 	private static final String STORAGE_DIR = "http_engine";
 	private static final long SERVER_INFO_BYTES = 1024L * 1024L;
 
-	/** Where the engine's callbacks run. They only hand buffers over, so one thread is plenty. */
+	/** Callback thread. They only hand buffers over, one is plenty. */
 	@NonNull
 	private static final Executor CALLBACKS = Executors.newSingleThreadExecutor(runnable -> {
 		Thread thread = new Thread(runnable, "testtube-http-engine");
@@ -46,8 +45,8 @@ final class HttpEngines {
 	}
 
 	/**
-	 * The shared engine, built the first time it's asked for, or null if this phone can't build
-	 * one (it's never retried, falling back is cheaper than failing twice).
+	 * Shared engine, built on first ask, or null if this phone can't (never retried, falling back
+	 * beats failing twice).
 	 */
 	@Nullable
 	static synchronized HttpEngine get(@NonNull Context context) {
@@ -60,23 +59,23 @@ final class HttpEngines {
 							.setEnableBrotli(true);
 			File storage = new File(app.getNoBackupFilesDir(), STORAGE_DIR);
 			if (storage.isDirectory() || storage.mkdirs()) {
-				// Keeps which hosts speak QUIC, but no responses: the player has its own cache
+				// remembers QUIC hosts but no responses, the player has its own cache
 				builder.setStoragePath(storage.getAbsolutePath())
 								.setEnableHttpCache(HttpEngine.Builder.HTTP_CACHE_DISK_NO_HTTP, SERVER_INFO_BYTES);
 			} else {
-				// Still works, it just forgets which hosts speak QUIC
+				// still works, just forgets QUIC hosts
 				builder.setEnableHttpCache(HttpEngine.Builder.HTTP_CACHE_DISABLED, 0);
 			}
 			engine = builder.build();
 		} catch (RuntimeException | LinkageError e) {
-			// A broken network module shouldn't take playback down with it
+			// a broken network module shouldn't take playback down
 			failed = true;
 			Log.w(TAG, "HttpEngine unavailable, using HttpURLConnection", e);
 		}
 		return engine;
 	}
 
-	/** For YouTube's stream URLs, with all their quirks. */
+	/** YouTube stream URLs, quirks and all. */
 	@Nullable
 	static HttpDataSource.Factory youtube(@NonNull Context context,
 	                                      @NonNull String userAgent,
@@ -91,7 +90,7 @@ final class HttpEngines {
 		return new YoutubeHttpEngineDataSource.Factory(upstream, userAgent, rangeParameterEnabled, rnParameterEnabled);
 	}
 
-	/** For plain GETs (live manifests and segments). */
+	/** Plain GETs (live manifests and segments). */
 	@Nullable
 	static HttpDataSource.Factory plain(@NonNull Context context,
 	                                    @NonNull String userAgent,

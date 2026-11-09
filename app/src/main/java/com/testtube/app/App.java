@@ -30,7 +30,7 @@ public class App extends Application {
 		Timing.init(this);
 		CrashLog.install(this);
 		MMKV.initialize(this);
-		// Before any screen is created, so the first one already has the chosen colours
+		// Before any screen exists, so the first one gets the right colours
 		AppCompatDelegate.setDefaultNightMode(AppSettings.theme().nightMode);
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
 			String processName = getProcessName();
@@ -40,8 +40,9 @@ public class App extends Application {
 		}
 		ContentLanguage.apply(this);
 		graph = new AppGraph(this);
-		// "Clear cache on exit" when the last run was swiped away or killed before it could
-		graph.clearCacheLeftFromLastRun();
+		registerActivityLifecycleCallbacks(graph.screenTracker());
+		// Wipe last run's cache before anything opens it
+		graph.wipeCacheOnStart();
 		initUserAgent();
 	}
 
@@ -52,8 +53,8 @@ public class App extends Application {
 	}
 
 	/**
-	 * The user agent uses the WebView's Chrome version. Reading it starts the WebView, so the
-	 * result is cached per WebView version and only refreshed (in the background) after an update.
+	 * User agent uses the WebView's Chrome version. Reading it starts the WebView, so it's
+	 * cached per WebView version and refreshed in the background after an update.
 	 */
 	private void initUserAgent() {
 		MMKV store = MMKV.defaultMMKV();
@@ -74,7 +75,7 @@ public class App extends Application {
 			try {
 				userAgent = WebSettings.getDefaultUserAgent(this);
 			} catch (RuntimeException e) {
-				// The WebView provider can be missing or updating.
+				// WebView can be missing or mid-update
 				return;
 			}
 			String major = UserAgents.chromeMajor(userAgent);

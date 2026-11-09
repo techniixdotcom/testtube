@@ -151,6 +151,11 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     private static final ThreadLocal<YoutubeStreamExtractor> LAST_LATER = new ThreadLocal<>();
     @Nullable
     private CompletableFuture<JsonObject> pendingNext;
+    /** TestTube: the WEB player response of a {@link NextMode#LATER} extraction, applied later. */
+    @Nullable
+    private CompletableFuture<JsonObject> pendingWeb;
+    @Nullable
+    private String pendingWebVideoId;
 
     /** TestTube: how extractions on this thread treat the "next" request, until set again. */
     public static void setNextMode(@Nonnull final NextMode mode) {
@@ -169,14 +174,17 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     }
 
     /**
-     * TestTube: done once the "next" answer is in (or failed), so {@link #awaitNext()} won't
-     * block. Already done when there's nothing pending.
+     * TestTube: done once the "next" and WEB answers are in (or failed), so {@link #awaitNext()}
+     * won't block. Already done when nothing's pending.
      */
     @Nonnull
     public CompletableFuture<?> nextDone() {
-        final CompletableFuture<JsonObject> pending = pendingNext;
-        return pending == null ? CompletableFuture.completedFuture(null)
-                : pending.handle((json, error) -> null);
+        return CompletableFuture.allOf(settled(pendingNext), settled(pendingWeb));
+    }
+
+    @Nonnull
+    private static CompletableFuture<?> settled(@Nullable final CompletableFuture<JsonObject> f) {
+        return f == null ? CompletableFuture.completedFuture(null) : f.handle((json, error) -> null);
     }
 
     /**
@@ -184,6 +192,12 @@ public class YoutubeStreamExtractor extends StreamExtractor {
      * like count, suggestions and chapters can be read. Without an answer they stay empty.
      */
     public void awaitNext() {
+        final CompletableFuture<JsonObject> web = pendingWeb;
+        if (web != null && pendingWebVideoId != null) {
+            pendingWeb = null;
+            // upload date and sharper thumbnails
+            applyWebClientMetadataAndSetThumbnails(web, pendingWebVideoId);
+        }
         final CompletableFuture<JsonObject> pending = pendingNext;
         if (pending == null) {
             return;
@@ -194,6 +208,7 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         } catch (final IOException | ExtractionException | RuntimeException e) {
             nextResponse = new JsonObject();
         }
+        findLiveChatContinuation(nextResponse);
         // Read from the empty response before; read them again from the real one
         videoPrimaryInfoRenderer = null;
         videoSecondaryInfoRenderer = null;
@@ -215,6 +230,8 @@ public class YoutubeStreamExtractor extends StreamExtractor {
     // Also because a nonce should be unique, it should be different between clients used, so
     // three different strings are used.
     private String visionOsCpn;
+    @Nullable
+    private String liveChatContinuation;
 
     public YoutubeStreamExtractor(final StreamingService service, final LinkHandler linkHandler) {
         super(service, linkHandler);
@@ -806,6 +823,17 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         return streamType;
     }
 
+    @Override
+    public boolean hasLiveChat() {
+        return liveChatContinuation != null;
+    }
+
+    @Override
+    @Nullable
+    public String getLiveChatContinuation() {
+        return liveChatContinuation;
+    }
+
     private void setStreamType() {
         if (playerResponse.getObject(PLAYABILITY_STATUS).has("liveStreamability")) {
             streamType = StreamType.LIVE_STREAM;
@@ -921,7 +949,17 @@ public class YoutubeStreamExtractor extends StreamExtractor {
         fetchVisionOsClient(playerLocalization, playerCountry, videoId);
         setStreamType();
 
-        applyWebClientMetadataAndSetThumbnails(webMetadata, videoId);
+        if (next != null && nextMode == NextMode.LATER) {
+            // TestTube: WEB only adds the upload date and sharper thumbnails, don't wait for it
+            playerMicroFormatRenderer = new JsonObject();
+            thumbnailsArray = playerResponse.getObject(VIDEO_DETAILS)
+                    .getObject(THUMBNAIL)
+                    .getArray(THUMBNAILS);
+            pendingWeb = webMetadata;
+            pendingWebVideoId = videoId;
+        } else {
+            applyWebClientMetadataAndSetThumbnails(webMetadata, videoId);
+        }
         // TestTube: "next" only has likes, description extras and suggestions; play without it
         if (next == null || nextMode == NextMode.LATER) {
             nextResponse = new JsonObject();
@@ -935,6 +973,24 @@ public class YoutubeStreamExtractor extends StreamExtractor {
             nextResponse = await(next);
         } catch (final IOException | ExtractionException | RuntimeException e) {
             nextResponse = new JsonObject();
+        }
+        findLiveChatContinuation(nextResponse);
+    }
+
+    private void findLiveChatContinuation(final JsonObject response) {
+        try {
+            final JsonObject liveChatRenderer = response
+                    .getObject("contents")
+                    .getObject("twoColumnWatchNextResults")
+                    .getObject("conversationBar")
+                    .getObject("liveChatRenderer");
+            liveChatContinuation = liveChatRenderer
+                    .getArray("continuations")
+                    .getObject(0)
+                    .getObject("reloadContinuationData")
+                    .getString("continuation");
+        } catch (final Exception e) {
+            liveChatContinuation = null;
         }
     }
 

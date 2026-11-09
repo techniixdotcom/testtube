@@ -46,7 +46,7 @@
             </intent-filter>
         </receiver>
 
-        <!-- The Quit button on the player notification; only the app itself can send to it -->
+        <!-- Quit button on the player notification, only we can send to it -->
         <receiver
             android:name=".QuitReceiver"
             android:exported="false" />

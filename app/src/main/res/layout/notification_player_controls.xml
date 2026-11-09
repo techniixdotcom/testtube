@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    The buttons of the player notification, on their own (collapsed, also on the lock screen) and
-    at the bottom of the expanded one. Android draws it, not the app: only plain views and fixed
-    colours here, no theme attributes of the app.
+    Player notification buttons, alone (collapsed, lock screen) and at the bottom of the expanded
+    one. Android draws this, not us: plain views and fixed colours only, no app theme attributes.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"

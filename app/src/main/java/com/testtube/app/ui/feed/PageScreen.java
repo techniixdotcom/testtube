@@ -52,10 +52,9 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Channel and playlist pages. A channel page has a header like YouTube's (banner, picture, handle,
- * counts, follow button) and a tab per list (Videos, Live, Playlists, ...), or with full channel
- * pages switched off, a plain header and the channel's videos. Pages stack up; back returns to the
- * previous page with its tab, list and scroll position.
+ * Channel and playlist pages. A channel gets a YouTube-like header (banner, avatar, handle,
+ * counts, follow) and a tab per list, or with full pages off a plain header and the videos. Pages
+ * stack; back returns to the previous one with its tab, list and scroll position.
  */
 public final class PageScreen {
 	private static final int LOAD_MORE_THRESHOLD = 6;
@@ -65,9 +64,7 @@ public final class PageScreen {
 	/** Key of a playlist's only list. */
 	private static final String PLAYLIST_LIST = "";
 
-	/**
-	 * Notified when the screen appears or disappears.
-	 */
+	/** Called when the screen shows or hides. */
 	public interface Listener {
 		void onPageVisible(boolean visible);
 	}
@@ -136,7 +133,7 @@ public final class PageScreen {
 			@Override
 			public void onOpenAuthor(@NonNull FeedItem item) {
 				Entry entry = stack.peekLast();
-				// On a channel page the author is the page itself.
+				// on a channel page the author is the page
 				if (entry != null && entry.kind == PageSource.Kind.CHANNEL) return;
 				if (item.authorUrl() != null) host.openPage(item.authorUrl());
 			}
@@ -155,7 +152,7 @@ public final class PageScreen {
 		list.setLayoutManager(layoutManager);
 		list.setAdapter(new ConcatAdapter(header, items, status));
 		list.setItemViewCacheSize(6);
-		// Swipe a video right to add it to the queue, as on Home; the channel is already open here
+		// swipe right queues, like Home; the channel is already open here
 		new ItemTouchHelper(new QueueSwipe(root.getContext(), new QueueSwipe.Target() {
 			@Nullable
 			@Override
@@ -178,7 +175,7 @@ public final class PageScreen {
 				return false;
 			}
 		})).attachToRecyclerView(list);
-		// The header rebinds when a tab changes; a cross-fade would make it blink
+		// the header rebinds on tab change, a cross-fade would make it blink
 		if (list.getItemAnimator() instanceof SimpleItemAnimator animator) {
 			animator.setSupportsChangeAnimations(false);
 		}
@@ -209,9 +206,7 @@ public final class PageScreen {
 		return !stack.isEmpty();
 	}
 
-	/**
-	 * Opens a channel or playlist on top of the current page.
-	 */
+	/** Opens a channel or playlist on top of the current page. */
 	public void open(@NonNull PageSource.Kind kind, @NonNull String url) {
 		Entry current = stack.peekLast();
 		if (current != null && current.url.equals(url)) {
@@ -230,9 +225,7 @@ public final class PageScreen {
 		listener.onPageVisible(true);
 	}
 
-	/**
-	 * @return true when a page was closed
-	 */
+	/** @return true if a page was closed */
 	public boolean back() {
 		Entry top = stack.pollLast();
 		if (top == null) return false;
@@ -262,7 +255,7 @@ public final class PageScreen {
 		items.refreshStates();
 	}
 
-	/** A channel was followed or unfollowed somewhere else. */
+	/** A channel got followed or unfollowed elsewhere. */
 	public void onFollowChanged() {
 		if (!stack.isEmpty()) header.notifyItemChanged(0);
 	}
@@ -281,7 +274,7 @@ public final class PageScreen {
 		if (top) {
 			list.scrollToPosition(0);
 		} else if (entry.scroll != null) {
-			// Back on this page: restore the old position once, later loads keep the current one
+			// back on this page: restore the old position once, later loads keep the current one
 			layoutManager.onRestoreInstanceState(entry.scroll);
 			entry.scroll = null;
 		}
@@ -299,7 +292,7 @@ public final class PageScreen {
 		items.submit(shown);
 		Status next;
 		if (entry.header == null) {
-			// Page still loading or failed, the refresh spinner or the error message covers it
+			// still loading or failed, the spinner or error covers it
 			next = Status.NONE;
 		} else if (state.call != null) {
 			next = Status.LOADING;
@@ -315,7 +308,7 @@ public final class PageScreen {
 
 	private void loadPage(@NonNull Entry entry) {
 		if (entry.pageCall != null) entry.pageCall.cancel(false);
-		// On a reload, stay on the tab that was open
+		// on reload stay on the open tab
 		String keep = entry.header != null ? entry.tab : null;
 		CompletableFuture<PageSource.Result> call = source.open(entry.kind, entry.url);
 		entry.pageCall = call;
@@ -331,7 +324,7 @@ public final class PageScreen {
 				if (!call.isCancelled() && !Failure.isCancellation(error)) {
 					entry.pageError = true;
 					entry.pageFailure = Failure.report(error);
-					// Refresh failed, the old content stays on screen
+					// refresh failed, old content stays
 					if (entry.header != null && entry == stack.peekLast()) {
 						ToastUtils.show(list.getContext(), entry.pageFailure.feedMessage);
 					}
@@ -450,8 +443,8 @@ public final class PageScreen {
 	}
 
 	/**
-	 * The rows to show. A channel's Videos, Shorts and Live tabs show only videos (no playlists in
-	 * between), newest first. Podcasts, Courses, Releases and playlist pages keep YouTube's order.
+	 * Rows to show. Videos, Shorts and Live tabs show only videos (no playlists mixed in), newest
+	 * first. Podcasts, Courses, Releases and playlists keep YouTube's order.
 	 */
 	@NonNull
 	private List<FeedItem> visible(@NonNull Entry entry, @NonNull List<FeedItem> source) {
@@ -467,7 +460,6 @@ public final class PageScreen {
 		if (channel) FeedItem.sortByUploadDate(out);
 		return out;
 	}
-
 
 	private static final class ListState {
 		@NonNull
@@ -508,7 +500,7 @@ public final class PageScreen {
 		final PageSource.Kind kind;
 		@NonNull
 		final String url;
-		/** Channel page with banner, follow button and tabs; fixed when the page opens. */
+		/** Full channel page (banner, follow, tabs); fixed when the page opens. */
 		final boolean fullPage;
 		@NonNull
 		final Map<String, ListState> lists = new HashMap<>();
@@ -521,7 +513,7 @@ public final class PageScreen {
 		@Nullable
 		Parcelable scroll;
 		boolean pageError;
-		/** Why the page failed to load, for the message. */
+		/** Why the page failed, for the message. */
 		@NonNull
 		Failure pageFailure = Failure.OTHER;
 		boolean expanded;
@@ -532,7 +524,7 @@ public final class PageScreen {
 			this.fullPage = kind == PageSource.Kind.CHANNEL && AppSettings.fullChannelPages();
 		}
 
-		/** The list of the selected tab. */
+		/** Selected tab's list. */
 		@NonNull
 		ListState state() {
 			return lists.computeIfAbsent(tab, key -> new ListState());
@@ -647,8 +639,8 @@ public final class PageScreen {
 	}
 
 	/**
-	 * Binds both header layouts. The views that only the full channel page has (banner, handle,
-	 * follow button, tabs) are null in the simple one.
+	 * Binds both header layouts. Views only the full page has (banner, handle, follow, tabs) are
+	 * null in the simple one.
 	 */
 	private final class HeaderHolder extends RecyclerView.ViewHolder {
 		@NonNull
@@ -675,7 +667,7 @@ public final class PageScreen {
 		private final TabLayout tabs;
 		@NonNull
 		private List<String> tabIds = new ArrayList<>();
-		/** Set while a tab is selected from code, so the listener ignores it. */
+		/** Set while code selects a tab so the listener ignores it. */
 		private boolean bindingTabs;
 		@Nullable
 		private String bannerUrl;
@@ -749,7 +741,7 @@ public final class PageScreen {
 		private String subtitleOf(@NonNull Context context, @NonNull PageSource.Header h, boolean full) {
 			List<String> parts = new ArrayList<>(2);
 			if (h.kind() == PageSource.Kind.CHANNEL) {
-				// The full page uses YouTube's own wording, which also has the video count
+				// full page uses YouTube's own wording, which includes the video count
 				if (full && !h.stats().isEmpty()) {
 					parts.addAll(h.stats());
 				} else if (h.count() >= 0) {
@@ -819,7 +811,7 @@ public final class PageScreen {
 
 		private void applyExpanded(boolean expanded, int collapsed) {
 			description.setMaxLines(expanded ? Integer.MAX_VALUE : collapsed);
-			// While collapsed, a tap expands the text instead of opening a link
+			// collapsed: a tap expands instead of opening a link
 			description.setMovementMethod(expanded ? LinkMovementMethod.getInstance() : null);
 			description.setClickable(true);
 		}
@@ -848,7 +840,7 @@ public final class PageScreen {
 			});
 		}
 
-		/** Light pill to follow, grey one once followed (like YouTube's subscribe button). */
+		/** Light pill to follow, grey once followed (like YouTube's subscribe). */
 		private void styleFollow(@NonNull MaterialButton button, boolean following) {
 			Context context = button.getContext();
 			button.setText(following ? R.string.watch_following : R.string.watch_follow);

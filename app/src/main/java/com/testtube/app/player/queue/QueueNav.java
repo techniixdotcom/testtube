@@ -1,6 +1,6 @@
 package com.testtube.app.player.queue;
 
-/** Which of the player's next and previous buttons work right now. */
+/** Which next/previous buttons work right now. */
 public record QueueNav(boolean next,
                        boolean queuePrev,
                        boolean prev) {

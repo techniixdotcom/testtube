@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import org.junit.After;
 import org.junit.Test;
 import org.schabi.newpipe.extractor.stream.VideoStream;
 
@@ -14,6 +15,49 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PlayerUtilsTest {
+
+	@After
+	public void resetDecoders() {
+		DecoderSupport.reset();
+	}
+
+	@Test
+	public void filterBestStreams_prefersHardwareVp9OverAvc() {
+		DecoderSupport.override(true, false);
+		VideoStream avc = createVideoStream("avc1.640028", 1080, 30, 5_000_000);
+		VideoStream vp9 = createVideoStream("vp09.00.40.08", 1080, 30, 3_000_000);
+
+		List<VideoStream> filtered = PlayerUtils.filterBestStreams(List.of(avc, vp9));
+
+		assertEquals(1, filtered.size());
+		assertSame(vp9, filtered.get(0));
+	}
+
+	@Test
+	public void filterBestStreams_prefersHardwareAv1AndAvoidsSoftwareAv1() {
+		VideoStream avc = createVideoStream("avc1.640028", 1080, 30, 5_000_000);
+		VideoStream vp9 = createVideoStream("vp9", 1080, 30, 3_000_000);
+		VideoStream av1 = createVideoStream("av01.0.08M.08", 1080, 30, 2_000_000);
+
+		DecoderSupport.override(true, true);
+		assertSame(av1, PlayerUtils.filterBestStreams(List.of(avc, vp9, av1)).get(0));
+
+		DecoderSupport.override(false, false);
+		assertSame(avc, PlayerUtils.filterBestStreams(List.of(av1, vp9, avc)).get(0));
+		assertTrue(PlayerUtils.isSoftwareAv1("av01.0.08M.08"));
+	}
+
+	@Test
+	public void downloadStreams_keepH264WhateverThePhoneDecodes() {
+		DecoderSupport.override(true, true);
+		VideoStream avc = createVideoStream("avc1.640028", 1080, 30, 5_000_000);
+		VideoStream av1 = createVideoStream("av01.0.08M.08", 1080, 30, 2_000_000);
+
+		List<VideoStream> picked = PlayerUtils.downloadStreams(List.of(av1, avc));
+
+		assertEquals(1, picked.size());
+		assertSame(avc, picked.get(0));
+	}
 
 	@Test
 	public void filterBestStreams_keepsOneChoicePerVisibleQuality() {

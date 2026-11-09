@@ -58,7 +58,9 @@
     <string name="threads">스레드</string>
     <string name="clear">삭제</string>
     <string name="download_tasks_added">다운로드 작업이 추가되었습니다</string>
-    <string name="download_tasks_added_count">%1$d개의 작업이 대기열에 추가되었습니다</string>
+    <plurals name="download_tasks_added_count">
+        <item quantity="other">%1$d개의 작업이 대기열에 추가되었습니다</item>
+    </plurals>
     <string name="download_history">다운로드 기록</string>
     <string name="no_download_records">다운로드 기록이 없습니다</string>
     <string name="file_not_found">파일을 찾을 수 없습니다</string>
@@ -107,7 +109,9 @@
     <string name="download_playlist_summary">%1$d / %2$d개 항목\n(%3$d%%)</string>
     <string name="preparing_download">다운로드 준비 중…</string>
     <string name="downloading_file">다운로드 중: %1$s</string>
-    <string name="downloads_running">%1$d개의 다운로드 진행 중</string>
+    <plurals name="downloads_running">
+        <item quantity="other">%1$d개의 다운로드 진행 중</item>
+    </plurals>
     <string name="playlist_download_title_placeholder">재생목록</string>
     <string name="playlist_download_summary">선택 %1$d / 준비됨 %2$d / 전체 %3$d</string>
     <string name="playlist_download_select_all">모두 선택</string>
@@ -123,8 +127,12 @@
     <string name="playlist_download_status_queued">대기열에 있음</string>
     <string name="playlist_download_status_partial">부분</string>
     <string name="playlist_download_status_canceled">취소됨</string>
-    <string name="playlist_download_batch_added">%1$d개 항목 추가됨</string>
-    <string name="playlist_download_batch_added_before_cancel">일괄 취소 전 %1$d개 항목 추가됨</string>
+    <plurals name="playlist_download_batch_added">
+        <item quantity="other">%1$d개 항목 추가됨</item>
+    </plurals>
+    <plurals name="playlist_download_batch_added_before_cancel">
+        <item quantity="other">일괄 작업 취소 전에 %1$d개 항목 추가됨</item>
+    </plurals>
     <string name="playlist_download_batch_segment_partial">%1$d개 부분 성공</string>
     <string name="playlist_download_batch_segment_failed">%1$d개 실패</string>
     <string name="playlist_download_started">재생목록 다운로드 시작됨</string>
@@ -254,7 +262,9 @@
     <string name="subs_export_failed">파일을 저장할 수 없습니다</string>
     <string name="subs_followed">채널을 팔로우했습니다</string>
     <string name="subs_import">가져오기</string>
-    <string name="subs_import_done">채널 %d개를 가져왔습니다</string>
+    <plurals name="subs_import_done">
+        <item quantity="other">채널 %d개를 가져왔습니다</item>
+    </plurals>
     <string name="subs_import_export">가져오기 / 내보내기</string>
     <string name="subs_import_failed">파일을 읽을 수 없습니다</string>
     <string name="subs_local_empty">아직 채널이 없습니다. 관리를 탭해 채널을 추가하거나 가져오고, 동영상에서 팔로우할 수도 있습니다.</string>
@@ -292,7 +302,9 @@
     <string name="update_progress">%1$s / %2$s</string>
     <string name="update_title">업데이트 가능</string>
     <string name="watch_chat_hint">실시간 채팅은 라이브 스트림과 최초 공개 중에 이용할 수 있습니다.</string>
-    <string name="watch_comment_likes">좋아요 %d개</string>
+    <plurals name="watch_comment_likes">
+        <item quantity="other">좋아요 %d개</item>
+    </plurals>
     <string name="watch_comment_pinned">고정됨</string>
     <string name="watch_comments_disabled">이 동영상은 댓글이 사용 중지되었습니다</string>
     <string name="watch_comments_empty">댓글 없음</string>
@@ -300,7 +312,7 @@
     <string name="watch_tab_chat">채팅</string>
     <string name="watch_tab_comments">댓글</string>
     <string name="watch_tab_description">설명</string>
-    <!-- Library, settings groups and notifications -->
+    <!-- Library, settings groups, notifications -->
     <string name="nav_library">보관함</string>
     <string name="library_history">기록</string>
     <string name="library_downloads">다운로드</string>
@@ -345,7 +357,7 @@
     <string name="failure_unsupported">지원되지 않는 유형의 동영상입니다(예: 유료 또는 Premium 전용 콘텐츠).</string>
     <string name="failure_unavailable">이 동영상을 볼 수 없습니다. 삭제되었을 수 있습니다.</string>
     <string name="failure_other">이 동영상을 불러오는 중 문제가 발생했습니다. 다시 시도하거나 \'자세히\'를 눌러 내용을 확인하세요.</string>
-    <!-- Minimizing, floating window and gestures -->
+    <!-- Minimizing, floating window, gestures -->
     <string name="setting_minimize_to">최소화 방식</string>
     <string name="setting_minimize_summary">하단 바 또는 플로팅 창</string>
     <string name="minimize_bottom_bar">하단 바</string>
@@ -388,4 +400,51 @@
     <string name="update_title_prerelease">사전 출시 버전이 있습니다</string>
     <string name="clear_cache_confirm">저장된 동영상, 이미지, 웹 데이터 %1$s를 삭제할까요? 다운로드, 기록, 대기열, 로그인 상태와 설정은 그대로 유지됩니다.</string>
     <string name="cache_cleared">캐시를 지웠습니다</string>
+    <!-- Opening links from other apps (12+: allowed in system settings) -->
+    <string name="links_prompt_title">%1$s에서 링크를 열까요?</string>
+    <string name="links_prompt_message">Android에서는 허용한 앱만 링크를 열 수 있습니다. 다음 화면에서 지원되는 링크 열기를 켜고 추가를 탭한 뒤 모든 링크를 선택된 상태로 두세요. 받은 링크가 브라우저 대신 여기에서 열립니다.</string>
+    <string name="links_prompt_open">설정 열기</string>
+    <string name="links_prompt_later">나중에</string>
+    <string name="setting_open_links">이 앱에서 링크 열기</string>
+    <string name="setting_open_links_summary">다른 앱의 링크를 브라우저 대신 여기에서 엽니다</string>
+    <string name="setting_open_links_all">전체</string>
+    <string name="setting_open_links_count">%2$d개 중 %1$d개</string>
+
+    <!-- Playlists and Watch later -->
+    <string name="action_done">완료</string>
+    <string name="action_delete">삭제</string>
+    <string name="library_playlists">재생목록</string>
+    <string name="playlist_save">저장</string>
+    <string name="playlist_save_title">저장할 위치…</string>
+    <string name="playlist_watch_later">나중에 볼 동영상</string>
+    <string name="playlist_new">새 재생목록</string>
+    <string name="playlist_name_hint">이름</string>
+    <string name="playlist_rename">이름 바꾸기</string>
+    <string name="playlist_delete">재생목록 삭제</string>
+    <string name="playlist_delete_confirm">“%1$s”을(를) 삭제할까요? 동영상은 YouTube에 그대로 남습니다.</string>
+    <string name="playlist_saved_to">%1$s에 저장됨</string>
+    <string name="playlist_removed_from">%1$s에서 삭제됨</string>
+    <string name="playlist_full">저장할 수 없습니다. 재생목록이나 동영상이 너무 많습니다</string>
+    <string name="playlist_empty">아직 아무것도 없습니다. 동영상을 길게 누른 다음 저장을 탭하세요.</string>
+    <string name="playlist_play_all">모두 재생</string>
+    <string name="playlist_shuffle">셔플</string>
+    <string name="playlist_remove_watched">시청한 동영상 삭제</string>
+    <string name="playlist_remove_watched_confirm">%1$s에서 시청한 동영상을 삭제할까요?</string>
+    <string name="playlist_import_export">가져오기 또는 내보내기</string>
+    <string name="playlist_import">재생목록 가져오기</string>
+    <string name="playlist_export">재생목록 내보내기</string>
+    <string name="playlist_import_failed">TestTube 재생목록 파일이 아닙니다</string>
+    <string name="playlist_export_done">재생목록을 내보냈습니다</string>
+    <string name="playlist_export_failed">재생목록을 내보내지 못했습니다</string>
+    <string name="playlist_options">재생목록 옵션</string>
+    <string name="playlist_back">재생목록으로 돌아가기</string>
+    <plurals name="playlist_count">
+        <item quantity="other">동영상 %d개</item>
+    </plurals>
+    <plurals name="playlist_removed_watched">
+        <item quantity="other">동영상 %d개를 삭제했습니다</item>
+    </plurals>
+    <plurals name="playlist_import_done">
+        <item quantity="other">동영상 %d개를 가져왔습니다</item>
+    </plurals>
 </resources>

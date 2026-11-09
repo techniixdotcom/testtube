@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Long-press menu of a video: the picture with rounded corners, the title and channel, then one
-    list of actions. Every action is the same kind of row, icon and label in the text colour, so
-    nothing in it reads as more important than the rest. The video actions and the "about this
-    video" actions are split by a single hairline.
+    Long-press menu: rounded picture, title and channel, then one list of actions. Every row looks
+    the same (icon and label in the text colour) so nothing shouts. One hairline splits video
+    actions from "about this video".
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -89,6 +88,12 @@
                 style="@style/Widget.TestTube.MenuRow"
                 android:drawableStart="@drawable/ic_queue_play_next"
                 android:text="@string/play_next" />
+
+            <TextView
+                android:id="@+id/action_save"
+                style="@style/Widget.TestTube.MenuRow"
+                android:drawableStart="@drawable/ic_playlist_add"
+                android:text="@string/playlist_save" />
 
             <TextView
                 android:id="@+id/action_share"

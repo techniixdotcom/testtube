@@ -25,6 +25,10 @@ import androidx.media3.ui.DefaultTimeBar;
 import com.testtube.app.AppSettings;
 import com.testtube.app.PlaybackService;
 import com.testtube.app.R;
+import com.testtube.app.external.ExternalException;
+import com.testtube.app.external.ExternalIds;
+import com.testtube.app.external.ExternalSources;
+import com.testtube.app.external.ExternalVideo;
 import com.testtube.app.extractor.ExtractionSession;
 import com.testtube.app.extractor.PlaybackDetails;
 import com.testtube.app.extractor.PlaybackPlan;
@@ -43,6 +47,7 @@ import com.testtube.app.player.queue.QueueNav;
 import com.testtube.app.player.queue.QueueRepository;
 import com.testtube.app.player.sponsor.SponsorBlockManager;
 import com.testtube.app.player.sponsor.SponsorOverlayView;
+import com.testtube.app.ui.Dialogs;
 import com.testtube.app.ui.FailureDialog;
 import com.testtube.app.util.NetworkWatcher;
 import com.testtube.app.util.ToastUtils;
@@ -53,6 +58,8 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -98,7 +105,7 @@ public class TestTubePlayer {
 	private volatile String activeId;
 	@Nullable
 	private ExtractionSession extractSession;
-	/** The video already retried by itself after a failure, so it isn't retried endlessly. */
+	/** Video that already got its one automatic retry. */
 	@Nullable
 	private String autoRetriedId;
 	private static final long AUTO_RETRY_MIN_MS = 2_500L;
@@ -132,6 +139,21 @@ public class TestTubePlayer {
 	private final NetworkWatcher.Listener networkListener = mobile -> applyPreferredQuality();
 	@Nullable
 	private BroadcastReceiver floatingControls;
+	/** Other site's link playing or loading (TestTube+), for retries. */
+	@Nullable
+	private String externalUrl;
+	/** Replaces the watch screen's link (no Back step). */
+	@Nullable
+	private Consumer<String> watchReplacer;
+	/**
+	 * Reads other sites' links. Own thread: a SoundCloud preview waits on a YouTube search, which
+	 * mustn't wait on the pool it may be running in.
+	 */
+	private static final ExecutorService EXTERNAL_READER = Executors.newSingleThreadExecutor(runnable -> {
+		Thread thread = new Thread(runnable, "testtube-external");
+		thread.setDaemon(true);
+		return thread;
+	});
 
 	public TestTubePlayer(@NonNull Activity activity,
 	                  @NonNull YoutubeExtractor extractor,
@@ -160,14 +182,14 @@ public class TestTubePlayer {
 		setupEngineListeners();
 	}
 
-	/** Switches the quality when the phone moves between Wi-Fi and mobile data. */
+	/** Switches quality when moving between Wi-Fi and mobile data. */
 	public void watchNetwork(@NonNull NetworkWatcher watcher) {
 		if (network != null) network.removeListener(networkListener);
 		network = watcher;
 		watcher.addListener(networkListener);
 	}
 
-	/** Plays the open video in the quality set for the network the phone is on now. */
+	/** Replays the open video in the current network's quality. */
 	public void applyPreferredQuality() {
 		if (activeId != null) engine.applyPreferredQuality();
 	}
@@ -193,6 +215,18 @@ public class TestTubePlayer {
 
 			@Override
 			public void onPlayerError(@NonNull PlaybackException error) {
+				if (engine.isExternal()) {
+					// other site's link may have expired, read it again once
+					if (Engine.playbackRecoveryReason(error) != null && refreshExternal()) return;
+					String failedId = activeId;
+					String url = externalUrl;
+					if (failedId != null && url != null) {
+						onExternalFailed(failedId, url, error);
+					} else {
+						showFailure(error, failedId);
+					}
+					return;
+				}
 				if (engine.recoverFromPlaybackError(error)) {
 					return;
 				}
@@ -210,8 +244,8 @@ public class TestTubePlayer {
 	}
 
 	/**
-	 * The video itself can't be played here (broken stream, unsupported format, DRM). Network
-	 * errors don't count, otherwise a bad connection would skip through a whole playlist.
+	 * The video itself can't play here (broken stream, format, DRM). Network errors don't count or a
+	 * bad connection would skip a whole playlist.
 	 */
 	private static boolean cannotEverPlay(@NonNull PlaybackException error) {
 		int code = error.errorCode;
@@ -251,6 +285,11 @@ public class TestTubePlayer {
 	}
 
 	public void play(String url) {
+		// before reading "v=", Facebook links have one too
+		if (ExternalIds.isExternalUrl(url)) {
+			playExternal(url);
+			return;
+		}
 		String videoId = YoutubeExtractor.getVideoId(url);
 		if (videoId == null || Objects.equals(this.queuedId, videoId)) return;
 		this.queuedId = videoId;
@@ -281,8 +320,8 @@ public class TestTubePlayer {
 		ExtractionSession session = new ExtractionSession();
 		extractSession = session;
 
-		// SponsorBlock loads in parallel so it never delays the start. Segments and seek bar
-		// markers are applied when they arrive.
+		// SponsorBlock loads in parallel so it never delays the start; segments and markers apply when
+		// they arrive
 		CompletableFuture.runAsync(() -> sponsor.load(videoId), executor)
 						.thenRunAsync(() -> {
 							if (!Objects.equals(this.queuedId, videoId) || activeDurationSeconds <= 0L) return;
@@ -327,8 +366,8 @@ public class TestTubePlayer {
 							Failure failure = Failure.report(cause);
 							activity.runOnUiThread(() -> {
 								if (!Objects.equals(this.queuedId, videoId)) return;
-								// Removed, private, age-restricted, blocked…: in a playlist or the
-								// queue, say why and move on instead of stopping on an error
+								// removed, private, age-restricted, blocked…: in a playlist or the queue say why and move on
+								// instead of stopping
 								if (!failure.retryable && engine.skipUnavailable(videoId)) {
 									ToastUtils.show(activity, failure.skippedMessage());
 									return;
@@ -340,8 +379,155 @@ public class TestTubePlayer {
 	}
 
 	/**
-	 * Picks the streams by the preferred quality, always with the original audio track. A track
-	 * chosen in the menu only applies to that video.
+	 * Plays a Facebook or SoundCloud item (TestTube+) like a YouTube video: same player, mini player,
+	 * floating window, notification, queue, autoplay.
+	 */
+	private void playExternal(@NonNull String url) {
+		String id = ExternalIds.idOf(url);
+		if (id == null || Objects.equals(this.queuedId, id)) return;
+		this.queuedId = id;
+		this.externalUrl = url;
+		activeDurationSeconds = 0L;
+		sponsor.clear();
+
+		activity.runOnUiThread(() -> {
+			engine.clear();
+			playerView.setTitle(null);
+			SponsorOverlayView layer = playerView.findViewById(R.id.sponsor_overlay);
+			layer.setData(null, 0, TimeUnit.MILLISECONDS);
+			DefaultTimeBar bar = playerView.findViewById(R.id.exo_progress);
+			bar.setAdGroupTimesMs(null, null, 0);
+			currentTitle = null;
+			currentAuthor = null;
+			currentDetails = null;
+			currentThumbnailUrl = null;
+			if (inMiniPlayer) {
+				updateMiniBar();
+			} else {
+				playerView.fitToWidth();
+				playerView.show();
+			}
+		});
+
+		cancelExtraction();
+		if (task != null) task.cancel(true);
+		Context app = activity.getApplicationContext();
+		task = CompletableFuture.<ExternalVideo>supplyAsync(() -> readExternal(app, url), EXTERNAL_READER)
+						.thenAccept(video -> activity.runOnUiThread(() -> startExternal(id, video)))
+						.exceptionally(e -> {
+							Throwable cause = e instanceof CompletionException && e.getCause() != null ? e.getCause() : e;
+							activity.runOnUiThread(() -> onExternalFailed(id, url, cause));
+							return null;
+						});
+	}
+
+	@NonNull
+	private static ExternalVideo readExternal(@NonNull Context context, @NonNull String url) {
+		try {
+			return ExternalSources.resolve(context, url);
+		} catch (ExternalException e) {
+			throw new CompletionException(e);
+		}
+	}
+
+	private void startExternal(@NonNull String id, @NonNull ExternalVideo video) {
+		if (!Objects.equals(this.queuedId, id)) return;
+		VideoDetails details = video.toDetails();
+		playerView.setTitle(details.getTitle());
+		try {
+			engine.playExternal(video);
+		} catch (RuntimeException e) {
+			onExternalFailed(id, video.pageUrl(), e);
+			return;
+		}
+		autoRetriedId = null;
+		this.activeId = id;
+		activeDurationSeconds = video.durationMs() / 1000L;
+		stateStore.setVideoId(id);
+		currentTitle = details.getTitle();
+		currentAuthor = details.getAuthor();
+		currentDetails = details;
+		currentThumbnailUrl = details.getThumbnailUrl();
+		updateMiniBar();
+		if (detailsListener != null) detailsListener.accept(details);
+		if (playbackSvc != null) {
+			PlaybackService.start(activity);
+			playbackSvc.showNotification(details.getTitle(), details.getAuthor(), details.getThumbnailUrl(),
+							video.durationMs());
+		}
+		refreshQueueNav();
+	}
+
+	/**
+	 * Other site's link failed: a SoundCloud preview plays from YouTube, queue or playlist skips it,
+	 * otherwise show the reason with Try again.
+	 */
+	private void onExternalFailed(@NonNull String id, @NonNull String url, @NonNull Throwable cause) {
+		if (!Objects.equals(this.queuedId, id) || Failure.isCancellation(cause)) return;
+		ExternalException external = cause instanceof ExternalException e ? e : null;
+		if (external != null && external.youtubeVideoId != null) {
+			ToastUtils.show(activity, external.message);
+			queuedId = null;
+			String youtube = ExternalIds.youtubeUrl(external.youtubeVideoId);
+			Consumer<String> replacer = watchReplacer;
+			if (replacer != null) {
+				replacer.accept(youtube);
+			} else {
+				play(youtube);
+			}
+			return;
+		}
+		int message = external != null ? external.message : R.string.failure_other;
+		if (engine.skipUnavailable(id)) {
+			ToastUtils.show(activity, message);
+			return;
+		}
+		Dialogs.builder(activity)
+						.setTitle(R.string.failure_title)
+						.setMessage(message)
+						.setPositiveButton(R.string.failure_retry, (dialog, which) -> {
+							if (!Objects.equals(this.queuedId, id)) return;
+							queuedId = null;
+							play(url);
+						})
+						.setNegativeButton(R.string.cancel, null)
+						.show();
+	}
+
+	/** How a link replaces the watch screen's one (SoundCloud preview going to YouTube). */
+	public void setWatchReplacer(@Nullable Consumer<String> replacer) {
+		this.watchReplacer = replacer;
+	}
+
+	/**
+	 * Other site's video stopped loading (link expired): reread and continue at the same spot.
+	 * @return true if a refresh started
+	 */
+	private boolean refreshExternal() {
+		String id = activeId;
+		String url = externalUrl;
+		if (id == null || url == null || !Objects.equals(queuedId, id) || !engine.consumeRecoveryAttempt()) {
+			return false;
+		}
+		long position = Math.max(0L, engine.position());
+		Context app = activity.getApplicationContext();
+		CompletableFuture.<ExternalVideo>supplyAsync(() -> readExternal(app, url), EXTERNAL_READER)
+						.whenComplete((video, error) -> activity.runOnUiThread(() -> {
+							if (!Objects.equals(this.activeId, id) || !Objects.equals(this.queuedId, id)) return;
+							if (error != null || video == null) {
+								Throwable cause = error instanceof CompletionException && error.getCause() != null
+												? error.getCause() : error;
+								onExternalFailed(id, url, cause != null ? cause : new IllegalStateException("no video"));
+								return;
+							}
+							engine.replaceExternal(video, position);
+						}));
+		return true;
+	}
+
+	/**
+	 * Picks streams by preferred quality, always original audio. A track picked in the menu only
+	 * applies to that video.
 	 */
 	@NonNull
 	private PlaybackDetails withPreferredPlan(@NonNull PlaybackDetails details) {
@@ -356,10 +542,9 @@ public class TestTubePlayer {
 	}
 
 	/**
-	 * Re-extracts the current video and resumes at the same position. Used when all streams were
-	 * rejected (expired or blocked URLs).
-	 *
-	 * @return true if a refresh was started
+	 * Re-extracts and resumes at the same spot. Used when every stream got rejected (expired or
+	 * blocked URLs).
+	 * @return true if a refresh started
 	 */
 	private boolean refreshStreams(@NonNull PlaybackException cause) {
 		String videoId = activeId;
@@ -391,11 +576,9 @@ public class TestTubePlayer {
 	}
 
 	/**
-	 * After YouTube's bot check or a timeout, tries the video once more by itself when the pause is
-	 * over, so a short hiccup needs no tap. Nobody wants to mash retry because YouTube had a
-	 * moment. The person sees a short notice meanwhile.
-	 *
-	 * @return true if a retry was scheduled
+	 * After a bot check or timeout, retries once by itself when the pause ends so a hiccup needs no
+	 * tap. Nobody wants to mash retry because YouTube had a moment. A short notice shows meanwhile.
+	 * @return true if a retry got scheduled
 	 */
 	private boolean retryLater(@NonNull Failure failure, @NonNull String videoId) {
 		if (failure != Failure.SLOW_DOWN && failure != Failure.TIMEOUT) return false;
@@ -414,6 +597,11 @@ public class TestTubePlayer {
 
 	private void playAgain(@NonNull String videoId) {
 		queuedId = null;
+		String url = externalUrl;
+		if (ExternalIds.isExternal(videoId) && url != null) {
+			play(url);
+			return;
+		}
 		play("https://www.youtube.com/watch?v=" + videoId);
 	}
 
@@ -433,7 +621,7 @@ public class TestTubePlayer {
 		if (task != null) task.cancel(true);
 		activity.runOnUiThread(() -> {
 			updateFloatingPlayer();
-			// Nothing is playing, so close the mini player without restoring the full player
+			// nothing playing, close the mini player without restoring
 			if (inMiniPlayer) leaveMiniPlayer();
 			controller.resetBrightness();
 			setMiniPlayerCallbacks(null, null);
@@ -481,27 +669,24 @@ public class TestTubePlayer {
 		return playerView.getVisibility() == View.VISIBLE;
 	}
 
-	/** A video is open and playing, so leaving the app keeps it in the floating window. */
+	/** Something's open and playing, so leaving the app keeps it floating. */
 	private boolean floatsOnLeave() {
 		return AppSettings.floatingPlayer() && queuedId != null && engine.isPlaying();
 	}
 
-	/**
-	 * Keeps the floating window's buttons and the open-on-leave setting current. Android 12 and
-	 * newer open the window by themselves when the app is left.
-	 */
+	/** Keeps the floating window's buttons and auto-enter current. 12+ opens it by itself on leave. */
 	public void updateFloatingPlayer() {
 		playerView.updatePiPParams(floatsOnLeave());
 	}
 
-	/** The user is leaving the app (home or recent apps); before Android 12 the window opens here. */
+	/** User leaving (home or recents); before 12 the window opens here. */
 	public void onUserLeaveHint() {
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && floatsOnLeave()) {
 			playerView.enterPiP();
 		}
 	}
 
-	/** Previous, play or pause, and next; the system adds expand and close. */
+	/** Prev, play/pause, next; the system adds expand and close. */
 	@NonNull
 	private List<RemoteAction> floatingActions() {
 		QueueNav nav = engine.getQueueNavigationAvailability();
@@ -563,16 +748,13 @@ public class TestTubePlayer {
 		try {
 			activity.unregisterReceiver(floatingControls);
 		} catch (IllegalArgumentException e) {
-			// Already gone with the activity
+			// gone with the activity
 		}
 		floatingControls = null;
 	}
 
-	/** Moves the video into the bottom bar; playback continues. */
-	/**
-	 * Minimizes the video: into the floating window over the app, or into the bottom bar, as set in
-	 * the settings.
-	 */
+	/** Moves the video to the bottom bar, keeps playing. */
+	/** Minimizes to the floating window or the bottom bar, per the setting. */
 	public void enterInAppMiniPlayer() {
 		inMiniPlayer = true;
 		stateStore.setInMiniPlayer(true);
@@ -597,12 +779,12 @@ public class TestTubePlayer {
 		}
 	}
 
-	/** The minimize setting changed: a minimized video moves to the bar or the window right away. */
+	/** Minimize setting changed, a minimized video moves now. */
 	public void applyMinimizeMode() {
 		if (inMiniPlayer && !wasInPip) showMinimized();
 	}
 
-	/** Where the floating window is, when minimizing goes there; null for the bottom bar. */
+	/** Floating window bounds when minimizing goes there; null for the bar. */
 	@Nullable
 	public RectF floatingTarget() {
 		return AppSettings.floatingPlayer() ? floatingWindow().bounds() : null;
@@ -635,8 +817,8 @@ public class TestTubePlayer {
 	}
 
 	/**
-	 * Restores the full player from the mini player. Does nothing if the mini player isn't shown,
-	 * so a late call after {@link #hide()} can't bring back an empty player.
+	 * Restores the full player. No-op unless the mini player shows, so a late call after
+	 * {@link #hide()} can't bring back an empty player.
 	 */
 	public void exitInAppMiniPlayer() {
 		if (!inMiniPlayer) return;
@@ -697,9 +879,7 @@ public class TestTubePlayer {
 		showMinimized();
 	}
 
-	/**
-	 * Details of the video that is playing, or null before one has loaded.
-	 */
+	/** Details of the playing video, or null before one loaded. */
 	@Nullable
 	public VideoDetails currentDetails() {
 		return Objects.equals(activeId, currentDetails == null ? null : currentDetails.getId()) ? currentDetails : null;
@@ -714,20 +894,18 @@ public class TestTubePlayer {
 		controller.setWatchDrag(drag);
 	}
 
-	/** Brings the video back from the bottom bar, as tapping the bar does. */
+	/** Brings the video back from the bar, like tapping it. */
 	public void restoreFromMiniPlayer() {
 		Runnable restore = onRestore;
 		if (inMiniPlayer && restore != null) restore.run();
 	}
 
-	/** Runs every time playback starts or resumes. */
+	/** Runs whenever playback starts or resumes. */
 	public void setOnStartedPlaying(@Nullable Runnable listener) {
 		onStartedPlaying = listener;
 	}
 
-	/**
-	 * Likes, chapters and the channel picture of a video arrived after it started; main thread.
-	 */
+	/** Likes, chapters and avatar that arrived after start. Main thread. */
 	public void onExtras(@NonNull PlaybackDetails details) {
 		if (!Objects.equals(activeId, details.video().getId())) return;
 		engine.applyExtras(details);
@@ -735,7 +913,7 @@ public class TestTubePlayer {
 		if (detailsListener != null) detailsListener.accept(details.video());
 	}
 
-	/** Receives the details of each video once it starts, on the main thread. */
+	/** Gets each video's details once it starts. Main thread. */
 	public void setDetailsListener(@Nullable Consumer<VideoDetails> listener) {
 		this.detailsListener = listener;
 	}
@@ -745,17 +923,15 @@ public class TestTubePlayer {
 		this.onClose = onClose;
 	}
 
-	/**
-	 * @param closed the floating window was closed; otherwise it was expanded back into the app
-	 */
+	/** @param closed window was closed; otherwise expanded back into the app */
 	public void onPictureInPictureModeChanged(boolean isInPiP, boolean closed) {
 		controller.onPictureInPictureModeChanged(isInPiP);
 		listenToFloatingControls(isInPiP);
 		if (isInPiP) {
-			// A brightness set by swiping would otherwise stay on over other apps
+			// a swiped brightness would otherwise stick over other apps
 			controller.resetBrightness();
-			// In the bottom bar the picture is hidden, and the in-app window is scaled down; the
-			// system window shows the video alone, at full size
+			// in the bar the picture is hidden and the in-app window is scaled down; the system window shows
+			// the video alone at full size
 			if (inMiniPlayer) {
 				if (floatingWindow != null) floatingWindow.hide();
 				playerView.show();

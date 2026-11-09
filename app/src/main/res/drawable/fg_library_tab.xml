@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    The touch highlight of a Library tab. The mask gives it the tab's rounded top corners;
-    selectableItemBackground was a plain rectangle, so its square corners showed past the curve
-    while switching tabs.
+    Library tab touch highlight. The mask gives it the tab's rounded top; selectableItemBackground
+    was a plain rectangle and its corners poked out while switching tabs.
 -->
 <ripple xmlns:android="http://schemas.android.com/apk/res/android"
     android:color="?attr/colorControlHighlight">

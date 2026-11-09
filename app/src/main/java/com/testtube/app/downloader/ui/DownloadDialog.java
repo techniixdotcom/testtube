@@ -153,8 +153,7 @@ public class DownloadDialog {
 		threadsSeekBar.setProgress(threadCount - 1);
 		threadsCountText.setText(String.valueOf(threadCount));
 
-
-		// Keep options gray until saved state is restored.
+		// options stay grey until saved state is back
 		ViewUtils.paintToggle(videoButton, false);
 		ViewUtils.paintToggle(audioButton, false);
 		ViewUtils.paintToggle(thumbnailButton, false);
@@ -169,7 +168,7 @@ public class DownloadDialog {
 					updateSelectionColors(videoButton, audioButton, thumbnailButton, subtitleButton);
 				});
 			} catch (InterruptedException e) {
-				// Dialog closed while waiting; nothing left to update
+				// dialog closed meanwhile
 				Thread.currentThread().interrupt();
 			}
 		});
@@ -185,7 +184,7 @@ public class DownloadDialog {
 					}
 				});
 			} catch (InterruptedException e) {
-				// Dialog closed while waiting; nothing left to update
+				// dialog closed meanwhile
 				Thread.currentThread().interrupt();
 			}
 		});
@@ -314,7 +313,7 @@ public class DownloadDialog {
 					setupVideoContainer(v, container, d, btn);
 				});
 			} catch (InterruptedException e) {
-				// Dialog closed while waiting; nothing left to update
+				// dialog closed meanwhile
 				Thread.currentThread().interrupt();
 			}
 		});
@@ -432,7 +431,7 @@ public class DownloadDialog {
 					setupAudioContainer(v, container, d, btn);
 				});
 			} catch (InterruptedException e) {
-				// Dialog closed while waiting; nothing left to update
+				// dialog closed meanwhile
 				Thread.currentThread().interrupt();
 			}
 		});
@@ -508,7 +507,7 @@ public class DownloadDialog {
 					}
 				});
 			} catch (InterruptedException e) {
-				// Dialog closed while waiting; nothing left to update
+				// dialog closed meanwhile
 				Thread.currentThread().interrupt();
 			}
 		});
@@ -569,7 +568,7 @@ public class DownloadDialog {
 	private List<VideoStream> videoChoices() {
 		List<VideoStream> result = new ArrayList<>();
 		if (catalog == null) return result;
-		for (VideoStream stream : catalog.getVideoStreams()) {
+		for (VideoStream stream : PlayerUtils.downloadStreams(catalog.getVideoStreams())) {
 			if (stream.getFormat() == MediaFormat.MPEG_4) result.add(stream);
 		}
 		return sortVideoChoices(result);
@@ -653,7 +652,7 @@ public class DownloadDialog {
 			String key = audioTrackKey(stream);
 			AudioStream existing = choices.get(key);
 			if (existing == null || compareAudioTrackVariant(stream, existing) > 0) {
-				// Collapse duplicate M4A variants of the same audio track.
+				// drop duplicate M4A variants of the same track
 				choices.put(key, stream);
 			}
 		}
@@ -695,7 +694,7 @@ public class DownloadDialog {
 		downloadService.download(tasks);
 		ToastUtils.show(context, tasks.size() == 1
 						? context.getString(R.string.download_tasks_added)
-						: context.getString(R.string.download_tasks_added_count, tasks.size()));
+						: context.getResources().getQuantityString(R.plurals.download_tasks_added_count, tasks.size(), tasks.size()));
 	}
 
 	private void startDownloads(@NonNull List<Task> tasks) {

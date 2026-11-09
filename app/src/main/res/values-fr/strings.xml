@@ -58,8 +58,12 @@
     <string name="threads">Connexions</string>
     <string name="clear">Effacer</string>
     <string name="download_tasks_added">Tâches de téléchargement ajoutées</string>
-    <string name="download_tasks_added_count">%1$d tâches ajoutées à la file d\'attente</string>
-    <string name="download_history">Historique de téléchargement</string>
+    <plurals name="download_tasks_added_count">
+        <item quantity="one">%1$d tâche ajoutée à la file d\'attente</item>
+        <item quantity="many">%1$d tâches ajoutées à la file d\'attente</item>
+        <item quantity="other">%1$d tâches ajoutées à la file d\'attente</item>
+    </plurals>
+    <string name="download_history">Téléchargements</string>
     <string name="no_download_records">Aucun enregistrement de téléchargement</string>
     <string name="file_not_found">Fichier non trouvé</string>
     <string name="vid_copied">ID de la vidéo copié</string>
@@ -107,7 +111,11 @@
     <string name="download_playlist_summary">%1$d / %2$d éléments\n(%3$d%%)</string>
     <string name="preparing_download">Préparation du téléchargement…</string>
     <string name="downloading_file">Téléchargement : %1$s</string>
-    <string name="downloads_running">%1$d téléchargements en cours</string>
+    <plurals name="downloads_running">
+        <item quantity="one">%1$d téléchargement en cours</item>
+        <item quantity="many">%1$d téléchargements en cours</item>
+        <item quantity="other">%1$d téléchargements en cours</item>
+    </plurals>
     <string name="playlist_download_title_placeholder">Liste de lecture</string>
     <string name="playlist_download_summary">%1$d sélectionnés / %2$d prêts / %3$d au total</string>
     <string name="playlist_download_select_all">Tout sélectionner</string>
@@ -120,11 +128,19 @@
     <string name="playlist_download_status_unavailable">Indisponible</string>
     <string name="playlist_download_status_failed">Échoué</string>
     <string name="playlist_download_status_preparing">Préparation</string>
-    <string name="playlist_download_status_queued">En file</string>
+    <string name="playlist_download_status_queued">En attente</string>
     <string name="playlist_download_status_partial">Partiel</string>
     <string name="playlist_download_status_canceled">Annulé</string>
-    <string name="playlist_download_batch_added">%1$d éléments ajoutés</string>
-    <string name="playlist_download_batch_added_before_cancel">%1$d éléments ajoutés avant l\'annulation du lot</string>
+    <plurals name="playlist_download_batch_added">
+        <item quantity="one">%1$d élément ajouté</item>
+        <item quantity="many">%1$d éléments ajoutés</item>
+        <item quantity="other">%1$d éléments ajoutés</item>
+    </plurals>
+    <plurals name="playlist_download_batch_added_before_cancel">
+        <item quantity="one">%1$d élément ajouté avant l\'annulation du lot</item>
+        <item quantity="many">%1$d éléments ajoutés avant l\'annulation du lot</item>
+        <item quantity="other">%1$d éléments ajoutés avant l\'annulation du lot</item>
+    </plurals>
     <string name="playlist_download_batch_segment_partial">%1$d partiel(s)</string>
     <string name="playlist_download_batch_segment_failed">%1$d échec(s)</string>
     <string name="playlist_download_started">Téléchargement de la liste de lecture lancé</string>
@@ -221,8 +237,8 @@
     <string name="player_brightness">Luminosité %1$d %%</string>
     <string name="player_volume">Volume %1$d %%</string>
     <string name="welcome_start">Commencer</string>
-    <string name="page_verified">Validé</string>
-    <string name="page_tab_error">Échec du chargement. Touchez pour réessayer.</string>
+    <string name="page_verified">Vérifié</string>
+    <string name="page_tab_error">Échec du chargement. Appuyez pour réessayer.</string>
     <string name="watch_follow">Suivre</string>
     <string name="watch_following">Suivi</string>
     <string name="login_subtitle">Connectez-vous avec votre compte Google</string>
@@ -254,10 +270,14 @@
     <string name="subs_export_failed">Impossible d\'enregistrer le fichier</string>
     <string name="subs_followed">Chaîne suivie</string>
     <string name="subs_import">Importer</string>
-    <string name="subs_import_done">%d chaînes importées</string>
+    <plurals name="subs_import_done">
+        <item quantity="one">%d chaîne importée</item>
+        <item quantity="many">%d chaînes importées</item>
+        <item quantity="other">%d chaînes importées</item>
+    </plurals>
     <string name="subs_import_export">Importer / Exporter</string>
     <string name="subs_import_failed">Impossible de lire ce fichier</string>
-    <string name="subs_local_empty">Aucune chaîne pour l\'instant. Touchez Gérer pour ajouter ou importer des chaînes, ou suivez-les depuis une vidéo.</string>
+    <string name="subs_local_empty">Aucune chaîne pour l\'instant. Appuyez sur Gérer pour ajouter ou importer des chaînes, ou suivez-les depuis une vidéo.</string>
     <string name="subs_logged_out">Déconnecté</string>
     <string name="subs_logout">Se déconnecter</string>
     <string name="subs_logout_confirm">Se déconnecter de votre compte YouTube ? Les chaînes que vous suivez sont conservées.</string>
@@ -281,7 +301,7 @@
     </plurals>
     <string name="swipe_this_channel">cette chaîne</string>
     <string name="update_action">Mettre à jour</string>
-    <string name="update_allow_install">Autorisez TestTube à installer des applis, puis touchez à nouveau Mettre à jour</string>
+    <string name="update_allow_install">Autorisez TestTube à installer des applis, puis appuyez à nouveau sur Mettre à jour</string>
     <string name="update_check_failed">Impossible de rechercher les mises à jour</string>
     <string name="update_check_now">Rechercher les mises à jour</string>
     <string name="update_checking">Recherche de mises à jour…</string>
@@ -294,7 +314,11 @@
     <string name="update_progress">%1$s sur %2$s</string>
     <string name="update_title">Mise à jour disponible</string>
     <string name="watch_chat_hint">Le chat en direct est actif pendant les directs et les premières.</string>
-    <string name="watch_comment_likes">%d j\'aime</string>
+    <plurals name="watch_comment_likes">
+        <item quantity="one">%d j\'aime</item>
+        <item quantity="many">%d j\'aime</item>
+        <item quantity="other">%d j\'aime</item>
+    </plurals>
     <string name="watch_comment_pinned">Épinglé</string>
     <string name="watch_comments_disabled">Les commentaires sont désactivés pour cette vidéo</string>
     <string name="watch_comments_empty">Aucun commentaire</string>
@@ -302,7 +326,7 @@
     <string name="watch_tab_chat">Chat</string>
     <string name="watch_tab_comments">Commentaires</string>
     <string name="watch_tab_description">Description</string>
-    <!-- Library, settings groups and notifications -->
+    <!-- Library, settings groups, notifications -->
     <string name="nav_library">Bibliothèque</string>
     <string name="library_history">Historique</string>
     <string name="library_downloads">Téléchargements</string>
@@ -346,8 +370,8 @@
     <string name="failure_private">Cette vidéo est privée.</string>
     <string name="failure_unsupported">Ce type de vidéo n\'est pas pris en charge (par exemple un contenu payant ou réservé à Premium).</string>
     <string name="failure_unavailable">Cette vidéo n\'est pas disponible. Elle a peut-être été supprimée.</string>
-    <string name="failure_other">Un problème est survenu lors du chargement de cette vidéo. Réessayez, ou touchez Détails pour voir ce qui s\'est passé.</string>
-    <!-- Minimizing, floating window and gestures -->
+    <string name="failure_other">Un problème est survenu lors du chargement de cette vidéo. Réessayez, ou appuyez sur Détails pour voir ce qui s\'est passé.</string>
+    <!-- Minimizing, floating window, gestures -->
     <string name="setting_minimize_to">Réduire vers</string>
     <string name="setting_minimize_summary">Barre du bas ou fenêtre flottante</string>
     <string name="minimize_bottom_bar">Barre du bas</string>
@@ -366,7 +390,7 @@
     <string name="gesture_seek">Avancer ou reculer</string>
     <string name="gesture_double_tap_skip">Sauter 10 secondes</string>
     <string name="gesture_play_pause">Lecture / pause</string>
-    <string name="floating_window">Vidéo flottante. Faites-la glisser pour la déplacer, touchez pour les commandes, touchez deux fois pour l\'agrandir.</string>
+    <string name="floating_window">Vidéo flottante. Faites-la glisser pour la déplacer, appuyez pour les commandes, appuyez deux fois pour l\'agrandir.</string>
     <string name="floating_expand">Agrandir la vidéo</string>
     <!-- Video cache -->
     <string name="setting_video_cache">Cache vidéo</string>
@@ -390,4 +414,57 @@
     <string name="update_title_prerelease">Préversion disponible</string>
     <string name="clear_cache_confirm">Supprimer %1$s de vidéo, d\'images et de données web enregistrées ? Les téléchargements, l\'historique, la file d\'attente, votre connexion et les paramètres sont conservés.</string>
     <string name="cache_cleared">Cache vidé</string>
+    <!-- Opening links from other apps (12+: allowed in system settings) -->
+    <string name="links_prompt_title">Ouvrir les liens dans %1$s ?</string>
+    <string name="links_prompt_message">Android ne laisse une app ouvrir des liens que si vous l\'autorisez. Sur l\'écran suivant, activez Ouvrir les liens compatibles, appuyez sur Ajouter et laissez tous les liens cochés : les liens qu\'on vous envoie s\'ouvriront ici plutôt que dans le navigateur.</string>
+    <string name="links_prompt_open">Ouvrir les paramètres</string>
+    <string name="links_prompt_later">Plus tard</string>
+    <string name="setting_open_links">Ouvrir les liens dans cette app</string>
+    <string name="setting_open_links_summary">Les liens des autres apps s\'ouvrent ici plutôt que dans le navigateur</string>
+    <string name="setting_open_links_all">Tous</string>
+    <string name="setting_open_links_count">%1$d sur %2$d</string>
+
+    <!-- Playlists and Watch later -->
+    <string name="action_done">OK</string>
+    <string name="action_delete">Supprimer</string>
+    <string name="library_playlists">Playlists</string>
+    <string name="playlist_save">Enregistrer</string>
+    <string name="playlist_save_title">Enregistrer dans…</string>
+    <string name="playlist_watch_later">À regarder plus tard</string>
+    <string name="playlist_new">Nouvelle playlist</string>
+    <string name="playlist_name_hint">Nom</string>
+    <string name="playlist_rename">Renommer</string>
+    <string name="playlist_delete">Supprimer la playlist</string>
+    <string name="playlist_delete_confirm">Supprimer « %1$s » ? Les vidéos restent sur YouTube.</string>
+    <string name="playlist_saved_to">Enregistré dans %1$s</string>
+    <string name="playlist_removed_from">Retiré de %1$s</string>
+    <string name="playlist_full">Impossible d’enregistrer : trop de playlists ou de vidéos</string>
+    <string name="playlist_empty">Rien pour l’instant. Appuyez de manière prolongée sur une vidéo, puis sur Enregistrer.</string>
+    <string name="playlist_play_all">Tout lire</string>
+    <string name="playlist_shuffle">Aléatoire</string>
+    <string name="playlist_remove_watched">Retirer les vidéos regardées</string>
+    <string name="playlist_remove_watched_confirm">Retirer de %1$s les vidéos que vous avez regardées ?</string>
+    <string name="playlist_import_export">Importer ou exporter</string>
+    <string name="playlist_import">Importer des playlists</string>
+    <string name="playlist_export">Exporter les playlists</string>
+    <string name="playlist_import_failed">Ce n’est pas un fichier de playlists TestTube</string>
+    <string name="playlist_export_done">Playlists exportées</string>
+    <string name="playlist_export_failed">Impossible d’exporter les playlists</string>
+    <string name="playlist_options">Options de la playlist</string>
+    <string name="playlist_back">Retour aux playlists</string>
+    <plurals name="playlist_count">
+        <item quantity="one">%d vidéo</item>
+        <item quantity="many">%d vidéos</item>
+        <item quantity="other">%d vidéos</item>
+    </plurals>
+    <plurals name="playlist_removed_watched">
+        <item quantity="one">%d vidéo retirée</item>
+        <item quantity="many">%d vidéos retirées</item>
+        <item quantity="other">%d vidéos retirées</item>
+    </plurals>
+    <plurals name="playlist_import_done">
+        <item quantity="one">%d vidéo importée</item>
+        <item quantity="many">%d vidéos importées</item>
+        <item quantity="other">%d vidéos importées</item>
+    </plurals>
 </resources>

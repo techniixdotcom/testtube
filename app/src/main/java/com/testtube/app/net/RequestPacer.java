@@ -14,35 +14,33 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BooleanSupplier;
 
 /**
- * Keeps the app's requests to YouTube at the pace of a person using the site rather than a
- * scraper: a few at a time, short bursts, a small random gap between background requests, and a
- * pause after YouTube says "slow down" (HTTP 429 or the "confirm you're not a bot" check).
+ * Keeps requests to YouTube at human pace, not scraper pace: a few at a time, short bursts, a
+ * small random gap between background requests, and a pause after "slow down" (429 or bot check).
  * <p>
- * What the person tapped (a video, a page) always goes first: background work such as refreshing
- * Subscriptions leaves part of the budget free and is the first to wait, or to give up during
- * a long pause. Video and audio downloads from googlevideo are not paced here.
+ * What the user tapped always goes first; background work leaves budget free and waits (or gives
+ * up) first. googlevideo downloads aren't paced here.
  */
 public final class RequestPacer {
 	private static final String TAG = "RequestPacer";
-	/** At most this many requests at once, like a browser's connections to one site. */
+	/** Max concurrent requests, like a browser per site. */
 	private static final int MAX_PARALLEL = 6;
-	/** Background work gets at most this many of them. */
+	/** Background work's share. */
 	private static final int MAX_PARALLEL_BACKGROUND = 3;
-	/** A burst of this many requests can start at once (a page load)… */
+	/** Burst size (a page load)… */
 	private static final double BUCKET_SIZE = 10;
-	/** …after which they start at this rate. */
+	/** …then this rate. */
 	private static final double REFILL_PER_SECOND = 4;
-	/** Background requests leave this many starts for what the person does next. */
+	/** Starts background work leaves for the user's next tap. */
 	private static final double FOREGROUND_RESERVE = 3;
 	private static final long BACKGROUND_GAP_MIN_MS = 60;
 	private static final long BACKGROUND_GAP_MAX_MS = 260;
-	/** Longest a tapped request waits out a pause before trying anyway. */
+	/** Longest a tapped request waits out a pause before going anyway. */
 	private static final long FOREGROUND_MAX_WAIT_MS = 4_000;
-	/** Longest pause background work waits out; on a longer one it fails and tries later. */
+	/** Longest pause background work waits out; longer ones fail and retry later. */
 	private static final long BACKGROUND_MAX_WAIT_MS = 30_000;
 	private static final long FIRST_PAUSE_MS = 5_000;
 	private static final long MAX_PAUSE_MS = 120_000;
-	/** After this long without trouble, the next pause starts short again. */
+	/** After this long without trouble the next pause starts short again. */
 	private static final long CALM_AFTER_MS = 5 * 60_000;
 	private static final long POLL_MS = 50;
 
@@ -59,7 +57,7 @@ public final class RequestPacer {
 	private RequestPacer() {
 	}
 
-	/** Thrown to background requests while YouTube asked for a pause. */
+	/** Thrown to background requests during a pause. */
 	public static final class PausedException extends IOException {
 		PausedException(long remainingMs) {
 			super("YouTube asked for a pause; " + remainingMs + " ms left");
@@ -71,7 +69,7 @@ public final class RequestPacer {
 		T call() throws Exception;
 	}
 
-	/** Runs work whose requests are background requests (lower priority, first to wait). */
+	/** Runs work whose requests count as background (lower priority, first to wait). */
 	public static <T> T background(@NonNull IoCallable<T> work) throws Exception {
 		boolean previous = BACKGROUND.get();
 		BACKGROUND.set(true);
@@ -82,7 +80,7 @@ public final class RequestPacer {
 		}
 	}
 
-	/** Same as {@link #background(IoCallable)} for a {@link Callable}, e.g. a pool task. */
+	/** {@link #background(IoCallable)} for a {@link Callable} (pool tasks). */
 	@NonNull
 	public static <T> Callable<T> inBackground(@NonNull IoCallable<T> work) {
 		return () -> background(work);
@@ -92,7 +90,7 @@ public final class RequestPacer {
 		return BACKGROUND.get();
 	}
 
-	/** A started request; close it when the response has been read. */
+	/** A started request; close it once the response is read. */
 	public static final class Slot implements AutoCloseable {
 		private final boolean background;
 		private boolean closed;
@@ -115,15 +113,13 @@ public final class RequestPacer {
 
 	/**
 	 * Waits until the request may start.
-	 *
-	 * @param cancelled      stops the wait when the request is no longer wanted
-	 * @param backgroundWork the request belongs to background work even if this thread isn't
-	 *                       marked with {@link #background(IoCallable)}
+	 * @param cancelled      ends the wait when it's no longer wanted
+	 * @param backgroundWork background even if this thread isn't marked by {@link #background(IoCallable)}
 	 */
 	@NonNull
 	public static Slot acquire(@Nullable BooleanSupplier cancelled, boolean backgroundWork) throws IOException {
 		boolean background = backgroundWork || BACKGROUND.get();
-		// Never block the UI thread; such requests are rare and short
+		// never block the UI thread, those requests are rare and short
 		if (Looper.myLooper() == Looper.getMainLooper()) return claim(background);
 		if (background) sleep(randomBetween(BACKGROUND_GAP_MIN_MS, BACKGROUND_GAP_MAX_MS), cancelled);
 		long foregroundDeadline = SystemClock.elapsedRealtime() + FOREGROUND_MAX_WAIT_MS;
@@ -136,7 +132,7 @@ public final class RequestPacer {
 				long now = SystemClock.elapsedRealtime();
 				refill(now);
 				long pause = pausedUntil - now;
-				// Background work waits out a short pause and gives up on a long one
+				// background waits out short pauses, gives up on long ones
 				if (pause > BACKGROUND_MAX_WAIT_MS && background) throw new PausedException(pause);
 				boolean pauseOver = pause <= 0 || (!background && now >= foregroundDeadline);
 				boolean hasRoom = running < MAX_PARALLEL
@@ -151,7 +147,7 @@ public final class RequestPacer {
 				} else if (tokens < needed) {
 					waitMs = (long) Math.ceil((needed - tokens) / REFILL_PER_SECOND * 1000);
 				} else {
-					// All slots taken: Slot.close() wakes this the moment one is free
+					// all slots busy, Slot.close() wakes us
 					try {
 						LOCK.wait(POLL_MS * 2);
 					} catch (InterruptedException e) {
@@ -166,10 +162,8 @@ public final class RequestPacer {
 	}
 
 	/**
-	 * YouTube answered 429 or asked to confirm this isn't a bot: pause for a while, longer each
-	 * time it happens again soon.
-	 *
-	 * @param retryAfterMs the server's Retry-After, or 0
+	 * 429 or bot check: pause, longer each time it happens again soon.
+	 * @param retryAfterMs server's Retry-After, or 0
 	 */
 	public static void onSlowDown(long retryAfterMs) {
 		synchronized (LOCK) {
@@ -178,7 +172,7 @@ public final class RequestPacer {
 			lastTroubleAt = now;
 			long pause = Math.min(MAX_PAUSE_MS, FIRST_PAUSE_MS * (long) Math.pow(3, strikes));
 			strikes++;
-			// ±20 % so retries from many phones don't line up
+			// ±20% so many phones don't retry in sync
 			pause = Math.max(retryAfterMs, (long) (pause * (0.8 + 0.4 * ThreadLocalRandom.current().nextDouble())));
 			pausedUntil = Math.max(pausedUntil, now + pause);
 			tokens = 0;
@@ -186,7 +180,7 @@ public final class RequestPacer {
 		}
 	}
 
-	/** Milliseconds left of the current pause, or 0. */
+	/** Ms left of the current pause, or 0. */
 	public static long pauseRemainingMs() {
 		synchronized (LOCK) {
 			return Math.max(0L, pausedUntil - SystemClock.elapsedRealtime());

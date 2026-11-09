@@ -9,9 +9,8 @@ public final class Constant {
 	public static final String PAGE_SUBSCRIPTIONS = "subscriptions";
 	public static final String PAGE_LIBRARY = "library";
 	/**
-	 * Set once at startup from the phone's WebView version (see UserAgents). Every request claims
-	 * this same Chrome version: the mobile form for m.youtube.com and the WebViews, the desktop
-	 * form for www.youtube.com and the WEB InnerTube client (which BotGuard also runs as).
+	 * Set at startup from the WebView version (UserAgents). Every request claims this Chrome:
+	 * mobile form for m.youtube.com and the WebViews, desktop for www.youtube.com and the WEB client.
 	 */
 	public static volatile String CHROME_MAJOR = "140";
 	public static volatile String USER_AGENT = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36";

@@ -23,6 +23,8 @@ YouTube subscriptions.
   and the cache is cleared if you want it to be
 - **Local queue and history.** Swipe a video right to add it to the queue; watched videos are
   greyed out
+- **Playlists and Watch later, on the phone.** Long-press a video and tap Save; they're in
+  Library > Playlists with Play all and Shuffle, and can be exported to another phone
 - **Built-in downloader** for single videos and whole queues
 - **Fast and light on data:** videos start before the rest of the page is in, Shorts load ahead,
   and streams use HTTP/3 where the phone supports it
@@ -35,6 +37,23 @@ Requires Android 8.0 or newer. Download the APK from
 [Releases](https://github.com/techniixdotcom/testtube/releases); the app checks for updates
 itself after that.
 
+### Two editions
+
+Every release has two APKs. Pick one; either installs over the other and keeps your history and
+settings.
+
+- **TestTube** (`testtube<version>.apk`): YouTube, nothing else.
+- **TestTube+** (`testtubeplus<version>.apk`): YouTube, plus links people send you from
+  **Spotify**, **Facebook** and **SoundCloud**. A Spotify song, album or playlist plays from YouTube
+  (Spotify's own audio only plays in Spotify). Public Facebook videos and SoundCloud songs, sets and
+  albums play in the player itself, just like YouTube videos: no ads, background play, minimized or
+  in the floating window, the notification and the queue; when one ends, the queue goes on, or
+  autoplay picks a YouTube video like it. There's no browsing, searching or account on those sites:
+  only the links.
+
+On Android 12 and newer, Android asks you once to let the app open links (Settings, Apps,
+TestTube, Open by default); the app takes you there on its first start.
+
 How it works, how to build it, and the full documentation:
 [`docs/HOW-IT-WORKS.md`](docs/HOW-IT-WORKS.md).
 
@@ -42,7 +61,13 @@ How it works, how to build it, and the full documentation:
 
 - **It can't hide you from YouTube.** YouTube and Google still see your IP address and the videos
   you watch, as with any YouTube client.
-- **YouTube changes can break playback** until TestTube gets an update for them.
+- **YouTube changes can break playback** until TestTube gets an update for them. The same goes
+  for Facebook in TestTube+, which changes its pages often. Private, friends-only and group
+  Facebook videos never play: TestTube+ doesn't log in to Facebook.
+- **A Spotify song is matched on YouTube**, usually the right one but not always (a live take or
+  a cover can come up); when nothing is close enough, you get YouTube's search results instead.
+  The same goes for SoundCloud songs that SoundCloud only has as a 30-second preview (Go+).
+  SoundCloud can also break playback with a change on its side, until TestTube+ is updated.
 - **No casting** to a TV or Chromecast, and it's **Android only**.
 - **On Android 13 and older a playing notification can't be swiped away**; pause first, or tap
   Close.

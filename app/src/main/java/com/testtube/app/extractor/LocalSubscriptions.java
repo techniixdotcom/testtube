@@ -13,10 +13,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * Channels followed without a YouTube account. Their videos come from the public channel feeds,
- * so no login is needed.
- */
+/** Channels followed without an account. Videos come from public feeds, no login needed. */
 public final class LocalSubscriptions {
 	private static final String KEY = "local_subscriptions";
 	private static final Pattern CHANNEL_ID = Pattern.compile("UC[\\w-]{22}");
@@ -48,7 +45,7 @@ public final class LocalSubscriptions {
 				}
 			}
 		} catch (RuntimeException ignored) {
-			// Corrupt data, start with an empty list.
+			// corrupt, start empty
 		}
 	}
 
@@ -67,9 +64,7 @@ public final class LocalSubscriptions {
 		return indexOf(id) >= 0;
 	}
 
-	/**
-	 * @return true when the channel was new
-	 */
+	/** @return true if the channel was new */
 	public synchronized boolean add(@NonNull Channel channel) {
 		int index = indexOf(channel.id());
 		if (index >= 0) {
@@ -84,9 +79,7 @@ public final class LocalSubscriptions {
 		return true;
 	}
 
-	/**
-	 * @return how many of the channels were new
-	 */
+	/** @return how many were new */
 	public synchronized int addAll(@NonNull List<Channel> incoming) {
 		int added = 0;
 		for (Channel channel : incoming) {
@@ -106,9 +99,7 @@ public final class LocalSubscriptions {
 		save();
 	}
 
-	/**
-	 * Fills in a name that was missing in the imported list.
-	 */
+	/** Fills in a name the import didn't have. */
 	public synchronized void rename(@NonNull String id, @NonNull String name) {
 		int index = indexOf(id);
 		if (index < 0 || name.isBlank() || !channels.get(index).name().isBlank()) return;
@@ -128,7 +119,7 @@ public final class LocalSubscriptions {
 		store.encode(KEY, Json.GSON.toJson(channels));
 	}
 
-	/** Google Takeout subscriptions.csv format (readable by {@link #parseImport}). */
+	/** Takeout subscriptions.csv format ({@link #parseImport} reads it back). */
 	@NonNull
 	public synchronized String exportCsv() {
 		StringBuilder out = new StringBuilder("Channel Id,Channel Url,Channel Title\n");
@@ -146,7 +137,7 @@ public final class LocalSubscriptions {
 		return matcher.find() ? matcher.group() : null;
 	}
 
-	/** Parses a Takeout subscriptions.csv, a NewPipe export, OPML or plain text with channel links. */
+	/** Parses Takeout CSV, NewPipe export, OPML or plain text with channel links. */
 	@NonNull
 	public static List<Channel> parseImport(@NonNull String text) {
 		Map<String, String> found = new LinkedHashMap<>();
@@ -159,7 +150,7 @@ public final class LocalSubscriptions {
 			while (matcher.find()) {
 				String name = "";
 				if (line.startsWith(matcher.group())) {
-					// Takeout rows look like: id,url,title
+					// Takeout rows: id,url,title
 					String[] columns = line.split(",", 3);
 					if (columns.length == 3) name = columns[2].trim().replaceAll("^\"|\"$", "");
 				}

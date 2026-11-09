@@ -33,7 +33,7 @@ public final class DownloaderImpl extends Downloader {
 
 	private final OkHttpClient client;
 	private final ExtractionSessionScope scope;
-	/** Sees every response body, e.g. to learn channel ids for the AI channel list. */
+	/** Sees every response body (e.g. to learn channel ids for the AI list). */
 	@Nullable
 	private volatile Consumer<String> responseListener;
 
@@ -72,7 +72,8 @@ public final class DownloaderImpl extends Downloader {
 		byte[] dataToSend = request.dataToSend();
 		String host = YoutubeCookies.hostOf(url);
 		boolean youtube = ClientIdentity.isYoutubeApiOrSite(host);
-		// The app clients (VISIONOS) bring their own identity: no browser cookies, no browser agent
+		// app clients (VISIONOS) have their own identity: no browser cookies or agent. With account
+		// cookies YouTube rejects or binds the stream URLs.
 		boolean appClient = isAppClientRequest(headers);
 
 		RequestBody requestBody = null;
@@ -84,19 +85,17 @@ public final class DownloaderImpl extends Downloader {
 			builder.header("Accept-Language", ClientIdentity.acceptLanguage());
 		}
 		ExtractionSession session = scope.get();
-		// VISIONOS is an anonymous client. With account cookies or authorization YouTube
-		// rejects or binds the stream URLs.
 		AuthContext auth = session != null && !appClient ? session.getAuth() : null;
 		String storedCookies = auth != null && auth.cookies() != null ? auth.cookies()
 						: appClient ? null : YoutubeCookies.forUrl(url);
 		String mergedCookies = mergeCookies(YoutubeCookies.isYoutubeHost(host) ? storedCookies : null, null);
 
-		// Override with headers from request
+		// request headers win
 		if (headers != null) {
 			for (final Map.Entry<String, List<String>> entry : headers.entrySet()) {
 				String headerName = entry.getKey();
 				if ("cookie".equalsIgnoreCase(headerName)) {
-					// The request's own cookies (e.g. consent) win over stored ones of the same name
+					// request's own cookies (consent etc.) beat stored ones with the same name
 					mergedCookies = mergeCookies(mergedCookies, String.join("; ", entry.getValue()));
 					continue;
 				}
@@ -148,20 +147,20 @@ public final class DownloaderImpl extends Downloader {
 		} finally {
 			if (slot != null) slot.close();
 		}
-		// After the slot is free: scanning a big response shouldn't hold up other requests
+		// after releasing the slot, scanning a big body shouldn't block other requests
 		Consumer<String> listener = responseListener;
 		if (listener != null) {
 			try {
 				listener.accept(result.responseBody());
 			} catch (RuntimeException e) {
-				// A listener must never break extraction
+				// a listener must never break extraction
 				Log.w("DownloaderImpl", "response listener failed", e);
 			}
 		}
 		return result;
 	}
 
-	/** Retry-After in seconds (the form YouTube uses), as milliseconds; 0 when absent. */
+	/** Retry-After seconds as ms, 0 if missing. */
 	private static long retryAfterMs(@Nullable String retryAfter) {
 		if (retryAfter == null) return 0L;
 		try {
@@ -171,10 +170,7 @@ public final class DownloaderImpl extends Downloader {
 		}
 	}
 
-	/**
-	 * Joins two cookie headers. A cookie in {@code overrides} replaces one of the same name in
-	 * {@code base}; the order is kept otherwise.
-	 */
+	/** Merges two cookie headers. Same name in {@code overrides} wins, order kept otherwise. */
 	@NonNull
 	static String mergeCookies(@Nullable String base, @Nullable String overrides) {
 		Map<String, String> byName = new LinkedHashMap<>();

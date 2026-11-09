@@ -21,13 +21,13 @@ public final class ViewUtils {
 	private static final float ALPHA_VISIBLE = 1.0f;
 	private static final float ALPHA_INVISIBLE = 0.0f;
 	private static final long FADE_IN_MS = 160L;
-	/** 38%, Material's opacity for disabled content */
+	/** 38%, Material's disabled opacity */
 	private static final int DISABLED_ALPHA = 97;
 
 	private ViewUtils() {
 	}
 
-	/** A colour of the current theme, such as {@code R.attr.colorPrimary}. */
+	/** A colour of the current theme, like {@code R.attr.colorPrimary}. */
 	@ColorInt
 	public static int themeColor(@NonNull Context context, @AttrRes int attr) {
 		TypedValue value = new TypedValue();
@@ -36,9 +36,9 @@ public final class ViewUtils {
 	}
 
 	/**
-	 * Colours an on/off option button (Video, Audio only, Subtitles…): filled in the accent with
-	 * its text in the colour on the accent when on, a quiet grey with normal text when off, faded
-	 * when disabled. Text and fill change together, so the label stays readable in both themes.
+	 * Colours an on/off option button (Video, Audio only, Subtitles…): accent fill with on-accent
+	 * text when on, quiet grey with normal text when off, faded when disabled. Text and fill change
+	 * together so the label stays readable in both themes.
 	 */
 	public static void paintToggle(@NonNull TextView button, boolean on) {
 		Context context = button.getContext();
@@ -60,9 +60,9 @@ public final class ViewUtils {
 	}
 
 	/**
-	 * The theme's typeface (ttFontRegular: the system font, or JetBrains Mono in the NiiX theme)
-	 * in the given style, such as {@link Typeface#BOLD}. For text styled in code, because
-	 * {@code setTypeface(null, style)} quietly falls back to the system font. Pain in the ass.
+	 * Theme typeface (ttFontRegular: system font, or JetBrains Mono in NiiX) in a style like
+	 * {@link Typeface#BOLD}. For text styled in code, since {@code setTypeface(null, style)} quietly
+	 * falls back to the system font. Pain in the ass.
 	 */
 	@NonNull
 	public static Typeface appTypeface(@NonNull Context context, int style) {
@@ -73,7 +73,7 @@ public final class ViewUtils {
 				try {
 					family = ResourcesCompat.getFont(context, value.resourceId);
 				} catch (Resources.NotFoundException e) {
-					// A bundled font that can't be read: the system font below
+					// unreadable bundled font, use the system one
 				}
 			} else if (value.string != null) {
 				family = Typeface.create(value.string.toString(), Typeface.NORMAL);
@@ -82,7 +82,7 @@ public final class ViewUtils {
 		return Typeface.create(family != null ? family : Typeface.DEFAULT, style);
 	}
 
-	/** Gives a TextView's icons (drawableStart, drawableTop…) one square size. */
+	/** Gives a TextView's compound drawables one square size. */
 	public static void sizeCompoundDrawables(@NonNull TextView view, float sizeDp) {
 		int size = dpToPx(view.getContext(), sizeDp);
 		Drawable[] drawables = view.getCompoundDrawablesRelative();
@@ -92,7 +92,7 @@ public final class ViewUtils {
 		view.setCompoundDrawablesRelative(drawables[0], drawables[1], drawables[2], drawables[3]);
 	}
 
-	/** Shows a view that was just swapped in with a short fade, so screens don't pop. */
+	/** Short fade-in for a view that was just swapped in, so screens don't pop. */
 	public static void fadeIn(@NonNull View view) {
 		view.animate().cancel();
 		view.setAlpha(ALPHA_INVISIBLE);

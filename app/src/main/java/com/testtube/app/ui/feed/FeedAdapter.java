@@ -40,13 +40,13 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	private static final Object AVATAR_PAYLOAD = new Object();
 	private static final Object ORIGINAL_PAYLOAD = new Object();
 
-	/** Rows ahead of the one being shown whose pictures start loading already. */
+	/** Rows ahead whose pictures start loading early. */
 	private static final int PREFETCH_AHEAD = 4;
-	/** Rows of a freshly loaded list whose pictures start loading right away. */
+	/** Rows of a fresh list whose pictures load right away. */
 	private static final int PREFETCH_ON_LOAD = 8;
 	private static final int MAX_PREFETCHED = 400;
 
-	/** How dark the darkest setting makes the images; a little stays visible. */
+	/** Darkest setting still leaves a bit visible. */
 	private static final float DARKEST = 0.1f;
 	private static final float FAINTEST_TEXT = 0.35f;
 
@@ -55,8 +55,8 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	private static int watchedFilterKey = -1;
 
 	/**
-	 * Black and white, darkened by the setting: the lowest is plain greyscale, the highest almost
-	 * black. Kept until the setting changes, since every watched row uses the same one.
+	 * Greyscale darkened by the setting: lowest is plain grey, highest almost black. Cached until the
+	 * setting changes, every watched row uses it.
 	 */
 	@NonNull
 	private static ColorMatrixColorFilter watchedFilter(float darkness) {
@@ -80,7 +80,7 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
 		void onOpenAuthor(@NonNull FeedItem item);
 
-		/** Long press on the channel picture. */
+		/** Long press on the avatar. */
 		void onFollowAuthor(@NonNull FeedItem item);
 
 		void onMenu(@NonNull FeedItem item);
@@ -104,10 +104,10 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	private List<FeedItem> items = new ArrayList<>();
 	private boolean showAvatars;
 	private boolean compactRows;
-	/** Pictures already asked for ahead of time, so scrolling doesn't ask again and again. */
+	/** Pictures already requested, so scrolling doesn't ask again and again. */
 	@NonNull
 	private final Set<String> prefetched = new HashSet<>();
-	/** From the list the adapter is shown in; null until then. */
+	/** List the adapter is in; null until attached. */
 	@Nullable
 	private Context context;
 	private int attached;
@@ -119,8 +119,8 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 	}
 
 	/**
-	 * Shows a new list. Appending only inserts the new rows; anything else is diffed, so rows
-	 * slotting in above (Subscriptions sorting by date) don't make the list jump.
+	 * Shows a new list. Appends just insert; anything else is diffed so rows slotting in above
+	 * (Subscriptions sorting by date) don't make the list jump.
 	 */
 	void submit(@NonNull List<FeedItem> next) {
 		avatars.rememberAll(next);
@@ -161,29 +161,21 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 		prefetch(0, PREFETCH_ON_LOAD);
 	}
 
-	/**
-	 * Uploader images next to the titles. Off by default; Home and the suggestions under the
-	 * player turn them on.
-	 */
+	/** Avatars next to titles. Off by default; Home and the suggestions turn them on. */
 	void setShowAvatars(boolean show) {
 		if (showAvatars == show) return;
 		showAvatars = show;
 		notifyItemRangeChanged(0, items.size());
 	}
 
-	/**
-	 * Small thumbnails with the title and details next to them, as on channel pages, instead of
-	 * full-width thumbnails.
-	 */
+	/** Small thumbnails with title and details beside them, like channel pages. */
 	void setCompactRows(boolean compact) {
 		if (compactRows == compact) return;
 		compactRows = compact;
 		notifyDataSetChanged();
 	}
 
-	/**
-	 * The video shown in this row, or null for other rows (channels, playlists, the header).
-	 */
+	/** Video in this row, or null for channels, playlists and the header. */
 	@Nullable
 	FeedItem itemAt(@NonNull RecyclerView.ViewHolder holder) {
 		if (!(holder instanceof VideoHolder) || holder.getBindingAdapter() != this) return null;
@@ -292,7 +284,7 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 			if (partial) {
 				FeedItem item = items.get(position);
 				if (payloads.contains(AVATAR_PAYLOAD)) bindAvatar(video, item);
-				// Whole row, so taps and the menu also get the original names
+				// whole row, so taps and the menu get the original names too
 				if (payloads.contains(ORIGINAL_PAYLOAD)) bindVideo(video, item);
 				return;
 			}
@@ -312,7 +304,7 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
 	private void bindVideo(@NonNull VideoHolder holder, @NonNull FeedItem listed) {
 		FeedItem item = originals.apply(listed);
-		// Not known yet: looked up, and the row updates when it arrives
+		// not known yet: gets looked up, the row updates when it arrives
 		if (originals.find(listed.videoId()) == null) originals.request(listed.videoId());
 		Context context = holder.itemView.getContext();
 		holder.title.setText(item.title());
@@ -339,7 +331,7 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 			holder.duration.setVisibility(View.GONE);
 		}
 		boolean watched = AppSettings.greyOutWatched() && filters.isWatched(item.videoId());
-		// On the children, not the row: RecyclerView's change animation resets the row's alpha
+		// on the children not the row, RecyclerView's change animation resets the row's alpha
 		float darkness = watched ? AppSettings.watchedDarkness() : 0f;
 		ColorMatrixColorFilter filter = watched ? watchedFilter(darkness) : null;
 		holder.thumbnail.setColorFilter(filter);
@@ -391,7 +383,7 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 			holder.avatarUrl = null;
 			return;
 		}
-		// Already showing (or loading) this image, don't flicker
+		// already showing or loading this image, don't flicker
 		if (Objects.equals(url, holder.avatarUrl)) return;
 		holder.avatarUrl = url;
 		ImageUtils.load(holder.avatar, url, R.drawable.bg_avatar_placeholder);
@@ -413,7 +405,7 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 		holder.itemView.setOnClickListener(v -> listener.onOpen(item));
 	}
 
-	/** Starts downloading the pictures of rows that aren't on screen yet. */
+	/** Starts loading pictures of rows not on screen yet. */
 	private void prefetch(int from, int count) {
 		int end = Math.min(items.size(), from + count);
 		for (int i = Math.max(0, from); i < end; i++) {
@@ -446,7 +438,7 @@ final class FeedAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 		final TextView meta;
 		@NonNull
 		final ImageButton more;
-		/** Image shown in {@link #avatar}, null for the placeholder. */
+		/** Image in {@link #avatar}, null for the placeholder. */
 		@Nullable
 		String avatarUrl;
 

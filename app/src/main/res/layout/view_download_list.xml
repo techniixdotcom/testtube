@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The download records list, used by the Library's Downloads tab and by a playlist's downloads -->
+<!-- Download records list for Library > Downloads and a playlist's downloads -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent">

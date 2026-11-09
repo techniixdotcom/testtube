@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Hairline between rows of a settings group, indented to the text -->
+<!-- Hairline between settings rows, indented to the text -->
 <inset xmlns:android="http://schemas.android.com/apk/res/android"
     android:insetLeft="16dp"
     android:insetRight="16dp">

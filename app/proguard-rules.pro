@@ -1,11 +1,10 @@
-# Readable stack traces from user reports; shrinking and optimisation still run.
+# readable stack traces in bug reports; shrinking and optimising still run
 -dontobfuscate
 -keepattributes Signature,EnclosingMethod,InnerClasses,*Annotation*
 
-# Gson models persisted in MMKV, and every type reachable from their fields. Gson reads fields
-# reflectively, so R8 must not strip, merge or inline them. Only these are pinned: the rest of the
-# app and the extractor get fully optimised. Gson ships its own rules for TypeToken and
-# @SerializedName. Add any new class stored with Gson here, or it'll come back empty in release.
+# Gson models stored in MMKV and everything reachable from their fields. Gson reads fields by
+# reflection, so R8 can't strip, merge or inline them. Only these are pinned, the rest is fully
+# optimised. Add every new Gson-stored class here or it comes back empty in release.
 -keep class com.testtube.app.downloader.core.history.DownloadRecord { <fields>; <init>(...); }
 -keep enum com.testtube.app.downloader.core.history.DownloadStatus { *; }
 -keep enum com.testtube.app.downloader.core.history.DownloadType { *; }
@@ -28,9 +27,11 @@
 -keep class com.testtube.app.history.WatchHistory$Entry { <fields>; <init>(...); }
 -keep class com.testtube.app.player.common.PlayerPreferences$Played { <fields>; <init>(...); }
 -keep class com.testtube.app.player.common.PlayerPreferences$Progress { <fields>; <init>(...); }
+-keep class com.testtube.app.playlist.LocalPlaylists$Entry { <fields>; <init>(...); }
+-keep class com.testtube.app.playlist.LocalPlaylists$Playlist { <fields>; <init>(...); }
 -keep class com.testtube.app.player.queue.QueueItem { <fields>; <init>(...); }
 
-# The NewPipe stream models inside PlaybackDetails (cached and deep-copied with Gson).
+# NewPipe stream models inside PlaybackDetails (cached and deep-copied with Gson)
 -keep enum org.schabi.newpipe.extractor.MediaFormat { *; }
 -keep class org.schabi.newpipe.extractor.services.youtube.ItagItem { <fields>; <init>(...); }
 -keep enum org.schabi.newpipe.extractor.services.youtube.ItagItem$ItagType { *; }
@@ -43,24 +44,24 @@
 -keep class org.schabi.newpipe.extractor.stream.SubtitlesStream { <fields>; <init>(...); }
 -keep class org.schabi.newpipe.extractor.stream.VideoStream { <fields>; <init>(...); }
 
-# The PoToken page calls back into the app through these.
+# the PoToken page calls back through these
 -keepclassmembers class com.testtube.app.extractor.potoken.PoTokenBridge {
     @android.webkit.JavascriptInterface <methods>;
 }
 
-# Rhino generates and loads classes at runtime and looks a lot of itself up by name.
--keep class org.mozilla.javascript.** { *; }
--keep class org.mozilla.classfile.** { *; }
+# Rhino looks itself up by name a lot. It always runs interpreted, so the compiler (JVM bytecode,
+# useless on Android anyway) can go.
+-keep class !org.mozilla.javascript.optimizer.**,org.mozilla.javascript.** { *; }
 
-# Protobuf lite finds message fields by name.
+# protobuf lite finds fields by name
 -keep class * extends com.google.protobuf.GeneratedMessageLite { *; }
 
-# isoparser instantiates its box classes reflectively.
+# isoparser creates its box classes by reflection
 -keep class com.googlecode.mp4parser.** { *; }
 -keep class com.coremedia.iso.** { *; }
 -keep class com.mp4parser.** { *; }
 
-# Optional classes referenced by dependencies but never used on Android.
+# optional deps never used on Android
 -dontwarn com.google.common.collect.**
 -dontwarn com.google.protobuf.**
 -dontwarn com.google.re2j.**

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Welcome dialog and settings: the groups and rows are added by SettingsDialog, which also puts
-    the "more below" arrow next to the Close button.
+    Welcome dialog and settings. SettingsDialog adds the groups and rows and the "more below" arrow
+    next to Close.
 -->
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/settings_scroll"

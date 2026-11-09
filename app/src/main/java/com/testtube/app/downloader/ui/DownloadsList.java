@@ -63,16 +63,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * The list of download records with open, pause, retry and delete. Shown in the Library's
- * Downloads tab and, for the items of one playlist, in {@link DownloadActivity}.
+ * Download records with open, pause, retry and delete. Used by Library > Downloads and, for one
+ * playlist's items, {@link DownloadActivity}.
  * <p>
- * The host calls {@link #start()} while the list is on screen and {@link #stop()} when it leaves,
- * so progress updates and the service binding only cost anything while someone is looking.
+ * The host calls {@link #start()} while visible and {@link #stop()} after, so progress updates
+ * and the service binding only cost something while someone's looking.
  */
 @UnstableApi
 public final class DownloadsList {
 	private static final long REFRESH_COALESCE_MS = 80L;
-	/** Size of the icon above the "no downloads" message; shared with the Library's other tabs. */
+	/** Empty state icon size, shared with the other Library tabs. */
 	public static final float EMPTY_ICON_DP = 40f;
 	private static final int MENU_OPEN = 0;
 	private static final int MENU_COPY_ID = 1;
@@ -134,10 +134,10 @@ public final class DownloadsList {
 	};
 
 	/**
-	 * @param activity  the host; it should implement {@link DownloadPermissionHost} for re-downloads
-	 * @param root      a view holding {@code download_list} and {@code download_empty}
-	 * @param parentId  a playlist's task id to list its items, or null for all downloads
-	 * @param onChanged runs whenever the list gains or loses rows
+	 * @param activity  host, should implement {@link DownloadPermissionHost} for re-downloads
+	 * @param root      view holding {@code download_list} and {@code download_empty}
+	 * @param parentId  a playlist's task id for its items, or null for everything
+	 * @param onChanged runs when rows are added or removed
 	 */
 	public DownloadsList(@NonNull AppCompatActivity activity, @NonNull View root,
 	                     @Nullable String parentId, @NonNull Runnable onChanged) {
@@ -192,7 +192,7 @@ public final class DownloadsList {
 		return adapter.getItemCount() == 0;
 	}
 
-	/** Asks, then removes every record. Files that were downloaded stay where they are. */
+	/** Asks, then removes every record. Files stay. */
 	public void confirmClear() {
 		Dialogs.builder(activity)
 						.setTitle(R.string.downloads_clear)
@@ -214,7 +214,7 @@ public final class DownloadsList {
 		});
 	}
 
-	/** Progress broadcasts arrive many times a second; they are merged into one update. */
+	/** Progress broadcasts come many times a second, merged into one update. */
 	private void scheduleRecordRefresh(@Nullable String taskId) {
 		if (taskId == null || taskId.isBlank()) {
 			loadRecords();
@@ -253,7 +253,7 @@ public final class DownloadsList {
 		return verified;
 	}
 
-	/** A finished download whose file was deleted elsewhere is dropped from the list. */
+	/** Drops finished downloads whose file was deleted elsewhere. */
 	@Nullable
 	private DownloadRecord verifyRecord(@NonNull DownloadRecord record) {
 		if (record.getType() != DownloadType.PLAYLIST
@@ -279,10 +279,10 @@ public final class DownloadsList {
 			if (updated == null) {
 				targetIds.add(taskId);
 			} else if (parentId != null) {
-				// A playlist's page only shows its own items
+				// a playlist page only shows its items
 				if (parentId.equals(updated.getParentId())) targetIds.add(taskId);
 			} else {
-				// The main list shows a playlist's row instead of its items
+				// the main list shows the playlist row instead
 				String updatedParent = updated.getParentId();
 				targetIds.add(updatedParent != null && !updatedParent.isBlank() ? updatedParent : taskId);
 			}
@@ -315,8 +315,6 @@ public final class DownloadsList {
 		recyclerView.setVisibility(empty ? View.GONE : View.VISIBLE);
 		onChanged.run();
 	}
-
-	// Actions
 
 	private void open(@NonNull DownloadRecord record) {
 		if (record.getType() == DownloadType.PLAYLIST) {
@@ -420,8 +418,6 @@ public final class DownloadsList {
 		adapter.removeItemByTaskId(record.getTaskId());
 		updateEmptyState();
 	}
-
-	// Helpers
 
 	@NonNull
 	private static String videoIdOf(@NonNull DownloadRecord record) {
@@ -598,7 +594,7 @@ public final class DownloadsList {
 				bindProgress(record);
 			}
 
-			/** The parts that change while a download runs. */
+			/** The bits that change while downloading. */
 			void bindProgress(@NonNull DownloadRecord record) {
 				DownloadStatus status = record.getStatus();
 				boolean active = isActive(status);

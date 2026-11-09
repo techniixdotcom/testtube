@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TestTube+ only: name and texts for Spotify, Facebook and SoundCloud links. -->
+<resources>
+    <string name="app_name">TestTube+</string>
+    <string name="link_spotify_reading">正在打开 Spotify 链接…</string>
+    <plurals name="link_spotify_finding">
+        <item quantity="other">正在 YouTube 上查找 %d 首歌曲…</item>
+    </plurals>
+    <string name="link_spotify_done">在 YouTube 上找到 %2$d 首中的 %1$d 首：正在播放第一首，其余已加入队列</string>
+    <string name="link_spotify_not_found">在 YouTube 上未找到，显示搜索结果</string>
+    <string name="link_spotify_failed">无法读取此 Spotify 链接</string>
+    <string name="link_facebook_video">Facebook 视频</string>
+    <string name="link_facebook_login">此 Facebook 视频不是公开的。TestTube+ 只播放公开视频，不使用 Facebook 帐号。</string>
+    <string name="link_facebook_no_video">此 Facebook 链接中没有视频，或视频已被删除。</string>
+    <string name="link_facebook_failed">无法加载此 Facebook 视频。Facebook 可能更改了页面，更新后即可修复。</string>
+    <string name="link_external_network">无法连接到该网站。请检查网络连接后重试。</string>
+    <string name="link_soundcloud_reading">正在打开 SoundCloud 链接…</string>
+    <plurals name="link_soundcloud_queued">
+        <item quantity="other">另有 %d 首 SoundCloud 歌曲已加入队列</item>
+    </plurals>
+    <string name="link_soundcloud_empty">此 SoundCloud 歌单中没有可播放的歌曲。</string>
+    <string name="link_soundcloud_not_found">找不到此 SoundCloud 曲目。它可能是私密的或已被删除。</string>
+    <string name="link_soundcloud_blocked">此 SoundCloud 曲目在你所在的国家/地区不可用。</string>
+    <string name="link_soundcloud_unplayable">SoundCloud 仅以受保护的格式提供此曲目，无法在这里播放。</string>
+    <string name="link_soundcloud_preview_youtube">SoundCloud 上只有这首歌的 30 秒试听：改为从 YouTube 播放。</string>
+    <string name="link_soundcloud_preview_only">SoundCloud 上只有这首歌的 30 秒试听，YouTube 上也没有。</string>
+    <string name="link_soundcloud_failed">无法加载此 SoundCloud 链接。SoundCloud 可能做了更改，更新后即可修复。</string>
+</resources>

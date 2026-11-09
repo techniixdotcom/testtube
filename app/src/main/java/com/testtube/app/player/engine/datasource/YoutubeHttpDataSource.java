@@ -1,6 +1,4 @@
-/*
- * Based on ExoPlayer's DefaultHttpDataSource.
- */
+/* Based on ExoPlayer's DefaultHttpDataSource. */
 
 package com.testtube.app.player.engine.datasource;
 
@@ -42,8 +40,8 @@ import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
 /**
- * An {@link HttpDataSource} that uses Android's {@link HttpURLConnection}, based on
- * {@link DefaultHttpDataSource}, for YouTube streams.
+ * {@link HttpDataSource} on {@link HttpURLConnection} for YouTube streams, based on
+ * {@link DefaultHttpDataSource}.
  */
 @UnstableApi
 public final class YoutubeHttpDataSource extends BaseDataSource implements HttpDataSource {
@@ -244,7 +242,7 @@ public final class YoutubeHttpDataSource extends BaseDataSource implements HttpD
 		if (!allowCrossProtocolRedirects && !keepPostFor302Redirects)
 			return makeConnection(url, position, length, allowGzip, true, dataSpecToUse.httpRequestHeaders);
 
-		// Follow redirects manually so POST and range handling stay intact.
+		// follow redirects by hand so POST and ranges survive
 		int redirectCount = 0;
 		while (redirectCount++ <= MAX_REDIRECTS) {
 			HttpURLConnection connection = makeConnection(url, position, length, allowGzip, false, dataSpecToUse.httpRequestHeaders);

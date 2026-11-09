@@ -1,7 +1,11 @@
 package com.testtube.app.ui.library;
 
+import android.transition.ChangeBounds;
+import android.transition.TransitionManager;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -15,11 +19,11 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.tencent.mmkv.MMKV;
 import com.testtube.app.Constant;
 import com.testtube.app.R;
-import com.testtube.app.ui.Dialogs;
 import com.testtube.app.downloader.ui.DownloadsList;
 import com.testtube.app.history.LocalHistoryController;
 import com.testtube.app.history.WatchHistory;
 import com.testtube.app.player.queue.QueueItem;
+import com.testtube.app.ui.Dialogs;
 import com.testtube.app.ui.queue.QueueAdapter;
 import com.testtube.app.ui.queue.QueueTouch;
 import com.testtube.app.util.ViewUtils;
@@ -27,16 +31,26 @@ import com.testtube.app.util.ViewUtils;
 import java.util.List;
 
 /**
- * The Library tab: Queue, History and Downloads as browser-style tabs along the top, with one bin
- * that clears whichever tab is open. The last open tab is remembered.
+ * Library tab: Queue, Playlists, History and Downloads as tabs along the top, only the open one
+ * labelled so four fit. The button at the end acts on the open tab. Remembers the last tab.
  */
 @UnstableApi
 public final class LibraryScreen {
-	public enum Page {QUEUE, HISTORY, DOWNLOADS}
+	/** Saved by ordinal, so new pages go at the end whatever their place on screen. */
+	public enum Page {QUEUE, HISTORY, DOWNLOADS, PLAYLISTS}
 
-	/** What the Library asks of the activity. */
+	/** What the Library needs from the activity. */
 	public interface Host {
 		void openVideo(@NonNull String url);
+
+		/** Plays a playlist's watch link, shuffled or in order. */
+		void playPlaylist(@NonNull String url, boolean shuffle);
+
+		boolean isWatched(@NonNull String videoId);
+
+		void importPlaylists();
+
+		void exportPlaylists();
 
 		void removeQueueItem(@NonNull String videoId);
 
@@ -46,7 +60,8 @@ public final class LibraryScreen {
 	}
 
 	private static final String KEY_PAGE = "library_page";
-	private static final float TAB_ICON_DP = 18f;
+	/** Width share of the open tab, the others only show their icon. */
+	private static final float OPEN_TAB_WEIGHT = 3f;
 	private static final float DISABLED_ALPHA = 0.38f;
 	private static final Page[] PAGES = Page.values();
 
@@ -55,13 +70,17 @@ public final class LibraryScreen {
 	@NonNull
 	private final Host host;
 	@NonNull
-	private final TextView[] tabs;
+	private final ViewGroup tabRow;
+	@NonNull
+	private final ViewGroup[] tabs;
 	@NonNull
 	private final View[] pages;
 	@NonNull
-	private final ImageButton clear;
+	private final ImageButton action;
 	@NonNull
 	private final LocalHistoryController history;
+	@NonNull
+	private final PlaylistsPage playlists;
 	@NonNull
 	private final QueueAdapter queueAdapter;
 	@NonNull
@@ -81,25 +100,42 @@ public final class LibraryScreen {
 	                     @NonNull Host host) {
 		this.activity = activity;
 		this.host = host;
-		tabs = new TextView[]{
+		tabs = new ViewGroup[]{
 						root.findViewById(R.id.library_tab_queue),
 						root.findViewById(R.id.library_tab_history),
-						root.findViewById(R.id.library_tab_downloads)};
+						root.findViewById(R.id.library_tab_downloads),
+						root.findViewById(R.id.library_tab_playlists)};
 		pages = new View[]{
 						root.findViewById(R.id.library_page_queue),
 						root.findViewById(R.id.library_page_history),
-						root.findViewById(R.id.library_page_downloads)};
-		clear = root.findViewById(R.id.library_clear);
-		clear.setOnClickListener(v -> confirmClear());
+						root.findViewById(R.id.library_page_downloads),
+						root.findViewById(R.id.library_page_playlists)};
+		tabRow = (ViewGroup) tabs[0].getParent();
+		action = root.findViewById(R.id.library_clear);
+		action.setOnClickListener(v -> onAction());
 		for (Page each : PAGES) {
-			TextView tab = tabs[each.ordinal()];
-			ViewUtils.sizeCompoundDrawables(tab, TAB_ICON_DP);
-			tab.setOnClickListener(v -> select(each));
+			tabs[each.ordinal()].setOnClickListener(v -> select(each));
 		}
 		ViewUtils.sizeCompoundDrawables(root.findViewById(R.id.history_empty), DownloadsList.EMPTY_ICON_DP);
 
 		history = new LocalHistoryController(pages[Page.HISTORY.ordinal()], watchHistory,
-						videoId -> host.openVideo(Constant.HOME_URL + "/watch?v=" + videoId), this::updateClear);
+						videoId -> host.openVideo(Constant.HOME_URL + "/watch?v=" + videoId), this::updateAction);
+		playlists = new PlaylistsPage(pages[Page.PLAYLISTS.ordinal()], new PlaylistsPage.Actions() {
+			@Override
+			public void play(@NonNull String url, boolean shuffle) {
+				host.playPlaylist(url, shuffle);
+			}
+
+			@Override
+			public boolean isWatched(@NonNull String videoId) {
+				return host.isWatched(videoId);
+			}
+
+			@Override
+			public void onStateChanged() {
+				if (page == Page.PLAYLISTS) updateAction();
+			}
+		});
 
 		queueEmpty = root.findViewById(R.id.panel_queue_empty);
 		ViewUtils.sizeCompoundDrawables(queueEmpty, DownloadsList.EMPTY_ICON_DP);
@@ -134,8 +170,8 @@ public final class LibraryScreen {
 	}
 
 	/**
-	 * The Library was shown (again) or left. Showing it refreshes the open tab, since videos may
-	 * have been watched meanwhile; only a visible Library follows downloads.
+	 * Library shown again or left. Showing refreshes the open tab (things got watched meanwhile);
+	 * only a visible Library follows downloads.
 	 */
 	public void setVisible(boolean visible) {
 		this.visible = visible;
@@ -155,20 +191,34 @@ public final class LibraryScreen {
 
 	public void renderQueue(@NonNull List<QueueItem> items, @Nullable String playingId) {
 		queueAdapter.replaceItems(items, playingId);
+		playlists.setPlayingId(playingId);
 		queueIsEmpty = items.isEmpty();
 		queueEmpty.setVisibility(queueIsEmpty ? View.VISIBLE : View.GONE);
 		queueList.setVisibility(queueIsEmpty ? View.GONE : View.VISIBLE);
-		if (page == Page.QUEUE) updateClear();
+		if (page == Page.QUEUE) updateAction();
+	}
+
+	/** @return true if Back closed an open playlist */
+	public boolean back() {
+		return page == Page.PLAYLISTS && playlists.back();
 	}
 
 	public void release() {
+		playlists.release();
 		if (downloads != null) downloads.release();
 	}
 
 	private void showPage(boolean animate) {
+		if (animate) TransitionManager.beginDelayedTransition(tabRow, new ChangeBounds().setDuration(150));
 		for (Page each : PAGES) {
 			boolean selected = each == page;
-			tabs[each.ordinal()].setSelected(selected);
+			ViewGroup tab = tabs[each.ordinal()];
+			tab.setSelected(selected);
+			// four labels don't fit a phone, so only the open tab has one
+			tab.getChildAt(1).setVisibility(selected ? View.VISIBLE : View.GONE);
+			LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) tab.getLayoutParams();
+			params.weight = selected ? OPEN_TAB_WEIGHT : 1f;
+			tab.setLayoutParams(params);
 			View view = pages[each.ordinal()];
 			view.setVisibility(selected ? View.VISIBLE : View.GONE);
 			if (selected && animate) ViewUtils.fadeIn(view);
@@ -183,33 +233,39 @@ public final class LibraryScreen {
 				case HISTORY -> history.reload();
 				case DOWNLOADS -> {
 					if (downloads == null) {
-						downloads = new DownloadsList(activity, pages[Page.DOWNLOADS.ordinal()], null, this::updateClear);
+						downloads = new DownloadsList(activity, pages[Page.DOWNLOADS.ordinal()], null, this::updateAction);
 					}
 					downloads.start();
 				}
+				case PLAYLISTS -> playlists.refresh();
 				case QUEUE -> {
 				}
 			}
 		}
-		updateClear();
+		updateAction();
 	}
 
-	private void updateClear() {
-		boolean empty = switch (page) {
-			case QUEUE -> queueIsEmpty;
-			case HISTORY -> history.isEmpty();
-			case DOWNLOADS -> downloads == null || downloads.isEmpty();
+	/** Bin for the open tab; on Playlists import/export, or removing watched videos in an open one. */
+	private void updateAction() {
+		boolean playlistMenu = page == Page.PLAYLISTS && !playlists.isOpen();
+		action.setImageResource(playlistMenu ? R.drawable.ic_more : R.drawable.ic_delete);
+		boolean enabled = switch (page) {
+			case QUEUE -> !queueIsEmpty;
+			case HISTORY -> !history.isEmpty();
+			case DOWNLOADS -> downloads != null && !downloads.isEmpty();
+			case PLAYLISTS -> playlistMenu || playlists.hasWatched();
 		};
-		clear.setEnabled(!empty);
-		clear.setAlpha(empty ? DISABLED_ALPHA : 1f);
-		clear.setContentDescription(activity.getString(switch (page) {
+		action.setEnabled(enabled);
+		action.setAlpha(enabled ? 1f : DISABLED_ALPHA);
+		action.setContentDescription(activity.getString(switch (page) {
 			case QUEUE -> R.string.clear_queue;
 			case HISTORY -> R.string.watch_history_clear;
 			case DOWNLOADS -> R.string.downloads_clear;
+			case PLAYLISTS -> playlistMenu ? R.string.playlist_import_export : R.string.playlist_remove_watched;
 		}));
 	}
 
-	private void confirmClear() {
+	private void onAction() {
 		switch (page) {
 			case QUEUE -> Dialogs.builder(activity)
 							.setTitle(R.string.clear_queue)
@@ -220,6 +276,20 @@ public final class LibraryScreen {
 			case HISTORY -> history.confirmClear();
 			case DOWNLOADS -> {
 				if (downloads != null) downloads.confirmClear();
+			}
+			case PLAYLISTS -> {
+				if (playlists.isOpen()) {
+					playlists.confirmRemoveWatched();
+				} else {
+					Dialogs.builder(activity)
+									.setTitle(R.string.playlist_import_export)
+									.setItems(new String[]{activity.getString(R.string.playlist_import),
+													activity.getString(R.string.playlist_export)}, (d, which) -> {
+										if (which == 0) host.importPlaylists();
+										else host.exportPlaylists();
+									})
+									.show();
+				}
 			}
 		}
 	}

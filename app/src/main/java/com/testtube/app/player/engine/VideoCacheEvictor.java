@@ -10,9 +10,9 @@ import androidx.media3.datasource.cache.CacheSpan;
 import java.util.TreeSet;
 
 /**
- * Keeps the player cache under a size limit by dropping what was used longest ago, like media3's
- * LeastRecentlyUsedCacheEvictor, except that the limit can change while the app runs (the
- * "Video cache" setting). Lowering it frees space right away.
+ * Keeps the player cache under a size limit, dropping least recently used, like media3's
+ * LeastRecentlyUsedCacheEvictor but the limit can change at runtime (Video cache setting).
+ * Lowering it frees space right away.
  */
 @UnstableApi
 public final class VideoCacheEvictor implements CacheEvictor {
@@ -27,10 +27,7 @@ public final class VideoCacheEvictor implements CacheEvictor {
 		this.maxBytes = maxBytes;
 	}
 
-	/**
-	 * Sets a new limit and, if it is lower, removes the oldest data until the cache fits. Does file
-	 * work, so call it off the main thread.
-	 */
+	/** New limit; if lower, drops the oldest until it fits. File work, off the main thread. */
 	public void setMaxBytes(@NonNull Cache cache, long maxBytes) {
 		this.maxBytes = maxBytes;
 		synchronized (cache) {

@@ -11,15 +11,12 @@ import androidx.appcompat.app.AppCompatDelegate;
 import com.tencent.mmkv.MMKV;
 import com.testtube.app.player.controller.gesture.GestureAction;
 
-/**
- * Choices made in the first-start dialog, changeable later from the logo menu. Read from list
- * parsing threads too, so the values are kept in volatile fields.
- */
+/** First-start choices, changeable from the logo menu. Read from parser threads too, hence volatile. */
 public final class AppSettings {
 	private static final String KEY_SHORTS = "show_shorts";
 	private static final String KEY_CHANNEL_PAGES = "full_channel_pages";
 	private static final String KEY_FLOATING_PLAYER = "floating_player";
-	/** Before gestures could be set up: false meant brightness and volume swipes. Read once to migrate. */
+	/** Old key: false meant brightness/volume swipes. Read once to migrate. */
 	private static final String KEY_SWIPE_MINIMIZES = "swipe_down_minimizes";
 	private static final String KEY_GESTURES = "player_gestures";
 	private static final String KEY_GESTURE_LEFT = "gesture_left";
@@ -27,7 +24,7 @@ public final class AppSettings {
 	private static final String KEY_GESTURE_HORIZONTAL = "gesture_horizontal";
 	private static final String KEY_GESTURE_DOUBLE_TAP = "gesture_double_tap";
 	private static final String KEY_COMMENTING = "commenting";
-	/** Before there were three sizes: true was the large cache, false the small one. Read once to migrate. */
+	/** Old key: true was large cache, false small. Read once to migrate. */
 	private static final String KEY_FAST_VIDEO_CACHE = "fast_video_cache";
 	private static final String KEY_VIDEO_CACHE = "video_cache";
 	private static final String KEY_SUBSCRIPTIONS = "show_subscriptions";
@@ -42,9 +39,9 @@ public final class AppSettings {
 	private static final int MIN_WATCHED_DIM = 20;
 	private static final int MAX_WATCHED_DIM = 90;
 	private static final int WATCHED_DIM_STEP = 5;
-	/** As dark as watched videos were before this became a setting. */
+	/** The old fixed dim level. */
 	private static final int DEFAULT_WATCHED_DIM = 70;
-	/** Raised when the welcome dialog gets new choices, so everyone sees it once more. */
+	/** Bump when the welcome dialog gets new choices so everyone sees it again. */
 	private static final int WELCOME_VERSION = 6;
 
 	private static volatile boolean loaded;
@@ -76,7 +73,7 @@ public final class AppSettings {
 	private AppSettings() {
 	}
 
-	/** Shorts in Home, Subscriptions, search and on channels. Off by default. */
+	/** Shorts in Home, Subscriptions, search and channels. Off by default. */
 	public static boolean showShorts() {
 		load();
 		return shorts;
@@ -88,10 +85,7 @@ public final class AppSettings {
 		MMKV.defaultMMKV().encode(KEY_SHORTS, show);
 	}
 
-	/**
-	 * Full channel pages (banner, handle, follow button, tabs). When off, a channel opens as a
-	 * plain list of its videos.
-	 */
+	/** Full channel pages (banner, handle, follow, tabs). Off: just a list of videos. */
 	public static boolean fullChannelPages() {
 		load();
 		return channelPages;
@@ -104,9 +98,8 @@ public final class AppSettings {
 	}
 
 	/**
-	 * Minimizing puts the video in a floating window over the app, and leaving the app while it
-	 * plays keeps it in a picture-in-picture window. When off, minimizing moves it to the bottom bar
-	 * and leaving the app keeps only the sound. Off by default.
+	 * Minimize to a floating window, and PiP when leaving the app. Off: bottom bar, sound only in
+	 * the background. Off by default.
 	 */
 	public static boolean floatingPlayer() {
 		load();
@@ -120,8 +113,8 @@ public final class AppSettings {
 	}
 
 	/**
-	 * Custom gestures on the video. Off (the default): swiping down minimizes, up opens fullscreen,
-	 * sideways seeks and double-tapping the sides skips 10 seconds. On: the choices below apply.
+	 * Custom video gestures. Off (default): down minimizes, up fullscreen, sideways seeks, double
+	 * tap skips 10 s. On: the choices below.
 	 */
 	public static boolean gesturesEnabled() {
 		load();
@@ -134,14 +127,14 @@ public final class AppSettings {
 		MMKV.defaultMMKV().encode(KEY_GESTURES, enabled);
 	}
 
-	/** Swiping up or down on the left half; with gestures off it minimizes. */
+	/** Left half up/down; minimizes when gestures are off. */
 	@NonNull
 	public static GestureAction.Vertical gestureLeft() {
 		load();
 		return gestures ? gestureLeft : GestureAction.Vertical.MINIMIZE;
 	}
 
-	/** Swiping up or down on the right half; with gestures off it minimizes. */
+	/** Right half up/down; minimizes when gestures are off. */
 	@NonNull
 	public static GestureAction.Vertical gestureRight() {
 		load();
@@ -160,7 +153,7 @@ public final class AppSettings {
 		return gestures ? gestureDoubleTap : GestureAction.DoubleTap.SKIP;
 	}
 
-	/** The saved choices, also while gestures are off (for the settings screen). */
+	/** Saved choices, even with gestures off (settings screen). */
 	@NonNull
 	public static GestureAction.Vertical savedGestureLeft() {
 		load();
@@ -200,16 +193,16 @@ public final class AppSettings {
 		store.encode(KEY_GESTURE_DOUBLE_TAP, doubleTap.name());
 	}
 
-	/** How much video the player keeps on the phone, and whether it loads the next one ahead. */
+	/** How much video stays on the phone and whether the next one preloads. */
 	public enum VideoCache {
-		/** Keeps a lot of what was watched; the next video's start is loaded ahead. */
+		/** Keeps a lot, preloads the next start. */
 		LARGE(150, true, R.string.video_cache_large, R.string.video_cache_large_short),
-		/** Keeps less; the next video's start is still loaded ahead. */
+		/** Keeps less, still preloads. */
 		MEDIUM(100, true, R.string.video_cache_medium, R.string.video_cache_medium_short),
-		/** Keeps little and loads nothing ahead; the next video takes a moment to start. */
+		/** Keeps little, no preload. */
 		SMALL(50, false, R.string.video_cache_small, R.string.video_cache_small_short);
 
-		/** Also reads the names used before the choices were renamed. */
+		/** Also accepts the old names. */
 		@NonNull
 		static VideoCache parse(@Nullable String name) {
 			if (name == null) return LARGE;
@@ -227,10 +220,10 @@ public final class AppSettings {
 
 		public final long maxBytes;
 		public final boolean preloadsNext;
-		/** With the size, for the list of choices. */
+		/** With the size, for the list. */
 		@StringRes
 		public final int label;
-		/** Just the name, shown next to the setting. */
+		/** Name only, next to the setting. */
 		@StringRes
 		public final int shortLabel;
 
@@ -242,7 +235,7 @@ public final class AppSettings {
 		}
 	}
 
-	/** The "Video cache" setting; Large by default. */
+	/** Video cache setting, Large by default. */
 	@NonNull
 	public static VideoCache videoCache() {
 		load();
@@ -255,25 +248,25 @@ public final class AppSettings {
 		MMKV.defaultMMKV().encode(KEY_VIDEO_CACHE, cache.name());
 	}
 
-	/** The app's colours; the video and Shorts stay dark in every one. */
+	/** App colours. Video and Shorts stay dark in all of them. */
 	public enum Theme {
-		/** Light or Dark, following the phone's dark theme setting. */
+		/** Follows the phone's dark mode. */
 		SYSTEM(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM, R.style.Theme_TestTube, R.drawable.ic_logo_mark, 0, R.string.theme_system),
 		LIGHT(AppCompatDelegate.MODE_NIGHT_NO, R.style.Theme_TestTube, R.drawable.ic_logo_mark, 0, R.string.theme_light),
-		/** Black and grey, black-and-white controls */
+		/** Black and grey, black and white controls */
 		DARK(AppCompatDelegate.MODE_NIGHT_YES, R.style.Theme_TestTube, R.drawable.ic_logo_mark, 0, R.string.theme_dark),
-		/** The niixa.org look: black, dark glass with a pink edge, pink accents, JetBrains Mono. Dark only. */
+		/** niixa.org look: black, dark glass with a pink edge, pink accents, JetBrains Mono. Dark only. */
 		NIIX(AppCompatDelegate.MODE_NIGHT_YES, R.style.Theme_TestTube_Niix, R.drawable.ic_logo_mark_niix, R.color.niix_accent, R.string.theme_niix);
 
 		/** For {@link AppCompatDelegate#setDefaultNightMode(int)}. */
 		public final int nightMode;
-		/** The activity theme, set before the screen is built. */
+		/** Activity theme, set before the screen is built. */
 		@StyleRes
 		public final int style;
-		/** The in-app logo (the NiiX one has the pink play). */
+		/** In-app logo (NiiX has the pink play). */
 		@DrawableRes
 		public final int logo;
-		/** The colour of the icons in menus, or 0 for the text colour. */
+		/** Menu icon colour, 0 for the text colour. */
 		@ColorRes
 		public final int menuIcon;
 		@StringRes
@@ -289,7 +282,7 @@ public final class AppSettings {
 		}
 	}
 
-	/** The "Theme" setting; follows the phone by default. */
+	/** Theme setting, follows the phone by default. */
 	@NonNull
 	public static Theme theme() {
 		load();
@@ -302,7 +295,7 @@ public final class AppSettings {
 		MMKV.defaultMMKV().encode(KEY_THEME, value.name());
 	}
 
-	/** A box to write comments under videos, for signed-in accounts. Off by default. */
+	/** Comment box under videos when signed in. Off by default. */
 	public static boolean commentingEnabled() {
 		load();
 		return commenting;
@@ -314,7 +307,7 @@ public final class AppSettings {
 		MMKV.defaultMMKV().encode(KEY_COMMENTING, enabled);
 	}
 
-	/** The Subscriptions tab in the bottom bar. On by default. */
+	/** Subscriptions tab. On by default. */
 	public static boolean showSubscriptions() {
 		load();
 		return subscriptions;
@@ -326,7 +319,7 @@ public final class AppSettings {
 		MMKV.defaultMMKV().encode(KEY_SUBSCRIPTIONS, show);
 	}
 
-	/** Watched videos are dimmed and shown in black and white in the lists. On by default. */
+	/** Dim watched videos to black and white. On by default. */
 	public static boolean greyOutWatched() {
 		load();
 		return greyWatched;
@@ -338,13 +331,13 @@ public final class AppSettings {
 		MMKV.defaultMMKV().encode(KEY_GREY_WATCHED, grey);
 	}
 
-	/** How dark watched videos are, in percent: 20 is black and white only, 90 almost black. */
+	/** Dim level in percent: 20 is just greyscale, 90 almost black. */
 	public static int watchedDimPercent() {
 		load();
 		return watchedDim;
 	}
 
-	/** {@link #watchedDimPercent()} as 0 (black and white only) to 1 (almost black). */
+	/** {@link #watchedDimPercent()} as 0..1. */
 	public static float watchedDarkness() {
 		return (watchedDimPercent() - MIN_WATCHED_DIM) / (float) (MAX_WATCHED_DIM - MIN_WATCHED_DIM);
 	}
@@ -355,13 +348,13 @@ public final class AppSettings {
 		MMKV.defaultMMKV().encode(KEY_WATCHED_DIM, watchedDim);
 	}
 
-	/** Within the slider's range and on one of its steps, so it can show the saved value. */
+	/** Clamped and snapped to the slider's steps. */
 	private static int clampDim(int percent) {
 		int stepped = Math.round(percent / (float) WATCHED_DIM_STEP) * WATCHED_DIM_STEP;
 		return Math.max(MIN_WATCHED_DIM, Math.min(MAX_WATCHED_DIM, stepped));
 	}
 
-	/** Empty the video and picture caches when the app is closed (for phones short on space). Off by default. */
+	/** Empty video and picture caches on close. Off by default. */
 	public static boolean clearCacheOnExit() {
 		load();
 		return clearCacheOnExit;
@@ -374,8 +367,8 @@ public final class AppSettings {
 	}
 
 	/**
-	 * Play HDR video (VP9 profile 2, AV1 10-bit). Off by default: many phones, Samsung's above all,
-	 * show it with blue skin and washed-out colours, so SDR is played whenever it exists.
+	 * Play HDR (VP9.2, AV1 10-bit). Off by default: lots of phones, Samsung especially, show blue
+	 * skin and washed out colours, so SDR wins when there is one.
 	 */
 	public static boolean allowHdr() {
 		load();
@@ -389,9 +382,8 @@ public final class AppSettings {
 	}
 
 	/**
-	 * Only H.264 video when there is any: the decoder every phone gets right. Off by default, since
-	 * YouTube's H.264 stops at 1080p and needs more data than VP9; for phones that still show wrong
-	 * colours with HDR off.
+	 * H.264 only when available, every decoder gets it right. Off by default since it stops at
+	 * 1080p and uses more data than VP9. For phones still showing wrong colours with HDR off.
 	 */
 	public static boolean preferAvc() {
 		load();
@@ -404,7 +396,7 @@ public final class AppSettings {
 		MMKV.defaultMMKV().encode(KEY_PREFER_AVC, prefer);
 	}
 
-	/** Home shows only the logo and a search bar, no suggested videos. Off by default. */
+	/** Home is just the logo and search, no suggestions. Off by default. */
 	public static boolean searchOnlyHome() {
 		load();
 		return searchOnlyHome;
@@ -432,7 +424,7 @@ public final class AppSettings {
 			shorts = store.decodeBool(KEY_SHORTS, false);
 			channelPages = store.decodeBool(KEY_CHANNEL_PAGES, true);
 			floatingPlayer = store.decodeBool(KEY_FLOATING_PLAYER, false);
-			// Whoever had turned "swipe down to minimize" off had brightness and volume swipes
+			// swipe-down-to-minimize off meant brightness and volume swipes
 			gestures = store.containsKey(KEY_GESTURES)
 							? store.decodeBool(KEY_GESTURES, false)
 							: !store.decodeBool(KEY_SWIPE_MINIMIZES, true);

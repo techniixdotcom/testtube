@@ -21,16 +21,15 @@ import java.io.InputStream;
 import okhttp3.OkHttpClient;
 
 /**
- * Glide's setup: its own disk cache ("Clear cache" empties it) and the app's connections. The
- * HTTP cache is left out for pictures, or every thumbnail would be stored twice.
+ * Glide setup: own disk cache (Clear cache empties it) and our client. No HTTP cache for
+ * pictures or every thumbnail gets stored twice.
  * <p>
- * Low-RAM phones decode pictures without transparency as RGB_565, half the memory of ARGB_8888.
- * Everywhere else that would only cost quality: from Android 9 on, Glide puts thumbnails in
- * hardware bitmaps (graphics memory, no copy on the app's heap), and those come first anyway.
+ * Low-RAM phones decode opaque pictures as RGB_565, half the memory. Elsewhere that only costs
+ * quality: from Android 9 Glide uses hardware bitmaps first anyway.
  */
 @GlideModule
 public final class TestTubeGlideModule extends AppGlideModule {
-	/** Folder of the picture cache inside the app's cache directory. */
+	/** Picture cache folder. */
 	public static final String CACHE_DIR = "images";
 	private static final long CACHE_BYTES = 100L * 1024 * 1024;
 

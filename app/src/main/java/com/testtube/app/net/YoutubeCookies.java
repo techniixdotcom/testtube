@@ -14,20 +14,16 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * YouTube's cookies, kept in the same store as the WebViews (sign-in, live chat), so the app's own
- * requests and its web pages are one visitor, like a single browser. Cookies YouTube sets on the
- * app's requests are kept too, as a browser would; without them every request looked like a new
- * visitor and refreshed sign-in cookies were dropped.
+ * YouTube cookies in the same store as the WebViews (sign-in, live chat), so our requests and
+ * the pages are one visitor like a real browser. Cookies YouTube sets on our requests are kept
+ * too; without them every request was a new visitor and refreshed sign-in cookies got lost.
  */
 public final class YoutubeCookies {
 	private static final String TAG = "YoutubeCookies";
 	private static final String COOKIE_URL = "https://www.youtube.com";
-	/**
-	 * Never taken from responses: the app sends its own PREF (restricted mode), which must not be
-	 * replaced by YouTube's.
-	 */
+	/** Never taken from responses: we send our own PREF (restricted mode). */
 	private static final Set<String> NOT_STORED = Set.of("PREF");
-	/** The cookies that identify a signed-out visitor; dropped to start over as a new one. */
+	/** Signed-out visitor cookies; dropped to start over as someone new. */
 	private static final List<String> VISITOR_COOKIES = List.of(
 					"VISITOR_INFO1_LIVE", "VISITOR_PRIVACY_METADATA", "YSC", "__Secure-ROLLOUT_TOKEN",
 					"GPS");
@@ -52,7 +48,7 @@ public final class YoutubeCookies {
 		}
 	}
 
-	/** The stored cookies for a YouTube URL, or null for other sites or when there are none. */
+	/** Stored cookies for a YouTube URL, or null. */
 	@Nullable
 	public static String forUrl(@NonNull String url) {
 		if (!isYoutubeHost(hostOf(url))) return null;
@@ -60,12 +56,12 @@ public final class YoutubeCookies {
 			String cookies = CookieManager.getInstance().getCookie(url);
 			return cookies == null || cookies.isBlank() ? null : cookies;
 		} catch (RuntimeException e) {
-			// The WebView provider can be missing or updating
+			// WebView can be missing or mid-update
 			return null;
 		}
 	}
 
-	/** Keeps the cookies a YouTube response set. */
+	/** Keeps cookies a YouTube response set. */
 	public static void store(@NonNull String url, @Nullable List<String> setCookieHeaders) {
 		if (setCookieHeaders == null || setCookieHeaders.isEmpty() || !isYoutubeHost(hostOf(url))) return;
 		try {
@@ -82,9 +78,9 @@ public final class YoutubeCookies {
 	}
 
 	/**
-	 * Forgets the signed-out visitor, so the next requests start as a new one. Used after YouTube's
-	 * bot check, which is tied to the visitor as well as the network (took way too long to figure
-	 * that one out). Signed-in cookies are never touched.
+	 * Forgets the signed-out visitor so the next requests are someone new. Used after the bot
+	 * check, which is tied to the visitor as well as the network (took way too long to figure that
+	 * one out). Signed-in cookies are left alone.
 	 */
 	public static void startNewVisitor() {
 		String current = forUrl(COOKIE_URL);
@@ -92,7 +88,7 @@ public final class YoutubeCookies {
 		try {
 			CookieManager manager = CookieManager.getInstance();
 			for (String name : VISITOR_COOKIES) {
-				// Both the domain cookie and a host-only one, whichever YouTube set
+				// both the domain cookie and a host-only one, whichever YouTube set
 				manager.setCookie(COOKIE_URL, name + "=; Domain=.youtube.com; Path=/; Max-Age=0");
 				manager.setCookie(COOKIE_URL, name + "=; Path=/; Max-Age=0");
 			}

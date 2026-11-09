@@ -1,40 +1,37 @@
 # shellcheck shell=bash
-# android-keys.sh -- one Android signing key for all your apps, and moving an app onto it.
+# android-keys.sh: one Android signing key for all your apps, and moving an app onto it.
 #
-# Sourced by the build scripts of TestTube, NiiX and niixfliix, so all of them keep their keys in
-# the same place and switch the same way. Every key lives in ~/.keys (or KEYS_HOME):
+# Sourced by the build scripts of TestTube, NiiX and niixfliix so they all keep keys in the same
+# place. Everything lives in ~/.keys (or KEYS_HOME):
 #
-#   ~/.keys/android/release.p12, signing.env   the Android key all apps share
-#   ~/.keys/<app>/                             the app's own original key, and lineage.bin once
-#                                              the app has switched to the shared key
-#   ~/.keys/linux/                             the key Linux releases are signed with
+#   ~/.keys/android/release.p12, signing.env   the shared Android key
+#   ~/.keys/<app>/                             the app's original key, plus lineage.bin once switched
+#   ~/.keys/linux/                             the Linux release key
 #
-# Switching is Android's key rotation (APK Signature Scheme v3). The app's own key signs, once,
-# its approval of the shared key: lineage.bin. Every APK built after that carries the approval and
-# is signed with both keys. Android 9 and newer accept it as a normal update of the old app and
-# from then on only take the shared key; Android 8 has no rotation and keeps checking the
-# original key, which is why that key has to be kept too.
+# Switching is Android key rotation (v3 scheme). The app's own key signs its approval of the shared
+# key once (lineage.bin). Every APK after that carries it and is signed with both. Android 9+ takes it
+# as a normal update and from then on only wants the shared key; Android 8 has no rotation and keeps
+# checking the original key, so keep that one too.
 #
-# The caller sets these before using the functions:
-#   AK_KEYTOOL     keytool of a JDK 17 or newer
-#   AK_APKSIGNER   apksigner from the Android build tools (only for switching and signing)
-#   AK_JAVA_HOME   the JDK apksigner runs on
-# Every function prints what went wrong and returns non-zero instead of exiting, so the caller
-# decides how to stop.
+# Caller sets:
+#   AK_KEYTOOL     keytool from JDK 17+
+#   AK_APKSIGNER   apksigner from build tools (switching and signing only)
+#   AK_JAVA_HOME   JDK apksigner runs on
+# Functions print what went wrong and return non-zero instead of exiting.
 
 AK_HOME="${KEYS_HOME:-$HOME/.keys}"
 AK_SHARED_DIR="$AK_HOME/android"
 AK_SHARED_KS="$AK_SHARED_DIR/release.p12"
 AK_SHARED_ENV="$AK_SHARED_DIR/signing.env"
-# Rotation applies from Android 9 (API 28). apksigner 33+ would otherwise wait for Android 13.
+# rotation from Android 9 (API 28); apksigner 33+ would wait for 13 otherwise
 AK_ROTATION_MIN_SDK=28
 
-# The same look as the BUILD.sh of every app: "==>" for steps, "warning:" and "error:".
+# same look as every app's BUILD.sh: "==>" steps, "warning:", "error:"
 ak_say() { printf '==> %s\n' "$*"; }
 ak_warn() { printf 'warning: %s\n' "$*" >&2; }
 ak_err() { printf 'error: %s\n' "$*" >&2; return 1; }
 
-# Questions go to the terminal, not through a log pipe that could hold them back.
+# questions go to the terminal, not through a log pipe that could hold them
 ak_ask() {
 	local __ak_prompt="$1" __ak_var="$2" __ak_reply=""
 	if { true > /dev/tty; } 2> /dev/null; then
@@ -61,7 +58,7 @@ ak_sha256() {
 	fi
 }
 
-# The value of the first of the given names in a key=value file (signing.env, keystore.properties).
+# value of the first matching name in a key=value file (signing.env, keystore.properties)
 ak_value() {
 	local file="$1" name line
 	shift
@@ -77,7 +74,7 @@ ak_value() {
 	return 1
 }
 
-# Only you can open ~/.keys: folders 700, files 600. Writes the README the first time.
+# only you can open ~/.keys: dirs 700, files 600. Writes the README the first time.
 ak_secure() {
 	mkdir -p "$AK_HOME" || return 1
 	find "$AK_HOME" -type d -exec chmod 700 {} + 2> /dev/null || true
@@ -109,9 +106,8 @@ README
 	chmod 600 "$AK_HOME/README.txt"
 }
 
-# Moves the key files of one folder into another (~/.keys/<app>), checking every copy. Files
-# already in the target are never replaced. With "keep" as third argument the source is left as
-# it was (for example a USB stick).
+# moves one folder's key files into another (~/.keys/<app>), verifying every copy. Never replaces
+# existing files. "keep" as 3rd arg leaves the source alone (a USB stick, say).
 ak_move_dir() {
 	local from="${1%/}" to="${2%/}" keep="${3:-}" file
 	[[ -d "$from" ]] || return 0
@@ -157,8 +153,8 @@ ak_random_secret() {
 	od -An -tx1 -N32 /dev/urandom | tr -d ' \n'
 }
 
-# A new RSA 4096 key, valid 100 years. The name in its certificate is public (anyone can read it
-# from an APK), so it says nothing personal.
+# new RSA 4096 key, valid 100 years. The cert name is public (readable from any APK), so nothing
+# personal in it.
 ak_create_shared() {
 	ak_shared_exists && return 0
 	if [[ -e "$AK_SHARED_KS" || -e "$AK_SHARED_ENV" ]]; then
@@ -183,8 +179,8 @@ ak_create_shared() {
 	ak_say "Created the shared Android key in $AK_SHARED_DIR"
 }
 
-# The SHA-256 of a key's certificate, lower case without colons, as apksigner prints it.
-# Arguments: keystore, store password, alias.
+# SHA-256 of a key's cert, lower case, no colons, like apksigner prints it.
+# Args: keystore, store password, alias.
 ak_fingerprint() {
 	AK_FP_PASSWORD="$2" "$AK_KEYTOOL" -list -v -keystore "$1" -storepass:env AK_FP_PASSWORD -alias "$3" 2> /dev/null \
 		| awk -F': ' '/SHA256:/ {print $2; exit}' | tr -d ':' | tr 'A-F' 'a-f'
@@ -201,8 +197,8 @@ ak_apksigner() {
 	JAVA_HOME="$AK_JAVA_HOME" PATH="$AK_JAVA_HOME/bin:$PATH" "$AK_APKSIGNER" "$@"
 }
 
-# Creates lineage.bin: the app's own key approving the shared key. Done once per app.
-# Arguments: own keystore, its store password, its key password, its alias, lineage file.
+# creates lineage.bin: the app's own key approving the shared one. Once per app.
+# Args: own keystore, store password, key password, alias, lineage file.
 ak_rotate() {
 	local ks="$1" sp="$2" kp="$3" alias="$4" lineage="$5" own shared certs
 	own="$(ak_fingerprint "$ks" "$sp" "$alias")"
@@ -233,15 +229,15 @@ ak_rotate() {
 	chmod 600 "$lineage"
 }
 
-# Signs an APK with the app's own key and the shared key, carrying lineage.bin. Replaces the file.
-# Arguments: apk, own keystore, store password, key password, alias, lineage file.
+# signs an APK with the app's key and the shared key, carrying lineage.bin. Replaces the file.
+# Args: apk, own keystore, store password, key password, alias, lineage file.
 ak_sign() {
 	local apk="$1" ks="$2" sp="$3" kp="$4" alias="$5" lineage="$6" help
 	help="$(ak_apksigner sign --help 2>&1 || true)"
 	local extra=(--v4-signing-enabled false)
 	grep -q -- '--rotation-min-sdk-version' <<< "$help" && extra+=(--rotation-min-sdk-version "$AK_ROTATION_MIN_SDK")
 	grep -q -- '--alignment-preserved' <<< "$help" && extra+=(--alignment-preserved true)
-	# Only for tests with APKs whose manifest apksigner can't read; real APKs say it themselves
+	# only for tests with APKs apksigner can't read the manifest of; real APKs say it themselves
 	[[ -n "${AK_MIN_SDK_OVERRIDE:-}" ]] && extra+=(--min-sdk-version "$AK_MIN_SDK_OVERRIDE")
 	rm -f "$apk.signed" "$apk.signed.idsig"
 	if ! AK_OLD_SP="$sp" AK_OLD_KP="$kp" AK_NEW_PW="$(ak_shared_password)" ak_apksigner sign \
@@ -257,14 +253,14 @@ ak_sign() {
 	mv "$apk.signed" "$apk"
 }
 
-# The certificate apksigner sees for a range of Android versions. Arguments: apk, from, to.
+# cert apksigner sees for a range of Android versions. Args: apk, from, to.
 ak_signer_for() {
 	ak_apksigner verify --print-certs --min-sdk-version "$2" --max-sdk-version "$3" "$1" 2> /dev/null \
 		| awk -F': ' '/Signer #1 certificate SHA-256 digest/ {print $2; exit}' | tr 'A-F' 'a-f'
 }
 
-# Checks a switched APK: from Android 9 on it shows the shared key, below that the app's own.
-# Arguments: apk, own key's digest, the app's minSdk.
+# checks a switched APK: 9+ shows the shared key, below that the app's own.
+# Args: apk, own key digest, minSdk.
 ak_check() {
 	local apk="$1" own="$2" min="$3" shared name
 	shared="$(ak_shared_digest)" || return 1
@@ -282,8 +278,8 @@ ak_check() {
 		|| { ak_err "$name: newer Android versions don't see the shared key"; return 1; }
 }
 
-# The switch itself, with questions. Creates the shared key if there is none yet.
-# Arguments: app name, own keystore, store password, key password, alias, lineage file.
+# the switch itself, with questions. Creates the shared key if missing.
+# Args: app name, own keystore, store password, key password, alias, lineage file.
 ak_switch() {
 	local app="$1" ks="$2" sp="$3" kp="$4" alias="$5" lineage="$6" own shared
 	if [[ -f "$lineage" ]]; then
@@ -313,7 +309,7 @@ ak_switch() {
 	ak_say "Back up $AK_HOME now: lineage.bin is new, and without it no update installs over this one."
 }
 
-# Copies all of ~/.keys to TARGET/.keys and checks every file.
+# copies all of ~/.keys to TARGET/.keys and verifies every file
 ak_backup() {
 	local target="${1%/}" copy file bad=""
 	[[ -d "$AK_HOME" ]] || { ak_err "There are no keys in $AK_HOME yet"; return 1; }

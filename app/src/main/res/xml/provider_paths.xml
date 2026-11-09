@@ -7,8 +7,8 @@
         name="downloads_work"
         path="download_work/" />
     <!--
-        Only the app's own folder in Downloads (where Android 9 and older save them, see
-        DownloadStorageUtils), not everything else in there. Keep it the same as R.string.app_name.
+        Only our own Downloads folder (where Android 9 and older save, see DownloadStorageUtils). Keep
+        it equal to R.string.app_name.
     -->
     <external-path
         name="downloads"

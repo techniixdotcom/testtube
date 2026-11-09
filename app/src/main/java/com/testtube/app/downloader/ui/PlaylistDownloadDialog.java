@@ -207,7 +207,6 @@ public final class PlaylistDownloadDialog {
 		if (threadsSeekBar != null) threadsSeekBar.setProgress(threadCount - 1);
 		if (threadsCountView != null) threadsCountView.setText(String.valueOf(threadCount));
 
-
 		if (recyclerView != null) {
 			recyclerView.setLayoutManager(new LinearLayoutManager(context));
 			recyclerView.setAdapter(adapter);
@@ -379,8 +378,8 @@ public final class PlaylistDownloadDialog {
 		dialog.show();
 		AlertDialog activeDialog = dialog;
 		if (activeDialog != null) {
-			// Keep the custom view and any wrapping scroll container filling the dialog body
-			// so weighted content can push actions to the bottom.
+			// keep the custom view and any scroll wrapper filling the dialog so weighted content pushes
+			// the buttons down
 			View parent = (View) dialogView.getParent();
 			while (parent != null) {
 				if (parent instanceof ScrollView) {
@@ -443,7 +442,7 @@ public final class PlaylistDownloadDialog {
 		parentRecord = batchRequest.parent;
 		batchPreparedCount = 0;
 		batchTotalCount = batchRequest.selectedIndexes.size();
-		// A whole playlist is many videos in a row: paced as background work
+		// a whole playlist is a lot of videos, pace it as background work
 		batchExtractionSession = new ExtractionSession().setBackground(true);
 		lockUiForBatch(true);
 		updateStatusText();
@@ -528,7 +527,7 @@ public final class PlaylistDownloadDialog {
 				processedIndexes.add(playlistIndex);
 			} catch (Exception e) {
 				failedRows++;
-				// The same translated reason the player gives ("This video is private.")
+				// same translated reason the player gives
 				postRowBatchStatus(playlistIndex, PlaylistDownloadItem.BatchResultStatus.FAILED,
 								context.getString(Failure.of(e).message));
 				processedIndexes.add(playlistIndex);
@@ -573,8 +572,8 @@ public final class PlaylistDownloadDialog {
 				service.refreshPlaylistRecord(parent.getTaskId());
 			}
 			StringBuilder builder = new StringBuilder(canceled
-							? context.getString(R.string.playlist_download_batch_added_before_cancel, addedRows)
-							: context.getString(R.string.playlist_download_batch_added, addedRows));
+							? context.getResources().getQuantityString(R.plurals.playlist_download_batch_added_before_cancel, addedRows, addedRows)
+							: context.getResources().getQuantityString(R.plurals.playlist_download_batch_added, addedRows, addedRows));
 			if (finalPartialRows > 0) {
 				builder.append(", ")
 								.append(context.getString(R.string.playlist_download_batch_segment_partial, finalPartialRows));

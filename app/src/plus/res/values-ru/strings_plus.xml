@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TestTube+ only: name and texts for Spotify, Facebook and SoundCloud links. -->
+<resources>
+    <string name="app_name">TestTube+</string>
+    <string name="link_spotify_reading">Открываем ссылку Spotify…</string>
+    <plurals name="link_spotify_finding">
+        <item quantity="one">Ищем %d песню на YouTube…</item>
+        <item quantity="few">Ищем %d песни на YouTube…</item>
+        <item quantity="many">Ищем %d песен на YouTube…</item>
+        <item quantity="other">Ищем %d песни на YouTube…</item>
+    </plurals>
+    <string name="link_spotify_done">Найдено на YouTube песен: %1$d из %2$d. Первая играет, остальные в очереди</string>
+    <string name="link_spotify_not_found">Не нашлось на YouTube, вот результаты поиска</string>
+    <string name="link_spotify_failed">Не удалось прочитать эту ссылку Spotify</string>
+    <string name="link_facebook_video">Видео из Facebook</string>
+    <string name="link_facebook_login">Это видео из Facebook не общедоступное. TestTube+ воспроизводит только общедоступные видео, без аккаунта Facebook.</string>
+    <string name="link_facebook_no_video">По этой ссылке Facebook нет видео, или оно удалено.</string>
+    <string name="link_facebook_failed">Не удалось загрузить это видео из Facebook. Возможно, Facebook изменил страницу; обновление это исправит.</string>
+    <string name="link_external_network">Не удалось связаться с сайтом. Проверьте подключение и попробуйте снова.</string>
+    <string name="link_soundcloud_reading">Открываем ссылку SoundCloud…</string>
+    <plurals name="link_soundcloud_queued">
+        <item quantity="one">Ещё %d трек из SoundCloud в очереди</item>
+        <item quantity="few">Ещё %d трека из SoundCloud в очереди</item>
+        <item quantity="many">Ещё %d треков из SoundCloud в очереди</item>
+        <item quantity="other">Ещё %d трека из SoundCloud в очереди</item>
+    </plurals>
+    <string name="link_soundcloud_empty">В этом плейлисте SoundCloud нет треков, которые можно воспроизвести.</string>
+    <string name="link_soundcloud_not_found">Этот трек SoundCloud не найден. Возможно, он закрыт или удалён.</string>
+    <string name="link_soundcloud_blocked">Этот трек SoundCloud недоступен в вашей стране.</string>
+    <string name="link_soundcloud_unplayable">SoundCloud предлагает этот трек только в защищённом формате, который здесь не воспроизводится.</string>
+    <string name="link_soundcloud_preview_youtube">В SoundCloud есть только 30-секундный фрагмент этой песни: она воспроизводится с YouTube.</string>
+    <string name="link_soundcloud_preview_only">В SoundCloud есть только 30-секундный фрагмент этой песни, а на YouTube её нет.</string>
+    <string name="link_soundcloud_failed">Не удалось загрузить эту ссылку SoundCloud. Возможно, SoundCloud что-то изменил; обновление это исправит.</string>
+</resources>

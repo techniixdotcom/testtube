@@ -30,8 +30,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.tencent.mmkv.MMKV;
+import com.testtube.app.Edition;
 import com.testtube.app.R;
 import com.testtube.app.ui.Dialogs;
+import com.testtube.app.util.StringUtils;
 
 import okhttp3.Call;
 import okhttp3.OkHttpClient;
@@ -57,17 +59,17 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * In-app updates from GitHub releases: checks, downloads the APK with progress and hands it to
- * the installer. Android only installs it when it is signed with the same key.
+ * In-app updates from GitHub releases: check, download with progress, hand to the installer.
+ * Android only installs it with the same signing key.
  */
 public final class UpdateManager {
 	private static final String LATEST_URL =
 					"https://api.github.com/repos/techniixdotcom/testtube/releases/latest";
-	/** Newest releases first, pre-releases included ("latest" leaves them out). */
+	/** Newest first, pre-releases included ("latest" skips them). */
 	private static final String RELEASES_URL =
 					"https://api.github.com/repos/techniixdotcom/testtube/releases?per_page=20";
-	/** "v2.1.1" and an optional pre-release part such as "-beta2". */
-	/** A letter prefix is allowed, with or without a separator: "2.1.1", "v2.1.1", "v.2.1.1", "V 2.1.1". */
+	/** "v2.1.1" plus an optional "-beta2" style part. */
+	/** Letter prefix allowed, with or without a separator: "2.1.1", "v2.1.1", "v.2.1.1", "V 2.1.1". */
 	private static final Pattern VERSION = Pattern.compile("(?i)[a-z]*[ ._-]?(\\d+(?:\\.\\d+)*)(.*)");
 	private static final Pattern TRAILING_NUMBER = Pattern.compile("(\\d+)\\D*$");
 	private static final String DOWNLOAD_PREFIX =
@@ -79,7 +81,8 @@ public final class UpdateManager {
 	private static final long START_DELAY_MS = 5_000L;
 	private static final long SNOOZE_MS = 24L * 60 * 60 * 1000;
 	private static final int NOTES_LIMIT = 600;
-	private static final String UPDATE_DIR = "updates";
+	/** Update folder in the cache dir. */
+	public static final String UPDATE_DIR = "updates";
 
 	private record Release(String tag, String notes, String apkUrl, long size, @Nullable String sha256,
 	                       boolean prerelease) {
@@ -89,9 +92,11 @@ public final class UpdateManager {
 	private final MMKV store = MMKV.defaultMMKV();
 	private final ExecutorService executor = Executors.newSingleThreadExecutor();
 	private volatile Call activeDownload;
+	/** Set from before the folder exists until the download ends, so clearing the cache leaves it. */
+	private volatile boolean downloading;
 
 	public UpdateManager(@NonNull OkHttpClient client) {
-		// Own client: no shared HTTP cache, no response rewriting
+		// own client: no shared HTTP cache, no response rewriting
 		OkHttpClient.Builder builder = client.newBuilder().cache(null);
 		builder.networkInterceptors().clear();
 		this.client = builder.build();
@@ -105,7 +110,12 @@ public final class UpdateManager {
 		store.encode(KEY_AUTO, enabled);
 	}
 
-	/** Pre-releases (test versions) are offered too. Off by default. */
+	/** Offer pre-releases too. Off by default. */
+	/** An update is downloading right now. */
+	public boolean isDownloading() {
+		return downloading;
+	}
+
 	public boolean prereleasesEnabled() {
 		return store.decodeBool(KEY_PRERELEASES, false);
 	}
@@ -114,7 +124,7 @@ public final class UpdateManager {
 		store.encode(KEY_PRERELEASES, enabled);
 	}
 
-	/** Quiet check 5 s after startup; only shows up when there is an update. */
+	/** Quiet check 5 s after start, only shows up if there's an update. */
 	public void checkOnStart(@NonNull Activity activity) {
 		deleteOldDownloads(activity);
 		if (!autoCheckEnabled()) return;
@@ -123,7 +133,7 @@ public final class UpdateManager {
 		}, START_DELAY_MS);
 	}
 
-	/** Manual check, also reports "up to date" and errors. */
+	/** Manual check, also says "up to date" and errors. */
 	public void check(@NonNull Activity activity, boolean manual) {
 		if (manual) Toast.makeText(activity, R.string.update_checking, Toast.LENGTH_SHORT).show();
 		executor.execute(() -> {
@@ -194,13 +204,26 @@ public final class UpdateManager {
 			JsonObject asset = element.getAsJsonObject();
 			String name = string(asset, "name");
 			String url = string(asset, "browser_download_url");
-			if (tag.isEmpty() || !name.endsWith(".apk") || !url.startsWith(DOWNLOAD_PREFIX)) continue;
+			if (tag.isEmpty() || !isOwnEditionApk(name) || !url.startsWith(DOWNLOAD_PREFIX)) continue;
 			String digest = string(asset, "digest");
 			String sha = digest.startsWith("sha256:") ? digest.substring(7).toLowerCase(Locale.ROOT) : null;
 			long size = asset.has("size") ? asset.get("size").getAsLong() : -1L;
 			return new Release(tag, string(json, "body").trim(), url, size, sha, prerelease);
 		}
 		return null;
+	}
+
+	/**
+	 * Release file is this edition's APK: testtube3.0.4.apk for TestTube, testtubeplus3.0.4.apk for
+	 * TestTube+. Installing the other one would switch editions without asking.
+	 */
+	static boolean isOwnEditionApk(@NonNull String name) {
+		String prefix = Edition.APK_PREFIX;
+		return name.length() > prefix.length() + 4
+						&& name.startsWith(prefix)
+						&& Character.isDigit(name.charAt(prefix.length()))
+						&& name.endsWith(".apk")
+						&& !name.endsWith("-debug.apk");
 	}
 
 	private static String string(JsonObject json, String key) {
@@ -218,8 +241,8 @@ public final class UpdateManager {
 	}
 
 	/**
-	 * Compares versions as numbers, so "v1.10.0" is newer than "v1.9.3". A pre-release comes before
-	 * its release: "v2.1.1-beta1" < "v2.1.1-beta2" < "v2.1.1".
+	 * Numeric compare, so "v1.10.0" beats "v1.9.3". Pre-releases come before their release:
+	 * "v2.1.1-beta1" < "v2.1.1-beta2" < "v2.1.1".
 	 */
 	static boolean isNewer(String remote, String local) {
 		Matcher a = VERSION.matcher(remote.trim());
@@ -293,7 +316,7 @@ public final class UpdateManager {
 				activity.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
 								Uri.parse("package:" + activity.getPackageName())));
 			} catch (ActivityNotFoundException e) {
-				// Some phones hide this screen; the toast above says what to allow
+				// some phones hide this screen, the toast says what to allow
 			}
 			return;
 		}
@@ -309,6 +332,7 @@ public final class UpdateManager {
 							if (call != null) call.cancel();
 						})
 						.show();
+		downloading = true;
 		executor.execute(() -> {
 			try {
 				File apk = download(activity, release, (done, total) -> runOnUi(activity, () -> {
@@ -330,6 +354,7 @@ public final class UpdateManager {
 				});
 			} finally {
 				activeDownload = null;
+				downloading = false;
 			}
 		});
 	}
@@ -343,8 +368,7 @@ public final class UpdateManager {
 		if (!dir.isDirectory() && !dir.mkdirs()) throw new IOException("cannot create " + dir);
 		File part = new File(dir, "testtube-update.apk.part");
 		File apk = new File(dir, "testtube-update.apk");
-		// GitHub works out a SHA-256 for every file uploaded to a release, by itself. Without one
-		// there's nothing to check the download against, so no update at all.
+		// GitHub computes a SHA-256 for every release asset. No hash, nothing to check against, no update.
 		String expected = release.sha256();
 		if (expected == null || !expected.matches("[0-9a-f]{64}")) throw new IOException("release has no SHA-256");
 		Call call = client.newCall(new Request.Builder().url(release.apkUrl())
@@ -368,7 +392,7 @@ public final class UpdateManager {
 					out.write(buffer, 0, read);
 					digest.update(buffer, 0, read);
 					done += read;
-					// Never write more than the release said it holds
+					// never write more than the release says it has
 					if (release.size() > 0 && done > release.size()) throw new IOException("download too large");
 					long now = System.currentTimeMillis();
 					if (now - lastReport > 100) {
@@ -378,9 +402,9 @@ public final class UpdateManager {
 				}
 			}
 			progress.onProgress(done, total);
-			if (!expected.equals(hex(digest.digest()))) throw new IOException("checksum mismatch");
+			if (!expected.equals(StringUtils.hex(digest.digest()))) throw new IOException("checksum mismatch");
 		} catch (IOException | RuntimeException e) {
-			// A half or wrong download must never be the thing that gets installed
+			// a half or wrong download must never get installed
 			//noinspection ResultOfMethodCallIgnored
 			part.delete();
 			throw e;
@@ -426,16 +450,14 @@ public final class UpdateManager {
 	}
 
 	/**
-	 * Whether the APK is signed with the key of the app that's installed, which is your release
-	 * key: an APK built or re-signed by anyone else is thrown away here, before Android's installer
-	 * even comes up. Compared by the SHA-256 of each signing certificate. The installer checks the
-	 * key again on its own.
+	 * APK is signed with the installed app's key (your release key), so anything built or re-signed
+	 * by someone else gets dropped before the installer shows up. Compared by each cert's SHA-256. The
+	 * installer checks again on its own.
 	 * <p>
-	 * One change of key is allowed, the way Android allows it (key rotation, APK Signature Scheme
-	 * v3, Android 9 and newer): an APK signed with a new key that carries the installed key's own
-	 * signed approval of that new key. Only whoever holds the installed key can make that approval,
-	 * and from then on only the new key is accepted. Android 8 never changes key, so there the APK
-	 * has to be signed with the installed key, which rotated APKs still are for those versions.
+	 * One key change is allowed the way Android allows it (rotation, v3 scheme, Android 9+): a new key
+	 * carrying the installed key's signed approval. Only the installed key's holder can make that, and
+	 * after it only the new key counts. Android 8 never rotates, so there it has to be the installed
+	 * key, which rotated APKs still are for those versions.
 	 */
 	private static boolean sameSigner(PackageInfo archive, PackageInfo installed) {
 		Set<String> installedNow = currentSigners(installed);
@@ -445,20 +467,20 @@ public final class UpdateManager {
 		return Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && rotatedFrom(archive, installedNow);
 	}
 
-	/** The certificates the package is signed with now. */
+	/** Certs the package is signed with now. */
 	@SuppressWarnings("deprecation")
 	@NonNull
 	private static Set<String> currentSigners(@NonNull PackageInfo info) {
 		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-			// Several signers only for APKs signed by more than one key at once; then all must match
+			// several signers only for multi-key APKs, then all have to match
 			return hashes(info.signingInfo != null ? info.signingInfo.getApkContentsSigners() : null);
 		}
 		return hashes(info.signatures);
 	}
 
 	/**
-	 * Whether the APK's single key took over from {@code installedNow}: its signing history, which
-	 * each earlier key signed for the next, includes the installed key.
+	 * APK's single key took over from {@code installedNow}: its signing history (each key signed
+	 * for the next) includes the installed key.
 	 */
 	@RequiresApi(Build.VERSION_CODES.P)
 	private static boolean rotatedFrom(@NonNull PackageInfo archive, @NonNull Set<String> installedNow) {
@@ -476,7 +498,7 @@ public final class UpdateManager {
 		try {
 			MessageDigest digest = sha256();
 			for (Signature signer : signers) {
-				if (signer != null) hashes.add(hex(digest.digest(signer.toByteArray())));
+				if (signer != null) hashes.add(StringUtils.hex(digest.digest(signer.toByteArray())));
 			}
 		} catch (IOException e) {
 			hashes.clear();
@@ -498,12 +520,6 @@ public final class UpdateManager {
 		} catch (NoSuchAlgorithmException e) {
 			throw new IOException(e);
 		}
-	}
-
-	private static String hex(byte[] bytes) {
-		StringBuilder sb = new StringBuilder(bytes.length * 2);
-		for (byte b : bytes) sb.append(String.format(Locale.ROOT, "%02x", b));
-		return sb.toString();
 	}
 
 	private static String megabytes(long bytes) {

@@ -34,8 +34,8 @@ public final class QueueAdapter extends RecyclerView.Adapter<QueueAdapter.ViewHo
 	}
 
 	/**
-	 * Shows a new queue state. Only rows that actually changed are rebound, so the frequent
-	 * player updates (minimize, play/pause) don't reload every thumbnail.
+	 * Shows a new queue state. Only changed rows rebind so frequent player updates (minimize,
+	 * play/pause) don't reload every thumbnail.
 	 */
 	public void replaceItems(@NonNull List<QueueItem> newItems, @Nullable String playingId) {
 		List<QueueItem> oldItems = new ArrayList<>(items);
@@ -122,7 +122,7 @@ public final class QueueAdapter extends RecyclerView.Adapter<QueueAdapter.ViewHo
 		try {
 			task.run();
 		} catch (NullPointerException ignored) {
-			// The JVM unit-test stub for RecyclerView.Adapter has no observer list until attached.
+			// the JVM test stub of RecyclerView.Adapter has no observer list until attached
 		}
 	}
 
@@ -156,7 +156,7 @@ public final class QueueAdapter extends RecyclerView.Adapter<QueueAdapter.ViewHo
 		void bind(@NonNull QueueItem item,
 		          @Nullable String playingId,
 		          @NonNull Actions actions) {
-			// The creator's own names when known (queued from a list that showed translations)
+			// creator's own names when known (queued from a translated list)
 			Originals.Original original = Originals.get().find(item.getVideoId());
 			String title = original != null ? original.title() : item.getTitle();
 			String author = original != null && original.author() != null ? original.author() : item.getAuthor();

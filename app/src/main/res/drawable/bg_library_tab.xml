@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Browser-style tab: the selected tab has the Library pages' colour and rounded top corners, so
-    it joins the page below. Its top edge is lit along the same rounded shape: the edge colour
-    fills the whole tab and the page colour sits on it 3dp lower with the same corners, leaving a
-    band that runs across the top and follows both corners down.
+    Browser-style tab: selected one has the Library page colour and rounded top corners so it
+    joins the page. The edge colour fills the tab and the page colour sits 3dp lower with the same
+    corners, leaving a lit band across the top and down both corners.
 -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android"
     android:enterFadeDuration="150"

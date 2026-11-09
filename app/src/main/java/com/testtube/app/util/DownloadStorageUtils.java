@@ -51,7 +51,7 @@ public final class DownloadStorageUtils {
 			throw new IOException("Unable to create downloads directory: " + targetDir.getAbsolutePath());
 		}
 
-		// Keep the filename unique when the target already exists.
+		// keep the name unique if the target exists
 		File destination = new File(targetDir, displayName);
 		if (destination.exists()) {
 			int dot = displayName.lastIndexOf('.');

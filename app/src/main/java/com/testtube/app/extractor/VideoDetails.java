@@ -85,6 +85,10 @@ public class VideoDetails {
 		return uploadDate;
 	}
 
+	public void setUploadDate(Date uploadDate) {
+		this.uploadDate = uploadDate;
+	}
+
 	public String getUploaderUrl() {
 		return uploaderUrl;
 	}

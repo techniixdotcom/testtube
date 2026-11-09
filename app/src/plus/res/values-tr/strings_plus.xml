@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TestTube+ only: name and texts for Spotify, Facebook and SoundCloud links. -->
+<resources>
+    <string name="app_name">TestTube+</string>
+    <string name="link_spotify_reading">Spotify bağlantısı açılıyor…</string>
+    <plurals name="link_spotify_finding">
+        <item quantity="one">YouTube\'da %d şarkı aranıyor…</item>
+        <item quantity="other">YouTube\'da %d şarkı aranıyor…</item>
+    </plurals>
+    <string name="link_spotify_done">YouTube\'da %2$d şarkıdan %1$d tanesi bulundu: ilki çalıyor, diğerleri sırada</string>
+    <string name="link_spotify_not_found">YouTube\'da bulunamadı, arama sonuçları gösteriliyor</string>
+    <string name="link_spotify_failed">Bu Spotify bağlantısı okunamadı</string>
+    <string name="link_facebook_video">Facebook videosu</string>
+    <string name="link_facebook_login">Bu Facebook videosu herkese açık değil. TestTube+ yalnızca herkese açık videoları Facebook hesabı olmadan oynatır.</string>
+    <string name="link_facebook_no_video">Bu Facebook bağlantısında video yok veya kaldırılmış.</string>
+    <string name="link_facebook_failed">Bu Facebook videosu yüklenemedi. Facebook sayfasını değiştirmiş olabilir; bir güncelleme bunu düzeltecek.</string>
+    <string name="link_external_network">Siteye ulaşılamadı. Bağlantınızı kontrol edip yeniden deneyin.</string>
+    <string name="link_soundcloud_reading">SoundCloud bağlantısı açılıyor…</string>
+    <plurals name="link_soundcloud_queued">
+        <item quantity="one">SoundCloud\'dan %d şarkı daha sırada</item>
+        <item quantity="other">SoundCloud\'dan %d şarkı daha sırada</item>
+    </plurals>
+    <string name="link_soundcloud_empty">Bu SoundCloud setinde oynatılabilecek şarkı yok.</string>
+    <string name="link_soundcloud_not_found">Bu SoundCloud parçası bulunamadı. Gizli olabilir veya kaldırılmış olabilir.</string>
+    <string name="link_soundcloud_blocked">Bu SoundCloud parçası ülkenizde kullanılamıyor.</string>
+    <string name="link_soundcloud_unplayable">SoundCloud bu parçayı yalnızca burada oynatılamayan korumalı bir biçimde sunuyor.</string>
+    <string name="link_soundcloud_preview_youtube">SoundCloud\'da bu şarkının yalnızca 30 saniyelik önizlemesi var: YouTube\'dan oynatılıyor.</string>
+    <string name="link_soundcloud_preview_only">SoundCloud\'da bu şarkının yalnızca 30 saniyelik önizlemesi var ve YouTube\'da da yok.</string>
+    <string name="link_soundcloud_failed">Bu SoundCloud bağlantısı yüklenemedi. SoundCloud bir şeyi değiştirmiş olabilir; bir güncelleme bunu düzeltecek.</string>
+</resources>

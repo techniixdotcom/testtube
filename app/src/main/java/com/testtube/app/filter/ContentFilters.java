@@ -16,10 +16,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-/**
- * Watch progress per video (to grey out watched ones), the blocked channels and, when switched on,
- * the channels on the AI channel list.
- */
+/** Watch progress per video (for greying out), blocked channels and, if enabled, the AI list. */
 public final class ContentFilters {
 	private static final String WATCH_STORE_ID = "testtube_watch_history";
 	private static final String KEY_BLOCKED_CHANNELS = "blocked_channels";
@@ -32,7 +29,7 @@ public final class ContentFilters {
 	private static final int PERCENT_BITS = 7;
 	private static final long PERCENT_MASK = (1L << PERCENT_BITS) - 1L;
 	private static final Pattern VIDEO_ID = Pattern.compile("[A-Za-z0-9_-]{11}");
-	/** Separators YouTube puts between a channel name and extra text ("Name • 1M views"). */
+	/** What YouTube puts between a channel name and extra text ("Name • 1M views"). */
 	private static final Pattern NAME_SEPARATOR = Pattern.compile("[•·|]");
 	private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
@@ -44,9 +41,9 @@ public final class ContentFilters {
 	private final Gson gson;
 	@NonNull
 	private final AiChannelList aiChannels;
-	/** Read once from storage; -1 until then. Every list row asks for it. */
+	/** Read once, -1 until then. Every row asks. */
 	private volatile int threshold = -1;
-	/** Blocked channels prepared for lookups; rebuilt after the list changes. Every list row asks. */
+	/** Blocked channels ready for lookups, rebuilt on change. Every row asks. */
 	@Nullable
 	private volatile BlockedIndex blockedIndex;
 
@@ -73,9 +70,7 @@ public final class ContentFilters {
 		return packed >>> PERCENT_BITS;
 	}
 
-	/**
-	 * Records playback progress. Only ever raises the stored percentage.
-	 */
+	/** Records progress. Only ever goes up. */
 	public void recordProgress(@Nullable String videoId, long positionMs, long durationMs) {
 		if (!isVideoId(videoId) || durationMs <= 0L || positionMs < 0L) return;
 		int percent = (int) Math.min(100L, Math.max(0L, positionMs * 100L / durationMs));
@@ -104,7 +99,7 @@ public final class ContentFilters {
 		return stored < 0L ? 0 : percentOf(stored);
 	}
 
-	/** How much of a video has to be played for it to count as watched, in percent. */
+	/** Percent played that counts as watched. */
 	public int watchedThreshold() {
 		int percent = threshold;
 		if (percent < 0) {
@@ -140,9 +135,7 @@ public final class ContentFilters {
 		}
 	}
 
-	/**
-	 * Normalises a channel link to its path, e.g. "/@handle" or "/channel/UCxxxx".
-	 */
+	/** Channel link to path, e.g. "/@handle" or "/channel/UCxxxx". */
 	@Nullable
 	public static String channelPath(@Nullable String url) {
 		if (url == null || url.isBlank()) return null;
@@ -201,9 +194,7 @@ public final class ContentFilters {
 		blockedIndex = null;
 	}
 
-	/**
-	 * Blocks a channel. Returns false when the name is unusable.
-	 */
+	/** Blocks a channel. False if the name is unusable. */
 	public synchronized boolean blockChannel(@Nullable String name, @Nullable String url, @Nullable String altUrl) {
 		String display = name == null ? "" : NAME_SEPARATOR.split(name, 2)[0].trim();
 		if (display.isEmpty()) return false;

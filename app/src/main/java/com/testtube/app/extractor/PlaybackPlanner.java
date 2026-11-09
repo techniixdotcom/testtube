@@ -56,7 +56,7 @@ public final class PlaybackPlanner {
 			PlaybackPlan adaptivePlan = compatibleAdaptivePlan(plan, adaptive, preferredQuality);
 			if (adaptivePlan != null) return adaptivePlan;
 		}
-		// HDR only (with HDR off) or nothing complete: the muxed stream is H.264, always SDR
+		// only HDR (with HDR off) or nothing complete: the muxed stream is H.264, always SDR
 
 		Delivery muxed = deliveries.first(PlaybackMode.MUXED);
 		if (muxed != null) {
@@ -107,10 +107,10 @@ public final class PlaybackPlanner {
 		if (adaptive == null) {
 			return null;
 		}
-		List<StreamCandidate> video = adaptive.getVideo().stream()
+		List<StreamCandidate> video = withoutSoftwareAv1(adaptive.getVideo().stream()
 						.filter(candidate -> !blocked.test(candidate))
 						.filter(candidate -> AppSettings.allowHdr() || !isHdr(candidate))
-						.collect(Collectors.toList());
+						.collect(Collectors.toList()));
 		List<StreamCandidate> audio = adaptive.getAudio().stream()
 						.filter(candidate -> !blocked.test(candidate))
 						.collect(Collectors.toList());
@@ -119,8 +119,8 @@ public final class PlaybackPlanner {
 	}
 
 	/**
-	 * The adaptive plan within the video settings: only H.264 when "Prefer H.264" is on (if there is
-	 * any), never HDR while "Allow HDR" is off. Null when that leaves nothing complete to play.
+	 * Adaptive plan within the video settings: H.264 only with Prefer H.264 (if any), no HDR while
+	 * Allow HDR is off. Null if that leaves nothing playable.
 	 */
 	@Nullable
 	private static PlaybackPlan compatibleAdaptivePlan(@NonNull PlaybackPlan plan,
@@ -136,9 +136,9 @@ public final class PlaybackPlanner {
 				if (isComplete(avcPlan)) return avcPlan;
 			}
 		}
-		List<StreamCandidate> video = AppSettings.allowHdr() ? adaptive.getVideo() : adaptive.getVideo().stream()
+		List<StreamCandidate> video = withoutSoftwareAv1(AppSettings.allowHdr() ? adaptive.getVideo() : adaptive.getVideo().stream()
 						.filter(candidate -> !isHdr(candidate))
-						.collect(Collectors.toList());
+						.collect(Collectors.toList()));
 		if (video.isEmpty()) return null;
 		PlaybackPlan adaptivePlan = adaptivePlan(plan, adaptive, video, adaptive.getAudio(), preferredQuality);
 		return isComplete(adaptivePlan) ? adaptivePlan : null;
@@ -146,6 +146,16 @@ public final class PlaybackPlanner {
 
 	private static boolean isComplete(@NonNull PlaybackPlan plan) {
 		return plan.getVideoCandidate() != null && plan.getAudioCandidate() != null;
+	}
+
+	/** Drops AV1 the phone can only decode in software, unless nothing else is left. */
+	@NonNull
+	private static List<StreamCandidate> withoutSoftwareAv1(@NonNull List<StreamCandidate> video) {
+		List<StreamCandidate> kept = video.stream()
+						.filter(candidate -> candidate.getVideoStream() == null
+										|| !PlayerUtils.isSoftwareAv1(candidate.getVideoStream().getCodec()))
+						.collect(Collectors.toList());
+		return kept.isEmpty() ? video : kept;
 	}
 
 	private static boolean isHdr(@NonNull StreamCandidate candidate) {
@@ -183,9 +193,8 @@ public final class PlaybackPlanner {
 	}
 
 	/**
-	 * Audio tracks with the creator's original first, the way it was uploaded. Then other tracks
-	 * a person recorded (dubs, secondary), then audio description, and YouTube's automatic AI
-	 * dubs last. Within each, the better bitrate wins.
+	 * Audio tracks, creator's original first, then other human tracks (dubs, secondary), then audio
+	 * description, YouTube's AI dubs last. Better bitrate wins within each.
 	 */
 	@NonNull
 	public static List<AudioStream> originalFirst(@NonNull List<AudioStream> source) {
@@ -197,7 +206,7 @@ public final class PlaybackPlanner {
 		return sorted;
 	}
 
-	/** The original track, or the closest there is; null without audio. */
+	/** Original track or the closest one; null without audio. */
 	@Nullable
 	public static AudioStream originalAudio(@NonNull List<AudioStream> streams) {
 		return streams.isEmpty() ? null : originalFirst(streams).get(0);

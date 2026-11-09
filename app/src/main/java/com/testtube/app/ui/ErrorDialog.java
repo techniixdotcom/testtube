@@ -42,7 +42,7 @@ public final class ErrorDialog {
 	public static void show(Context context, String title, String stack, DialogInterface.OnDismissListener onDismissListener) {
 		String displayTitle = (title == null) ? context.getString(R.string.error_title) : title;
 
-		// Avoid showing dialog in PIP mode
+		// no dialog in PiP
 		if (context instanceof Activity && DeviceUtils.isInPictureInPictureMode((Activity) context))
 			return;
 

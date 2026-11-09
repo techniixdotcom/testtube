@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Android 12+: the app shows blurred behind dialogs and sheets, with a lighter dim to match -->
+    <!-- 12+: blur the app behind dialogs and sheets, with a lighter dim to match -->
     <style name="ThemeOverlay.TestTube.AlertDialog" parent="Base.ThemeOverlay.TestTube.AlertDialog">
         <item name="android:windowBlurBehindEnabled">true</item>
         <item name="android:windowBlurBehindRadius">24dp</item>

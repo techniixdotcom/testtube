@@ -58,7 +58,9 @@
     <string name="threads">スレッド</string>
     <string name="clear">消去</string>
     <string name="download_tasks_added">ダウンロードタスクを追加しました</string>
-    <string name="download_tasks_added_count">%1$d 個のタスクをキューに追加しました</string>
+    <plurals name="download_tasks_added_count">
+        <item quantity="other">%1$d 個のタスクをキューに追加しました</item>
+    </plurals>
     <string name="download_history">ダウンロード履歴</string>
     <string name="no_download_records">ダウンロード履歴はありません</string>
     <string name="file_not_found">ファイルが見つかりません</string>
@@ -107,7 +109,9 @@
     <string name="download_playlist_summary">%1$d / %2$d 件\n(%3$d%%)</string>
     <string name="preparing_download">ダウンロードを準備中…</string>
     <string name="downloading_file">ダウンロード中: %1$s</string>
-    <string name="downloads_running">%1$d 件のダウンロードが進行中</string>
+    <plurals name="downloads_running">
+        <item quantity="other">%1$d 件のダウンロードが進行中</item>
+    </plurals>
     <string name="playlist_download_title_placeholder">プレイリスト</string>
     <string name="playlist_download_summary">選択 %1$d / 準備完了 %2$d / 合計 %3$d</string>
     <string name="playlist_download_select_all">すべて選択</string>
@@ -120,11 +124,15 @@
     <string name="playlist_download_status_unavailable">利用不可</string>
     <string name="playlist_download_status_failed">失敗</string>
     <string name="playlist_download_status_preparing">準備中</string>
-    <string name="playlist_download_status_queued">キュー済み</string>
+    <string name="playlist_download_status_queued">キューに追加済み</string>
     <string name="playlist_download_status_partial">一部のみ</string>
     <string name="playlist_download_status_canceled">キャンセル済み</string>
-    <string name="playlist_download_batch_added">%1$d 件を追加しました</string>
-    <string name="playlist_download_batch_added_before_cancel">バッチキャンセル前に %1$d 件を追加しました</string>
+    <plurals name="playlist_download_batch_added">
+        <item quantity="other">%1$d 件を追加しました</item>
+    </plurals>
+    <plurals name="playlist_download_batch_added_before_cancel">
+        <item quantity="other">バッチのキャンセル前に %1$d 件を追加しました</item>
+    </plurals>
     <string name="playlist_download_batch_segment_partial">%1$d 件が一部成功</string>
     <string name="playlist_download_batch_segment_failed">%1$d 件が失敗</string>
     <string name="playlist_download_started">プレイリストのダウンロードを開始しました</string>
@@ -254,7 +262,9 @@
     <string name="subs_export_failed">ファイルを保存できませんでした</string>
     <string name="subs_followed">チャンネルをフォローしました</string>
     <string name="subs_import">インポート</string>
-    <string name="subs_import_done">%d 件のチャンネルをインポートしました</string>
+    <plurals name="subs_import_done">
+        <item quantity="other">%d 件のチャンネルをインポートしました</item>
+    </plurals>
     <string name="subs_import_export">インポート / エクスポート</string>
     <string name="subs_import_failed">そのファイルを読み込めませんでした</string>
     <string name="subs_local_empty">チャンネルはまだありません。[管理] をタップしてチャンネルを追加・インポートするか、動画からフォローしてください。</string>
@@ -292,7 +302,9 @@
     <string name="update_progress">%1$s / %2$s</string>
     <string name="update_title">アップデートがあります</string>
     <string name="watch_chat_hint">ライブチャットはライブ配信とプレミア公開の間に使えます。</string>
-    <string name="watch_comment_likes">高評価 %d 件</string>
+    <plurals name="watch_comment_likes">
+        <item quantity="other">高評価 %d 件</item>
+    </plurals>
     <string name="watch_comment_pinned">固定</string>
     <string name="watch_comments_disabled">この動画のコメントはオフになっています</string>
     <string name="watch_comments_empty">コメントはありません</string>
@@ -300,7 +312,7 @@
     <string name="watch_tab_chat">チャット</string>
     <string name="watch_tab_comments">コメント</string>
     <string name="watch_tab_description">説明</string>
-    <!-- Library, settings groups and notifications -->
+    <!-- Library, settings groups, notifications -->
     <string name="nav_library">ライブラリ</string>
     <string name="library_history">履歴</string>
     <string name="library_downloads">ダウンロード</string>
@@ -345,7 +357,7 @@
     <string name="failure_unsupported">この種類の動画には対応していません（有料や Premium 限定のコンテンツなど）。</string>
     <string name="failure_unavailable">この動画は視聴できません。削除された可能性があります。</string>
     <string name="failure_other">この動画の読み込み中に問題が発生しました。もう一度試すか、「詳細」をタップして内容を確認してください。</string>
-    <!-- Minimizing, floating window and gestures -->
+    <!-- Minimizing, floating window, gestures -->
     <string name="setting_minimize_to">最小化の方法</string>
     <string name="setting_minimize_summary">下部バーまたはフローティングウィンドウ</string>
     <string name="minimize_bottom_bar">下部バー</string>
@@ -388,4 +400,51 @@
     <string name="update_title_prerelease">プレリリースがあります</string>
     <string name="clear_cache_confirm">保存された動画、画像、ウェブデータ %1$s を削除しますか？ダウンロード、履歴、キュー、ログイン状態、設定は残ります。</string>
     <string name="cache_cleared">キャッシュを消去しました</string>
+    <!-- Opening links from other apps (12+: allowed in system settings) -->
+    <string name="links_prompt_title">リンクを %1$s で開きますか？</string>
+    <string name="links_prompt_message">Android では、許可したアプリだけがリンクを開けます。次の画面で「対応リンクを開く」をオンにし、「追加」をタップしてすべてのリンクにチェックを入れたままにしてください。送られてきたリンクがブラウザではなくここで開くようになります。</string>
+    <string name="links_prompt_open">設定を開く</string>
+    <string name="links_prompt_later">後で</string>
+    <string name="setting_open_links">このアプリでリンクを開く</string>
+    <string name="setting_open_links_summary">他のアプリのリンクをブラウザではなくここで開きます</string>
+    <string name="setting_open_links_all">すべて</string>
+    <string name="setting_open_links_count">%2$d 件中 %1$d 件</string>
+
+    <!-- Playlists and Watch later -->
+    <string name="action_done">完了</string>
+    <string name="action_delete">削除</string>
+    <string name="library_playlists">再生リスト</string>
+    <string name="playlist_save">保存</string>
+    <string name="playlist_save_title">保存先…</string>
+    <string name="playlist_watch_later">後で見る</string>
+    <string name="playlist_new">新しい再生リスト</string>
+    <string name="playlist_name_hint">名前</string>
+    <string name="playlist_rename">名前を変更</string>
+    <string name="playlist_delete">再生リストを削除</string>
+    <string name="playlist_delete_confirm">「%1$s」を削除しますか？動画は YouTube に残ります。</string>
+    <string name="playlist_saved_to">%1$s に保存しました</string>
+    <string name="playlist_removed_from">%1$s から削除しました</string>
+    <string name="playlist_full">保存できません。再生リストまたは動画が多すぎます</string>
+    <string name="playlist_empty">まだ何もありません。動画を長押しして［保存］をタップしてください。</string>
+    <string name="playlist_play_all">すべて再生</string>
+    <string name="playlist_shuffle">シャッフル</string>
+    <string name="playlist_remove_watched">視聴済みの動画を削除</string>
+    <string name="playlist_remove_watched_confirm">%1$s から視聴済みの動画を削除しますか？</string>
+    <string name="playlist_import_export">インポートまたはエクスポート</string>
+    <string name="playlist_import">再生リストをインポート</string>
+    <string name="playlist_export">再生リストをエクスポート</string>
+    <string name="playlist_import_failed">TestTube の再生リストファイルではありません</string>
+    <string name="playlist_export_done">再生リストをエクスポートしました</string>
+    <string name="playlist_export_failed">再生リストをエクスポートできませんでした</string>
+    <string name="playlist_options">再生リストのオプション</string>
+    <string name="playlist_back">再生リスト一覧に戻る</string>
+    <plurals name="playlist_count">
+        <item quantity="other">%d 本の動画</item>
+    </plurals>
+    <plurals name="playlist_removed_watched">
+        <item quantity="other">%d 本の動画を削除しました</item>
+    </plurals>
+    <plurals name="playlist_import_done">
+        <item quantity="other">%d 本の動画をインポートしました</item>
+    </plurals>
 </resources>

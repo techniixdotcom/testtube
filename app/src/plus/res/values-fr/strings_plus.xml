@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- TestTube+ only: name and texts for Spotify, Facebook and SoundCloud links. -->
+<resources>
+    <string name="app_name">TestTube+</string>
+    <string name="link_spotify_reading">Ouverture du lien Spotify…</string>
+    <plurals name="link_spotify_finding">
+        <item quantity="one">Recherche de %d titre sur YouTube…</item>
+        <item quantity="other">Recherche de %d titres sur YouTube…</item>
+    </plurals>
+    <string name="link_spotify_done">%1$d titres sur %2$d trouvés sur YouTube : le premier est lu, les autres sont dans la file d\'attente</string>
+    <string name="link_spotify_not_found">Introuvable sur YouTube, voici les résultats de recherche</string>
+    <string name="link_spotify_failed">Impossible de lire ce lien Spotify</string>
+    <string name="link_facebook_video">Vidéo Facebook</string>
+    <string name="link_facebook_login">Cette vidéo Facebook n\'est pas publique. TestTube+ ne lit que les vidéos publiques, sans compte Facebook.</string>
+    <string name="link_facebook_no_video">Ce lien Facebook ne contient pas de vidéo, ou elle a été supprimée.</string>
+    <string name="link_facebook_failed">Impossible de charger cette vidéo Facebook. Facebook a peut-être modifié sa page ; une mise à jour corrigera cela.</string>
+    <string name="link_external_network">Impossible de joindre le site. Vérifiez votre connexion et réessayez.</string>
+    <string name="link_soundcloud_reading">Ouverture du lien SoundCloud…</string>
+    <plurals name="link_soundcloud_queued">
+        <item quantity="one">%d autre titre de SoundCloud est dans la file d\'attente</item>
+        <item quantity="other">%d autres titres de SoundCloud sont dans la file d\'attente</item>
+    </plurals>
+    <string name="link_soundcloud_empty">Cette playlist SoundCloud ne contient aucun titre lisible.</string>
+    <string name="link_soundcloud_not_found">Ce titre SoundCloud est introuvable. Il est peut-être privé ou supprimé.</string>
+    <string name="link_soundcloud_blocked">Ce titre SoundCloud n\'est pas disponible dans votre pays.</string>
+    <string name="link_soundcloud_unplayable">SoundCloud ne propose ce titre que dans un format protégé qui ne peut pas être lu ici.</string>
+    <string name="link_soundcloud_preview_youtube">SoundCloud n\'a qu\'un extrait de 30 secondes de ce titre : il est lu depuis YouTube.</string>
+    <string name="link_soundcloud_preview_only">SoundCloud n\'a qu\'un extrait de 30 secondes de ce titre, et il n\'est pas sur YouTube.</string>
+    <string name="link_soundcloud_failed">Impossible de charger ce lien SoundCloud. SoundCloud a peut-être changé quelque chose ; une mise à jour corrigera cela.</string>
+</resources>

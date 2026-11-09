@@ -11,10 +11,9 @@ import org.schabi.newpipe.extractor.localization.Localization;
 import java.util.Locale;
 
 /**
- * The browser the app's own requests present themselves as. It matches what the requests say
- * inside: the WEB InnerTube client and www.youtube.com pages are desktop Chrome, m.youtube.com is
- * mobile Chrome, both with the phone's real WebView version, and the language follows the content
- * language. Mixing these (a mobile browser sending desktop-client requests) is an easy tell.
+ * The browser our requests pretend to be, matching what's inside them: WEB client and
+ * www.youtube.com are desktop Chrome, m.youtube.com mobile Chrome, both with the real WebView
+ * version, language follows content language. Mixing them is an easy tell.
  */
 public final class ClientIdentity {
 	private static final String MOBILE_HOST = Constant.YOUTUBE_MOBILE_HOST;
@@ -23,7 +22,7 @@ public final class ClientIdentity {
 	private ClientIdentity() {
 	}
 
-	/** YouTube's own sites and API, which are paced and get the browser identity. */
+	/** YouTube's sites and API, paced and with the browser identity. */
 	public static boolean isYoutubeApiOrSite(@Nullable String host) {
 		return YoutubeCookies.isYoutubeHost(host) || GOOGLEAPIS_HOST.equalsIgnoreCase(host);
 	}
@@ -35,7 +34,7 @@ public final class ClientIdentity {
 		return Constant.USER_AGENT;
 	}
 
-	/** Like a browser set to the content language, with English as the fallback. */
+	/** Content language with English fallback, like a browser. */
 	@NonNull
 	public static String acceptLanguage() {
 		Localization localization = NewPipe.getPreferredLocalization();

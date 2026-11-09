@@ -3,6 +3,8 @@ package com.testtube.app.update;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.testtube.app.Edition;
+
 import org.junit.Test;
 
 public class UpdateManagerTest {
@@ -44,5 +46,18 @@ public class UpdateManagerTest {
 	@Test
 	public void unreadableTagsAreNeverNewer() {
 		assertFalse(UpdateManager.isNewer("garbage", "v2.1.0"));
+	}
+
+	@Test
+	public void takesOnlyItsOwnEditionsApk() {
+		String own = Edition.APK_PREFIX;
+		String other = Edition.PLUS ? "testtube" : "testtubeplus";
+		assertTrue(UpdateManager.isOwnEditionApk(own + "3.0.4.apk"));
+		assertTrue(UpdateManager.isOwnEditionApk(own + "10.2.33.apk"));
+		assertFalse(UpdateManager.isOwnEditionApk(other + "3.0.4.apk"));
+		assertFalse(UpdateManager.isOwnEditionApk(own + "3.0.4-debug.apk"));
+		assertFalse(UpdateManager.isOwnEditionApk(own + "3.0.4-source.zip"));
+		assertFalse(UpdateManager.isOwnEditionApk("SHA256SUMS.txt"));
+		assertFalse(UpdateManager.isOwnEditionApk(own + ".apk"));
 	}
 }

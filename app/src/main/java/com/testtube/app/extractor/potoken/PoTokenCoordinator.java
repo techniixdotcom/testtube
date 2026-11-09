@@ -31,9 +31,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-/**
- * Loads and mints YouTube client PoTokens.
- */
+/** Loads and mints PoTokens. */
 public final class PoTokenCoordinator {
 	private static final String REQUEST_KEY = "O43z0dpjhgX20SCx4KAo";
 	private static final long INIT_TIMEOUT_MS = 4_000L;
@@ -69,8 +67,8 @@ public final class PoTokenCoordinator {
 	}
 
 	/**
-	 * Starts the WebView and runs BotGuard ahead of the first video, so tapping one doesn't wait
-	 * for all that. Blocks; call it off the main thread.
+	 * Starts the WebView and runs BotGuard before the first video so tapping one doesn't wait.
+	 * Blocks, off the main thread.
 	 */
 	public void warmUp() {
 		if (Looper.myLooper() == Looper.getMainLooper()) return;
@@ -312,7 +310,7 @@ public final class PoTokenCoordinator {
 		Request request = new Request.Builder()
 						.url(url)
 						.post(RequestBody.create(body, MediaType.get("application/json+protobuf")))
-						// Same browser as the BotGuard page that this request continues
+						// same browser as the BotGuard page this continues
 						.header("User-Agent", Constant.DESKTOP_USER_AGENT)
 						.header("Accept", "application/json")
 						.header("Content-Type", "application/json+protobuf")

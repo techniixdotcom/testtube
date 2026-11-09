@@ -5,14 +5,14 @@ import androidx.annotation.NonNull;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Auth state and cancellation of one extraction. */
+/** Auth state and cancellation for one extraction. */
 public final class ExtractionSession {
 	private final Object lock = new Object();
 	private final List<Cancellable> cancellables = new ArrayList<>();
 	@NonNull
 	private final AuthContext auth;
 	private boolean cancelled = false;
-	/** Prefetching or batch work: its requests yield to what the person is doing (see RequestPacer). */
+	/** Prefetch or batch work, yields to what the user is doing (see RequestPacer). */
 	private volatile boolean background;
 
 	public ExtractionSession() {

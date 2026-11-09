@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The in-app logo for the NiiX theme: the same drawing as ic_logo_mark, with the play in the
-     NiiX pink. AppSettings.Theme.NIIX names it as its logo. -->
+<!-- NiiX in-app logo: same as ic_logo_mark with the play in NiiX pink. AppSettings.Theme.NIIX uses it. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -11,7 +10,7 @@
         android:pivotY="54"
         android:scaleX="0.9"
         android:scaleY="0.9">
-        <!-- Everything minus a gap around the play (opposite winding makes the hole) -->
+        <!-- everything minus a gap around the play (opposite winding makes the hole) -->
         <clip-path android:pathData="M0,0 H108 V108 H0 Z M37,27.2 L37,82.8 L83.8,55 Z" />
         <group
             android:rotation="45"

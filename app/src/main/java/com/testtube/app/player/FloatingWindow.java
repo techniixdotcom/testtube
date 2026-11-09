@@ -27,11 +27,10 @@ import com.tencent.mmkv.MMKV;
 import com.testtube.app.R;
 
 /**
- * The video in a small window over the app, which stays visible while browsing. The player view
- * itself is scaled into a corner (so the picture keeps playing without a second surface) and a
- * touch layer on top moves it: drag it anywhere and it settles in the nearest corner, which is
- * remembered; fling it off the side to close it. A tap shows expand, play/pause and close; a
- * double tap expands it.
+ * Video in a small window over the app. The player view itself gets scaled into a corner (no
+ * second surface) and a touch layer on top moves it: drag anywhere, it snaps to the nearest corner
+ * (remembered); fling it off the side to close. Tap shows expand, play/pause, close; double tap
+ * expands.
  */
 final class FloatingWindow {
 	interface Actions {
@@ -57,7 +56,7 @@ final class FloatingWindow {
 	private static final long SNAP_MS = 240L;
 	private static final long CONTROLS_FADE_MS = 150L;
 	private static final long CONTROLS_VISIBLE_MS = 2_500L;
-	/** How far ahead a fling throws the window when picking its corner. */
+	/** How far a fling throws the window when picking a corner. */
 	private static final float FLING_SECONDS = 0.18f;
 
 	@NonNull
@@ -82,7 +81,7 @@ final class FloatingWindow {
 	private final Runnable hideControls = () -> setControlsVisible(false);
 	@NonNull
 	private final GestureDetector taps;
-	/** Keeps the window in its corner when the screen or the player is resized (e.g. rotation). */
+	/** Keeps the window in its corner on resize (rotation etc). */
 	@NonNull
 	private final View.OnLayoutChangeListener relayout;
 
@@ -153,7 +152,7 @@ final class FloatingWindow {
 		return showing;
 	}
 
-	/** Where the window is, or would appear, in the parent's coordinates. */
+	/** Where the window is or would be, in parent coordinates. */
 	@NonNull
 	RectF bounds() {
 		if (!showing) measureAtCorner();
@@ -171,7 +170,7 @@ final class FloatingWindow {
 			player.setOutlineProvider(new ViewOutlineProvider() {
 				@Override
 				public void getOutline(View view, Outline outline) {
-					// Drawn scaled down, so the radius is scaled up to look the same
+					// drawn scaled down, so scale the radius up
 					float scale = view.getScaleX() > 0f ? view.getScaleX() : 1f;
 					outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), RADIUS_DP * density / scale);
 				}
@@ -184,7 +183,7 @@ final class FloatingWindow {
 		place(false);
 	}
 
-	/** Back to the normal player: the transform, outline and touch layer are undone. */
+	/** Back to the normal player: transform, outline and touch layer undone. */
 	void hide() {
 		if (!showing) return;
 		showing = false;
@@ -274,7 +273,7 @@ final class FloatingWindow {
 			params.height = h;
 			overlay.setLayoutParams(params);
 		}
-		// The touch layer is laid out at the parent's padding corner
+		// touch layer sits at the parent's padding corner
 		overlay.setTranslationX(left - parent.getPaddingLeft());
 		overlay.setTranslationY(top - parent.getPaddingTop());
 	}
@@ -335,7 +334,7 @@ final class FloatingWindow {
 		});
 	}
 
-	/** Settles in the corner the window was dragged or flung towards, or closes off the side. */
+	/** Snaps to the corner it was dragged or flung towards, or closes off the side. */
 	private void release(float vx, float vy) {
 		float centerX = x + width / 2f + vx * FLING_SECONDS;
 		float centerY = y + height / 2f + vy * FLING_SECONDS;
@@ -425,7 +424,7 @@ final class FloatingWindow {
 		return parent.getPaddingTop() + MARGIN_DP * density;
 	}
 
-	/** Above the bottom bar, so its tabs stay reachable. */
+	/** Above the bottom bar so its tabs stay reachable. */
 	private float bottomEdge() {
 		float bottom = bottomNav != null && bottomNav.getVisibility() == View.VISIBLE && bottomNav.getTop() > 0
 						? bottomNav.getTop()

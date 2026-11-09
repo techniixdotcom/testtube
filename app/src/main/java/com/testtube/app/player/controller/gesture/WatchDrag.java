@@ -1,20 +1,19 @@
 package com.testtube.app.player.controller.gesture;
 
-/** Moves the open video down towards the bottom bar while a finger drags it. */
+/** Moves the open video towards the bar while dragged. */
 public interface WatchDrag {
-	/** @return false when the video can't go to the bottom bar right now */
+	/** @return false if the video can't go to the bar right now */
 	boolean begin();
 
-	/** @param dy pixels the finger moved down since {@link #begin()} */
+	/** @param dy px moved down since {@link #begin()} */
 	void moveBy(float dy);
 
-	/** @param velocityY pixels per second, positive downwards */
+	/** @param velocityY px/s, positive down */
 	void release(float velocityY);
 
 	/**
-	 * Grows the minimized video back into the watch screen with the same animation.
-	 *
-	 * @return false when that isn't possible right now (the caller then restores without it)
+	 * Grows the minimized video back with the same animation.
+	 * @return false if that can't happen now (caller restores without it)
 	 */
 	boolean expand();
 }

@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- One button of the player notification (layout/notification_player_controls.xml) -->
+    <!-- One notification button (layout/notification_player_controls.xml) -->
     <style name="NotificationControl">
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">48dp</item>
         <item name="android:layout_weight">1</item>
         <item name="android:padding">12dp</item>
         <item name="android:scaleType">fitCenter</item>
-        <!-- Android's own colours; while the card is in the app's theme, code colours it instead -->
+        <!-- Android's colours; code recolours it when the card uses our theme -->
         <item name="android:tint">@color/notification_control</item>
         <item name="android:background">?android:attr/selectableItemBackgroundBorderless</item>
     </style>

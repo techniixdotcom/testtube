@@ -51,29 +51,25 @@ import java.util.concurrent.RejectedExecutionException;
 @UnstableApi
 public class PlaybackService extends Service {
 	private static final String TAG = "PlaybackService";
-	/** The video's picture for the session (cars, watches); the notification gets a smaller copy. */
+	/** Session artwork (cars, watches); the notification gets a smaller copy. */
 	private static final int NOTIFICATION_ART_PX = 512;
-	/**
-	 * The picture inside the expanded notification. Notifications are sent to the system in one
-	 * go, and a full-size picture could push them over the limit.
-	 */
+	/** Picture in the expanded notification. A full size one can blow the binder size limit. */
 	private static final int NOTIFICATION_INLINE_ART_PX = 192;
 	private static final int[] CONTROL_IDS = {
 					R.id.notification_previous, R.id.notification_back, R.id.notification_play_pause,
 					R.id.notification_forward, R.id.notification_next, R.id.notification_close};
-	/** How far the notification's back and forward buttons jump. */
+	/** Seek step of the notification buttons. */
 	private static final long SEEK_STEP_MS = 10_000L;
-	/** Dims a button that can't be used right now (previous at the start of a queue and so on). */
+	/** Dims buttons that do nothing right now. */
 	private static final int DISABLED_ALPHA = 97;
 	/**
-	 * Normal importance, so the lock screen shows it: Android hides silent notifications there by
-	 * default, and only the media player used to be exempt. It never makes a sound or vibrates.
-	 * A new id, because a channel's importance can't be changed once it exists.
+	 * Default importance so the lock screen shows it (Android hides silent ones there, only the old
+	 * media player was exempt). Never makes a sound. New id since importance can't change later.
 	 */
 	private static final String CHANNEL_ID = "player";
-	/** The old silent channel, removed so it doesn't linger in the app's notification settings. */
+	/** Old silent channel, removed so it doesn't linger in settings. */
 	private static final String OLD_CHANNEL_ID = "player_channel";
-	private static final int NOTIFICATION_ID = 100;
+	static final int NOTIFICATION_ID = 100;
 	private final Handler handler = new Handler(Looper.getMainLooper());
 	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 	@NonNull
@@ -83,14 +79,13 @@ public class PlaybackService extends Service {
 	private boolean isSeeking = false;
 	private final Runnable resetSeekFlagRunnable = () -> isSeeking = false;
 	private boolean lastIsPlayingState = false;
-	/** Read on the thread that loads the picture too. */
+	/** Also read on the artwork thread. */
 	private volatile boolean inForeground;
 	private boolean lastWantsToPlay = true;
 	private volatile boolean destroyed = false;
 	/**
-	 * Re-posts the notification when the screen goes off. Lock screens that only show new
-	 * notifications (an option on GrapheneOS and Pixels) would hide it otherwise: the media player
-	 * used to be exempt from that, a normal notification isn't, but an updated one counts as new.
+	 * Re-posts when the screen goes off. "New notifications only" lock screens (GrapheneOS,
+	 * Pixel) would hide it otherwise; an updated one counts as new.
 	 */
 	private final BroadcastReceiver screenOff = new BroadcastReceiver() {
 		@Override
@@ -98,22 +93,22 @@ public class PlaybackService extends Service {
 			if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) repostNotification();
 		}
 	};
-	/** {@link #NOTIFICATION_INLINE_ART_PX} version of the current picture, made once per picture. */
+	/** Small copy of the current picture, made once per picture. */
 	@Nullable
 	private Bitmap inlineArtSource;
 	@Nullable
 	private Bitmap inlineArt;
 
 	/**
-	 * Starts the service for the first video. Later videos (autoplay in the background) find it
-	 * running already, and Android 12+ doesn't let an app in the background start it anyway.
+	 * Starts the service for the first video. Later ones find it running, and Android 12+ won't
+	 * let a background app start it anyway.
 	 */
 	public static void start(@NonNull Context context) {
 		try {
 			ContextCompat.startForegroundService(context, new Intent(context, PlaybackService.class));
 		} catch (IllegalStateException e) {
-			// ForegroundServiceStartNotAllowedException: in the background, and the bound service
-			// keeps playing in the foreground already
+			// ForegroundServiceStartNotAllowedException: we're in the background and the bound service is
+			// already in the foreground
 			Log.w(TAG, "not started from the background: " + e.getMessage());
 		}
 	}
@@ -143,8 +138,8 @@ public class PlaybackService extends Service {
 	}
 
 	/**
-	 * What headsets, cars and watches see. Quit is in here as well for the ones that show custom
-	 * buttons; the notification has its own Close.
+	 * What headsets, cars and watches see. Quit is here for ones with custom buttons; the
+	 * notification has its own Close.
 	 */
 	@NonNull
 	private PlaybackStateCompat buildPlaybackState(int state,
@@ -188,7 +183,7 @@ public class PlaybackService extends Service {
 			try {
 				notificationManager.deleteNotificationChannel(OLD_CHANNEL_ID);
 			} catch (SecurityException stillInUse) {
-				// Android refuses while a foreground service still uses it; next start, then
+				// Android refuses while a foreground service uses it, so next start
 			}
 			notificationManager.createNotificationChannel(channel);
 		}
@@ -205,7 +200,7 @@ public class PlaybackService extends Service {
 	public int onStartCommand(@Nullable Intent intent, int flags, int startId) {
 		MediaSessionCompat session = mediaSession;
 		if (intent != null && session != null) MediaButtonReceiver.handleIntent(session, intent);
-		// Nothing to bring back after the system stopped it: the video lives in the app
+		// nothing to restore after a system kill, the video lives in the app
 		return START_NOT_STICKY;
 	}
 
@@ -245,7 +240,7 @@ public class PlaybackService extends Service {
 
 			@Override
 			public void onStop() {
-				// Stop from a headset, a car or a watch
+				// stop from a headset, car or watch
 				engine.pause();
 				hideNotification();
 			}
@@ -269,15 +264,14 @@ public class PlaybackService extends Service {
 	@Nullable
 	private Bitmap fetchThumbnail(@Nullable String url) {
 		if (url == null || url.isEmpty() || shouldAbort()) return null;
-		// Usually straight from the picture cache: the same thumbnail is on screen already
+		// usually a cache hit, the thumbnail is on screen already
 		return ImageUtils.squareBitmap(this, url, NOTIFICATION_ART_PX);
 	}
 
 	@Nullable
 	/**
-	 * @param foreground whether the notification belongs to the running foreground service when
-	 *                   it's shown. Only then does Android colour the whole card, so only then can
-	 *                   it be in the app's theme; otherwise it's in Android's own colours.
+	 * @param foreground whether the notification belongs to the running foreground service. Only
+	 *                   then does Android colour the whole card, so only then can it use our theme.
 	 */
 	private Notification buildNotification(boolean isPlaying, boolean foreground) {
 		MediaSessionCompat session = mediaSession;
@@ -292,8 +286,8 @@ public class PlaybackService extends Service {
 		launchIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
 		PendingIntent contentIntent = PendingIntent.getActivity(this, 101, launchIntent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-		// Previous video, back 10 s, play/pause, forward 10 s, next video, close. Collapsed (and on
-		// the lock screen) it's just the buttons; expanded adds the picture, title and channel.
+		// Prev, back 10 s, play/pause, forward 10 s, next, close. Collapsed (and on the lock screen) just
+		// the buttons; expanded adds picture, title and channel.
 		CardColors colors = foreground ? CardColors.of(this) : null;
 		RemoteViews controls = new RemoteViews(getPackageName(), R.layout.notification_player_controls);
 		bindControls(controls, isPlaying, colors);
@@ -315,19 +309,17 @@ public class PlaybackService extends Service {
 		}
 		bindControls(expanded, isPlaying, colors);
 
-		// No MediaStyle at all, on purpose. With it Android draws its own media player, and swiping
-		// that one only hides it: the video plays on and the app never hears about it. Since
-		// Android 15 a MediaStyle notification can't be swiped away at all, session or not. A plain
-		// notification can, and the swipe reaches us through the delete intent. Android 14+ lets it
-		// be swiped while playing; older versions keep a playing one pinned until it's paused.
+		// No MediaStyle on purpose. With it Android draws its own player, swiping that only hides it
+		// and the video plays on. On 15+ it can't be swiped at all. A plain notification can, and we get
+		// the delete intent. 14+ allows swiping while playing, older keeps it pinned until paused.
 		NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
 						.setSmallIcon(R.drawable.ic_notification)
 						.setContentTitle(title)
 						.setContentText(artist)
-						// The header line of the collapsed notification: what's playing
+						// header line: what's playing
 						.setSubText(title)
 						.setContentIntent(contentIntent)
-						// Swiping it away closes the whole app, playing or not, on screen or in the background
+						// swiping it away closes the whole app
 						.setDeleteIntent(QuitReceiver.dismissIntent(this))
 						.setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
 						.setOnlyAlertOnce(true)
@@ -341,14 +333,13 @@ public class PlaybackService extends Service {
 	}
 
 	/**
-	 * Wires up the six buttons. Notifications only know taps, so no double-tap here.
-	 *
-	 * @param colors the app theme's colours, or null for Android's
+	 * Hooks up the six buttons. Notifications only get taps, no double tap.
+	 * @param colors theme colours, or null for Android's
 	 */
 	private void bindControls(@NonNull RemoteViews views, boolean isPlaying, @Nullable CardColors colors) {
 		if (colors != null) {
 			for (int id : CONTROL_IDS) views.setInt(id, "setColorFilter", colors.icon);
-			// Play/pause in the accent, like the big button in the player (pink in NiiX)
+			// play/pause in the accent, like the player's big button
 			views.setInt(R.id.notification_play_pause, "setColorFilter", colors.accent);
 		}
 		bindButton(views, R.id.notification_previous, shouldIncludePreviousAction(queueNavigationAvailability),
@@ -370,7 +361,7 @@ public class PlaybackService extends Service {
 		if (enabled) views.setOnClickPendingIntent(id, MediaButtonReceiver.buildMediaButtonPendingIntent(this, action));
 	}
 
-	/** Synchronized: the notification is also rebuilt on the thread that loads the picture. */
+	/** Synchronized: the artwork thread rebuilds it too. */
 	@Nullable
 	private synchronized Bitmap inlineArt(@Nullable Bitmap source) {
 		if (source == null) return null;
@@ -451,17 +442,17 @@ public class PlaybackService extends Service {
 			}
 			inForeground = true;
 		} catch (Exception e) {
-			// Not allowed from the background on newer Android; the notification still shows
+			// newer Android refuses from the background, the notification still shows
 			Log.e(TAG, "startForeground failed: " + e.getMessage());
 			NotificationManager manager = notificationManager;
 			if (manager == null) return;
-			// Not a foreground notification after all, so Android won't colour it: its own colours then
+			// not foreground after all, so Android won't colour it; use its colours
 			Notification plain = buildNotification(lastIsPlayingState, false);
 			manager.notify(NOTIFICATION_ID, plain != null ? plain : notification);
 		}
 	}
 
-	/** The same notification again, only if it's still there (never brings back a swiped one). */
+	/** Re-posts the same notification, only if it's still there (never revives a swiped one). */
 	private void repostNotification() {
 		NotificationManager manager = notificationManager;
 		if (shouldAbort() || manager == null || !isNotificationShowing(manager)) return;
@@ -484,9 +475,8 @@ public class PlaybackService extends Service {
 	}
 
 	/**
-	 * @param wantsToPlay false only when paused; buffering and the step to the next video in the
-	 *                    queue keep the service in the foreground, which Android won't give back
-	 *                    to an app in the background
+	 * @param wantsToPlay false only when paused. Buffering and the gap to the next queued video keep
+	 *                    the service in the foreground, Android won't give it back to a background app
 	 */
 	public void updateProgress(long pos, float speed, boolean isPlaying, boolean wantsToPlay) {
 		if (isSeeking) return;
@@ -497,7 +487,7 @@ public class PlaybackService extends Service {
 		PlaybackStateCompat playbackState = buildPlaybackState(stateCompat, pos, speed, queueNavigationAvailability);
 		if (shouldAbort()) return;
 		session.setPlaybackState(playbackState);
-		// Only on changes: retrying a refused startForeground on every tick would be pointless
+		// only on change, retrying a refused startForeground every tick is pointless
 		if (isPlaying != lastIsPlayingState || wantsToPlay != lastWantsToPlay) {
 			boolean foreground = staysForeground(wantsToPlay);
 			Notification updatedNotification = buildNotification(isPlaying, foreground);
@@ -505,8 +495,8 @@ public class PlaybackService extends Service {
 				if (foreground && !inForeground) {
 					startInForeground(updatedNotification);
 				} else if (!foreground && inForeground) {
-					// Paused before Android 14: a foreground notification can't be swiped away
-					// there, so it lets go. The notification stays, and play brings it back.
+					// paused before 14: a foreground notification can't be swiped there, so let go of the
+					// foreground. The notification stays and play brings it back.
 					ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH);
 					inForeground = false;
 					manager.notify(NOTIFICATION_ID, updatedNotification);
@@ -520,10 +510,8 @@ public class PlaybackService extends Service {
 	}
 
 	/**
-	 * Whether the service stays in the foreground. Only a foreground notification can be in the
-	 * app's theme (Android colours just those), so from Android 14 on, where it can still be
-	 * swiped away, it stays in the foreground while paused too and keeps its look. Before 14 a
-	 * paused one leaves the foreground, or swiping it away wouldn't work.
+	 * Only foreground notifications get themed, so on 14+ (still swipeable) it stays foreground while
+	 * paused too. Before 14 a paused one has to leave the foreground or it can't be swiped.
 	 */
 	private static boolean staysForeground(boolean wantsToPlay) {
 		return wantsToPlay || Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
@@ -534,7 +522,7 @@ public class PlaybackService extends Service {
 		refreshControls();
 	}
 
-	/** Builds the session's buttons and the notification again, for the state they're in now. */
+	/** Rebuilds the session buttons and the notification for the current state. */
 	private void refreshControls() {
 		MediaSessionCompat session = mediaSession;
 		NotificationManager manager = notificationManager;
@@ -554,14 +542,12 @@ public class PlaybackService extends Service {
 	@Override
 	public void onTaskRemoved(Intent rootIntent) {
 		super.onTaskRemoved(rootIntent);
-		// Only the task the player lives in; swiping away the downloads screen leaves the video be
+		// only our own task; swiping the downloads screen leaves the video alone
 		ComponentName root = rootIntent != null ? rootIntent.getComponent() : null;
 		if (root != null && !MainActivity.class.getName().equals(root.getClassName())) return;
-		// Swiped away from the recent apps: that means stop, like YouTube does. Only stopping the
-		// service wasn't enough, the screen kept it bound and the video just played on with the
-		// notification gone. Clear cache on exit counts here too, it's a normal exit. The service
-		// stops only once the cache is empty: while it's still started Android leaves the process
-		// alive, without it the clearing would be killed half-way.
+		// swiped from recents means stop, like YouTube. Just stopping the service wasn't enough, the
+		// bound screen kept the video playing. Counts as an exit for clear-on-exit. The service only
+		// stops once clearing is done, otherwise Android kills it half way.
 		stopForeground(true);
 		inForeground = false;
 		QuitReceiver.exit(this, AppSettings.clearCacheOnExit(), this::stopSelf);
@@ -573,9 +559,9 @@ public class PlaybackService extends Service {
 		try {
 			unregisterReceiver(screenOff);
 		} catch (IllegalArgumentException notRegistered) {
-			// onCreate didn't get that far
+			// onCreate didn't get this far
 		}
-		// #216: Stop notification work before releasing the media session.
+		// #216: stop notification work before releasing the session
 		handler.removeCallbacksAndMessages(null);
 		executorService.shutdownNow();
 		stopForeground(true);
@@ -598,7 +584,7 @@ public class PlaybackService extends Service {
 		return destroyed || Thread.currentThread().isInterrupted();
 	}
 
-	/** The colours of the app's chosen theme (Dark, Light, NiiX or following the phone). */
+	/** Colours of the chosen theme. */
 	private static final class CardColors {
 		@ColorInt
 		final int background;
@@ -619,10 +605,7 @@ public class PlaybackService extends Service {
 			accent = ViewUtils.themeColor(themed, androidx.appcompat.R.attr.colorPrimary);
 		}
 
-		/**
-		 * A service doesn't follow the app's light or dark choice by itself (only screens do), so
-		 * the theme is applied to a context with the matching night mode first.
-		 */
+		/** Services don't follow the app's night mode on their own, so wrap the context first. */
 		@NonNull
 		static CardColors of(@NonNull Context context) {
 			AppSettings.Theme theme = AppSettings.theme();

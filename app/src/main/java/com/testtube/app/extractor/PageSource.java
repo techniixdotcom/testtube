@@ -28,26 +28,22 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
-/** Channel and playlist pages: a header plus the rows of a tab, page by page. */
+/** Channel and playlist pages: header plus a tab's rows, page by page. */
 public final class PageSource {
 	public enum Kind {
 		CHANNEL,
 		PLAYLIST
 	}
 
-	/**
-	 * Channel tabs shown, in this order. Shorts only when they are switched on. The creator's
-	 * Playlists tab is left out.
-	 */
+	/** Channel tabs we show, in order. Shorts only if enabled. No Playlists tab. */
 	private static final List<String> TAB_ORDER = List.of(ChannelTabs.VIDEOS, ChannelTabs.SHORTS,
 					ChannelTabs.LIVESTREAMS, ChannelTabs.PODCASTS, ChannelTabs.COURSES, ChannelTabs.ALBUMS);
 
-	/** Banners narrower than this look blurry across a phone screen. */
+	/** Narrower banners look blurry across a phone. */
 	private static final int BANNER_MIN_WIDTH = 1060;
 
 	/**
-	 * A tab of a channel page.
-	 *
+	 * A channel page tab.
 	 * @see ChannelTabs
 	 */
 	public static final class Tab {
@@ -61,7 +57,7 @@ public final class PageSource {
 			this.handler = handler;
 		}
 
-		/** One of the {@link ChannelTabs} names, such as {@link ChannelTabs#VIDEOS}. */
+		/** One of the {@link ChannelTabs} names, e.g. {@link ChannelTabs#VIDEOS}. */
 		@NonNull
 		public String id() {
 			return id;
@@ -70,12 +66,11 @@ public final class PageSource {
 
 	/**
 	 * @param subtitle   uploader for playlists, null for channels
-	 * @param count      subscribers for channels, videos for playlists; -1 when unknown
-	 * @param handle     channel handle such as "@name", or null
-	 * @param stats      channel counts as YouTube words them ("465K subscribers", "108 videos"),
-	 *                   empty when unknown
-	 * @param channelId  id (UC...) of the channel, null for playlists
-	 * @param tabs       tabs of the channel, empty for playlists
+	 * @param count      subs for channels, videos for playlists; -1 if unknown
+	 * @param handle     "@name" or null
+	 * @param stats      counts in YouTube's words ("465K subscribers", "108 videos"), empty if unknown
+	 * @param channelId  UC... id, null for playlists
+	 * @param tabs       channel tabs, empty for playlists
 	 */
 	public record Header(@NonNull Kind kind,
 	                     @NonNull String title,
@@ -92,9 +87,7 @@ public final class PageSource {
 	                     @NonNull List<Tab> tabs) {
 	}
 
-	/**
-	 * Where the next page of a list comes from.
-	 */
+	/** Where a list's next page comes from. */
 	public static final class Cursor {
 		@NonNull
 		final Kind kind;
@@ -114,9 +107,9 @@ public final class PageSource {
 	}
 
 	/**
-	 * @param header null for following pages and tabs
-	 * @param next   null at the end of the list
-	 * @param tab    id of the channel tab the rows belong to; null for playlists
+	 * @param header null for later pages and tabs
+	 * @param next   null at the end
+	 * @param tab    channel tab id the rows belong to, null for playlists
 	 */
 	public record Result(@Nullable Header header, @NonNull List<FeedItem> items, @Nullable Cursor next,
 	                     @Nullable String tab) {
@@ -141,18 +134,14 @@ public final class PageSource {
 		Result run() throws IOException, ExtractionException;
 	}
 
-	/**
-	 * Header and first rows of a channel (its first tab) or playlist.
-	 */
+	/** Header and first rows of a channel (first tab) or playlist. */
 	@NonNull
 	public CompletableFuture<Result> open(@NonNull Kind kind, @NonNull String url) {
 		String desktopUrl = url.replaceFirst("^https?://(m\\.|www\\.)?youtube\\.com", "https://www.youtube.com");
 		return run(() -> kind == Kind.CHANNEL ? channel(desktopUrl) : playlist(desktopUrl));
 	}
 
-	/**
-	 * First rows of another tab of a channel.
-	 */
+	/** First rows of another channel tab. */
 	@NonNull
 	public CompletableFuture<Result> openTab(@NonNull Tab tab) {
 		return run(() -> tabPage(tab));
@@ -278,9 +267,8 @@ public final class PageSource {
 	}
 
 	/**
-	 * Private or deleted playlist entry: no duration, views or date. The extractor only recognizes
-	 * these by their English titles, which is useless in any other language, so check the shit
-	 * that's missing instead.
+	 * Private or deleted playlist entry: no duration, views or date. The extractor only spots these
+	 * by their English titles, useless in any other language, so check the shit that's missing instead.
 	 */
 	static boolean isUnavailable(@NonNull StreamInfoItem stream) {
 		StreamType type = stream.getStreamType();
@@ -300,7 +288,7 @@ public final class PageSource {
 		return best != null ? best.getUrl() : null;
 	}
 
-	/** The smallest banner that is still sharp across a phone screen, or the largest one. */
+	/** Smallest banner still sharp across a phone, else the largest. */
 	@Nullable
 	private static String banner(@Nullable List<Image> images) {
 		if (images == null || images.isEmpty()) return null;

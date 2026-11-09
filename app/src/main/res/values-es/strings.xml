@@ -2,13 +2,13 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">TestTube</string>
     <string name="thumbnail">Miniatura</string>
-    <string name="video">Video</string>
+    <string name="video">Vídeo</string>
     <string name="cancel">Cancelar</string>
     <string name="download">Descargar</string>
     <string name="queue">Cola</string>
     <string name="add_to_queue">Añadir a la cola</string>
     <string name="queue_item_added">Añadido a la cola</string>
-    <string name="queue_item_unavailable">No se pudo obtener la información del video actual. No se añadió el elemento a la cola.</string>
+    <string name="queue_item_unavailable">No se pudo obtener la información del vídeo actual. No se añadió el elemento a la cola.</string>
     <string name="clear_queue">Limpiar cola</string>
     <string name="clear_queue_confirmation">¿Limpiar todos los elementos de la cola?</string>
     <string name="remove_queue_item">Eliminar elemento de la cola</string>
@@ -17,7 +17,7 @@
     <string name="queue_unknown_author">Autor desconocido</string>
     <string name="queue_now_playing">Reproduciendo ahora</string>
     <string name="queue_download_unavailable">No hay elementos en la cola disponibles para descargar</string>
-    <string name="video_quality">Calidad de video</string>
+    <string name="video_quality">Calidad de vídeo</string>
     <string name="confirm">Confirmar</string>
     <string name="select_something_first">Por favor, selecciona un elemento primero</string>
 
@@ -44,7 +44,7 @@
     <string name="copy">Copiar</string>
     <string name="debug_info_copied">Información de depuración copiada al portapapeles</string>
     <string name="playback_end_next">Reproducir siguiente</string>
-    <string name="playback_end_loop">Repetir video en bucle</string>
+    <string name="playback_end_loop">Repetir vídeo en bucle</string>
     <string name="playback_end_pause">Pausar al final</string>
     <string name="playback_end_playlist_random">Reproducción aleatoria de la lista</string>
     <string name="subtitles">Subtítulos</string>
@@ -57,12 +57,12 @@
     <string name="bitrate">Tasa de bits</string>
     <string name="dropped_frames">Fotogramas perdidos</string>
     <string name="resolution">Resolución</string>
-    <string name="video_format">Formato de video</string>
+    <string name="video_format">Formato de vídeo</string>
     <string name="audio_format">Formato de audio</string>
     <string name="fps">FPS</string>
     <string name="channels">Canales</string>
     <string name="sample_rate">Frecuencia de muestreo</string>
-    <string name="active_stream_video">Flujo de video #%1$d [%2$s]: %3$s %4$s %5$s</string>
+    <string name="active_stream_video">Flujo de vídeo #%1$d [%2$s]: %3$s %4$s %5$s</string>
     <string name="active_stream_audio">Flujo de audio: %1$s %2$s %3$s</string>
     <string name="unknown">Desconocido</string>
     <string name="active_label">Activo</string>
@@ -71,17 +71,21 @@
     <string name="audio_track">Pista de audio</string>
     <string name="info">Información</string>
     <string name="more_options">Más opciones</string>
-    <string name="failed_to_load_video_details">Error al cargar los detalles del video</string>
+    <string name="failed_to_load_video_details">Error al cargar los detalles del vídeo</string>
     <string name="application_not_found">Aplicación no encontrada</string>
-    <string name="press_back_again_to_exit">Presiona atrás otra vez para salir</string>
+    <string name="press_back_again_to_exit">Pulsa atrás otra vez para salir</string>
     <string name="threads">Hilos</string>
     <string name="clear">Borrar</string>
     <string name="download_tasks_added">Tareas de descarga añadidas</string>
-    <string name="download_tasks_added_count" tools:ignore="PluralsCandidate">%1$d tareas añadidas a la cola</string>
+    <plurals name="download_tasks_added_count">
+        <item quantity="one">%1$d tarea añadida a la cola</item>
+        <item quantity="many">%1$d tareas añadidas a la cola</item>
+        <item quantity="other">%1$d tareas añadidas a la cola</item>
+    </plurals>
     <string name="download_history">Descargas</string>
     <string name="no_download_records">Sin registros de descarga</string>
     <string name="file_not_found">Archivo no encontrado</string>
-    <string name="vid_copied">ID del video copiado</string>
+    <string name="vid_copied">ID del vídeo copiado</string>
     <string name="delete_record">Eliminar</string>
     <string name="delete_local_file">Eliminar archivo local</string>
     <string name="status_queued">En cola</string>
@@ -91,7 +95,7 @@
     <string name="status_cancelled">Cancelado</string>
     <string name="status_failed">Error</string>
     <string name="type_playlist">Lista de reproducción</string>
-    <string name="type_video">Video</string>
+    <string name="type_video">Vídeo</string>
     <string name="type_audio">Audio</string>
     <string name="type_subtitle">Subtítulo</string>
     <string name="type_thumbnail">Miniatura</string>
@@ -100,7 +104,7 @@
     <string name="download_action_redownload">Descargar de nuevo</string>
     <string name="download_action_retry">Reintentar descarga</string>
     <string name="download_action_cancel">Cancelar descarga</string>
-    <string name="download_action_copy_video_id">Copiar ID del video</string>
+    <string name="download_action_copy_video_id">Copiar ID del vídeo</string>
     <string name="download_action_pause">Pausar descarga</string>
     <string name="download_action_resume">Reanudar descarga</string>
     <string name="download_progress_with_total">%1$sMB/%2$sMB(%3$d%%)</string>
@@ -109,7 +113,11 @@
     <string name="filename">Nombre del archivo</string>
     <string name="preparing_download">Preparando descarga…</string>
     <string name="downloading_file">Descargando: %1$s</string>
-    <string name="downloads_running" tools:ignore="PluralsCandidate">%1$d descargas en progreso</string>
+    <plurals name="downloads_running">
+        <item quantity="one">%1$d descarga en curso</item>
+        <item quantity="many">%1$d descargas en curso</item>
+        <item quantity="other">%1$d descargas en curso</item>
+    </plurals>
     <string name="playlist_download_title_placeholder">Lista de reproducción</string>
     <string name="playlist_download_summary" tools:ignore="PluralsCandidate">%1$d seleccionados / %2$d listos / %3$d en total</string>
     <string name="playlist_download_select_all">Seleccionar todo</string>
@@ -125,8 +133,16 @@
     <string name="playlist_download_status_queued">En cola</string>
     <string name="playlist_download_status_partial">Parcial</string>
     <string name="playlist_download_status_canceled">Cancelado</string>
-    <string name="playlist_download_batch_added" tools:ignore="PluralsCandidate">%1$d elementos añadidos</string>
-    <string name="playlist_download_batch_added_before_cancel" tools:ignore="PluralsCandidate">%1$d elementos añadidos antes de cancelar el lote</string>
+    <plurals name="playlist_download_batch_added">
+        <item quantity="one">%1$d elemento añadido</item>
+        <item quantity="many">%1$d elementos añadidos</item>
+        <item quantity="other">%1$d elementos añadidos</item>
+    </plurals>
+    <plurals name="playlist_download_batch_added_before_cancel">
+        <item quantity="one">%1$d elemento añadido antes de cancelar el lote</item>
+        <item quantity="many">%1$d elementos añadidos antes de cancelar el lote</item>
+        <item quantity="other">%1$d elementos añadidos antes de cancelar el lote</item>
+    </plurals>
     <string name="playlist_download_batch_segment_partial" tools:ignore="PluralsCandidate">%1$d parciales</string>
     <string name="playlist_download_batch_segment_failed" tools:ignore="PluralsCandidate">%1$d fallidos</string>
     <string name="playlist_download_started">Descarga de la lista de reproducción iniciada</string>
@@ -256,7 +272,11 @@
     <string name="subs_export_failed">No se pudo guardar el archivo</string>
     <string name="subs_followed">Canal seguido</string>
     <string name="subs_import">Importar</string>
-    <string name="subs_import_done">%d canales importados</string>
+    <plurals name="subs_import_done">
+        <item quantity="one">%d canal importado</item>
+        <item quantity="many">%d canales importados</item>
+        <item quantity="other">%d canales importados</item>
+    </plurals>
     <string name="subs_import_export">Importar / Exportar</string>
     <string name="subs_import_failed">No se pudo leer ese archivo</string>
     <string name="subs_local_empty">Aún no hay canales. Toca Gestionar para añadir o importar canales, o síguelos desde un vídeo.</string>
@@ -296,7 +316,11 @@
     <string name="update_progress">%1$s de %2$s</string>
     <string name="update_title">Actualización disponible</string>
     <string name="watch_chat_hint">El chat en directo está activo durante las emisiones en directo y los estrenos.</string>
-    <string name="watch_comment_likes">%d me gusta</string>
+    <plurals name="watch_comment_likes">
+        <item quantity="one">%d me gusta</item>
+        <item quantity="many">%d me gusta</item>
+        <item quantity="other">%d me gusta</item>
+    </plurals>
     <string name="watch_comment_pinned">Fijado</string>
     <string name="watch_comments_disabled">Los comentarios están desactivados en este vídeo</string>
     <string name="watch_comments_empty">No hay comentarios</string>
@@ -304,7 +328,7 @@
     <string name="watch_tab_chat">Chat</string>
     <string name="watch_tab_comments">Comentarios</string>
     <string name="watch_tab_description">Descripción</string>
-    <!-- Library, settings groups and notifications -->
+    <!-- Library, settings groups, notifications -->
     <string name="nav_library">Biblioteca</string>
     <string name="library_history">Historial</string>
     <string name="library_downloads">Descargas</string>
@@ -349,7 +373,7 @@
     <string name="failure_unsupported">Este tipo de vídeo no es compatible (por ejemplo, contenido de pago o solo para Premium).</string>
     <string name="failure_unavailable">Este vídeo no está disponible. Puede que se haya eliminado.</string>
     <string name="failure_other">Algo salió mal al cargar este vídeo. Vuelve a intentarlo o toca Detalles para ver qué pasó.</string>
-    <!-- Minimizing, floating window and gestures -->
+    <!-- Minimizing, floating window, gestures -->
     <string name="setting_minimize_to">Minimizar en</string>
     <string name="setting_minimize_summary">Barra inferior o ventana flotante</string>
     <string name="minimize_bottom_bar">Barra inferior</string>
@@ -392,4 +416,57 @@
     <string name="update_title_prerelease">Versión preliminar disponible</string>
     <string name="clear_cache_confirm">¿Borrar %1$s de vídeo, imágenes y datos web guardados? Las descargas, el historial, la cola, tu sesión y los ajustes se mantienen.</string>
     <string name="cache_cleared">Caché borrada</string>
+    <!-- Opening links from other apps (12+: allowed in system settings) -->
+    <string name="links_prompt_title">¿Abrir enlaces en %1$s?</string>
+    <string name="links_prompt_message">Android solo deja que una app abra enlaces si lo permites. En la siguiente pantalla, activa Abrir enlaces compatibles, toca Añadir y deja marcados todos los enlaces: así los enlaces que te envíen se abrirán aquí en lugar del navegador.</string>
+    <string name="links_prompt_open">Abrir ajustes</string>
+    <string name="links_prompt_later">Ahora no</string>
+    <string name="setting_open_links">Abrir enlaces en esta app</string>
+    <string name="setting_open_links_summary">Los enlaces de otras apps se abren aquí en lugar del navegador</string>
+    <string name="setting_open_links_all">Todos</string>
+    <string name="setting_open_links_count">%1$d de %2$d</string>
+
+    <!-- Playlists and Watch later -->
+    <string name="action_done">Listo</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="library_playlists">Listas</string>
+    <string name="playlist_save">Guardar</string>
+    <string name="playlist_save_title">Guardar en…</string>
+    <string name="playlist_watch_later">Ver más tarde</string>
+    <string name="playlist_new">Nueva lista</string>
+    <string name="playlist_name_hint">Nombre</string>
+    <string name="playlist_rename">Cambiar nombre</string>
+    <string name="playlist_delete">Eliminar lista</string>
+    <string name="playlist_delete_confirm">¿Eliminar «%1$s»? Los vídeos seguirán en YouTube.</string>
+    <string name="playlist_saved_to">Guardado en %1$s</string>
+    <string name="playlist_removed_from">Quitado de %1$s</string>
+    <string name="playlist_full">No se pudo guardar: demasiadas listas o vídeos</string>
+    <string name="playlist_empty">Aún no hay nada. Mantén pulsado un vídeo y toca Guardar.</string>
+    <string name="playlist_play_all">Reproducir todo</string>
+    <string name="playlist_shuffle">Aleatorio</string>
+    <string name="playlist_remove_watched">Quitar vídeos vistos</string>
+    <string name="playlist_remove_watched_confirm">¿Quitar de %1$s los vídeos que ya has visto?</string>
+    <string name="playlist_import_export">Importar o exportar</string>
+    <string name="playlist_import">Importar listas</string>
+    <string name="playlist_export">Exportar listas</string>
+    <string name="playlist_import_failed">Ese no es un archivo de listas de TestTube</string>
+    <string name="playlist_export_done">Listas exportadas</string>
+    <string name="playlist_export_failed">No se pudieron exportar las listas</string>
+    <string name="playlist_options">Opciones de la lista</string>
+    <string name="playlist_back">Volver a las listas</string>
+    <plurals name="playlist_count">
+        <item quantity="one">%d vídeo</item>
+        <item quantity="many">%d vídeos</item>
+        <item quantity="other">%d vídeos</item>
+    </plurals>
+    <plurals name="playlist_removed_watched">
+        <item quantity="one">Se quitó %d vídeo</item>
+        <item quantity="many">Se quitaron %d vídeos</item>
+        <item quantity="other">Se quitaron %d vídeos</item>
+    </plurals>
+    <plurals name="playlist_import_done">
+        <item quantity="one">%d vídeo importado</item>
+        <item quantity="many">%d vídeos importados</item>
+        <item quantity="other">%d vídeos importados</item>
+    </plurals>
 </resources>

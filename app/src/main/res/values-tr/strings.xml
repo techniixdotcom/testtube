@@ -8,7 +8,7 @@
     <string name="queue">Sıra</string>
     <string name="add_to_queue">Sıraya ekle</string>
     <string name="queue_item_added">Sıraya eklendi</string>
-    <string name="queue_item_unavailable">Videonun bilgilerine ulaşılamadı. Listeye eklenmedi.</string>
+    <string name="queue_item_unavailable">Videonun bilgilerine ulaşılamadı. Sıraya eklenmedi.</string>
     <string name="clear_queue">Sırayı temizle</string>
     <string name="clear_queue_confirmation">Sıradaki her şeyi silelim mi?</string>
     <string name="remove_queue_item">Sıradan çıkar</string>
@@ -77,7 +77,10 @@
     <string name="threads">İş parçacıkları</string>
     <string name="clear">Temizle</string>
     <string name="download_tasks_added">İndirmeler sıraya eklendi</string>
-    <string name="download_tasks_added_count" tools:ignore="PluralsCandidate">%1$d görev indirme sırasına eklendi</string>
+    <plurals name="download_tasks_added_count">
+        <item quantity="one">%1$d görev indirme sırasına eklendi</item>
+        <item quantity="other">%1$d görev indirme sırasına eklendi</item>
+    </plurals>
     <string name="download_history">İndirilenler</string>
     <string name="no_download_records">Henüz hiçbir şey indirmediniz</string>
     <string name="file_not_found">Dosya bulunamadı</string>
@@ -109,7 +112,10 @@
     <string name="filename">Dosya adı</string>
     <string name="preparing_download">İndirme için hazırlanıyor…</string>
     <string name="downloading_file">İndiriliyor: %1$s</string>
-    <string name="downloads_running" tools:ignore="PluralsCandidate">Şu an %1$d dosya indiriliyor</string>
+    <plurals name="downloads_running">
+        <item quantity="one">Şu an %1$d dosya indiriliyor</item>
+        <item quantity="other">Şu an %1$d dosya indiriliyor</item>
+    </plurals>
     <string name="playlist_download_title_placeholder">Oynatma Listesi</string>
     <string name="playlist_download_summary" tools:ignore="PluralsCandidate">%1$d seçildi / %2$d hazır / Toplam %3$d</string>
     <string name="playlist_download_select_all">Tümünü seç</string>
@@ -125,8 +131,14 @@
     <string name="playlist_download_status_queued">Sırada</string>
     <string name="playlist_download_status_partial">Eksik indi</string>
     <string name="playlist_download_status_canceled">İptal edildi</string>
-    <string name="playlist_download_batch_added" tools:ignore="PluralsCandidate">%1$d video eklendi</string>
-    <string name="playlist_download_batch_added_before_cancel" tools:ignore="PluralsCandidate">İptal edilmeden önce %1$d video eklendi</string>
+    <plurals name="playlist_download_batch_added">
+        <item quantity="one">%1$d video eklendi</item>
+        <item quantity="other">%1$d video eklendi</item>
+    </plurals>
+    <plurals name="playlist_download_batch_added_before_cancel">
+        <item quantity="one">İptal edilmeden önce %1$d video eklendi</item>
+        <item quantity="other">İptal edilmeden önce %1$d video eklendi</item>
+    </plurals>
     <string name="playlist_download_batch_segment_partial" tools:ignore="PluralsCandidate">%1$d tanesi eksik indi</string>
     <string name="playlist_download_batch_segment_failed" tools:ignore="PluralsCandidate">%1$d tanesi başarısız oldu</string>
     <string name="playlist_download_started">Liste indirilmeye başlandı</string>
@@ -256,7 +268,10 @@
     <string name="subs_export_failed">Dosya kaydedilemedi</string>
     <string name="subs_followed">Kanal takip edildi</string>
     <string name="subs_import">İçe aktar</string>
-    <string name="subs_import_done">%d kanal içe aktarıldı</string>
+    <plurals name="subs_import_done">
+        <item quantity="one">%d kanal içe aktarıldı</item>
+        <item quantity="other">%d kanal içe aktarıldı</item>
+    </plurals>
     <string name="subs_import_export">İçe / dışa aktar</string>
     <string name="subs_import_failed">Bu dosya okunamadı</string>
     <string name="subs_local_empty">Henüz kanal yok. Kanal eklemek veya içe aktarmak için Yönet\'e dokunun ya da kanalları bir videodan takip edin.</string>
@@ -295,7 +310,10 @@
     <string name="update_progress">%1$s / %2$s</string>
     <string name="update_title">Güncelleme var</string>
     <string name="watch_chat_hint">Canlı sohbet, canlı yayınlar ve galalar sırasında kullanılabilir.</string>
-    <string name="watch_comment_likes">%d beğeni</string>
+    <plurals name="watch_comment_likes">
+        <item quantity="one">%d beğeni</item>
+        <item quantity="other">%d beğeni</item>
+    </plurals>
     <string name="watch_comment_pinned">Sabitlendi</string>
     <string name="watch_comments_disabled">Bu videoda yorumlar kapalı</string>
     <string name="watch_comments_empty">Yorum yok</string>
@@ -303,7 +321,7 @@
     <string name="watch_tab_chat">Sohbet</string>
     <string name="watch_tab_comments">Yorumlar</string>
     <string name="watch_tab_description">Açıklama</string>
-    <!-- Library, settings groups and notifications -->
+    <!-- Library, settings groups, notifications -->
     <string name="nav_library">Kitaplık</string>
     <string name="library_history">Geçmiş</string>
     <string name="library_downloads">İndirilenler</string>
@@ -348,7 +366,7 @@
     <string name="failure_unsupported">Bu tür videolar desteklenmiyor (örneğin ücretli ya da yalnızca Premium içerik).</string>
     <string name="failure_unavailable">Bu video kullanılamıyor. Kaldırılmış olabilir.</string>
     <string name="failure_other">Video yüklenirken bir sorun oluştu. Tekrar deneyin ya da ne olduğunu görmek için Ayrıntılar\'a dokunun.</string>
-    <!-- Minimizing, floating window and gestures -->
+    <!-- Minimizing, floating window, gestures -->
     <string name="setting_minimize_to">Küçültme yeri</string>
     <string name="setting_minimize_summary">Alt çubuk veya kayan pencere</string>
     <string name="minimize_bottom_bar">Alt çubuk</string>
@@ -391,4 +409,54 @@
     <string name="update_title_prerelease">Ön sürüm mevcut</string>
     <string name="clear_cache_confirm">Kaydedilmiş video, resim ve web verilerinden oluşan %1$s silinsin mi? İndirilenler, geçmiş, sıra, oturumunuz ve ayarlar korunur.</string>
     <string name="cache_cleared">Önbellek temizlendi</string>
+    <!-- Opening links from other apps (12+: allowed in system settings) -->
+    <string name="links_prompt_title">Bağlantılar %1$s ile açılsın mı?</string>
+    <string name="links_prompt_message">Android, bir uygulamanın bağlantıları açmasına yalnızca siz izin verince olanak tanır. Sonraki ekranda Desteklenen bağlantıları aç seçeneğini açın, Ekle\'ye dokunun ve tüm bağlantıları işaretli bırakın: size gönderilen bağlantılar tarayıcı yerine burada açılır.</string>
+    <string name="links_prompt_open">Ayarları aç</string>
+    <string name="links_prompt_later">Şimdi değil</string>
+    <string name="setting_open_links">Bağlantıları bu uygulamada aç</string>
+    <string name="setting_open_links_summary">Diğer uygulamalardaki bağlantılar tarayıcı yerine burada açılır</string>
+    <string name="setting_open_links_all">Tümü</string>
+    <string name="setting_open_links_count">%2$d bağlantıdan %1$d</string>
+
+    <!-- Playlists and Watch later -->
+    <string name="action_done">Tamam</string>
+    <string name="action_delete">Sil</string>
+    <string name="library_playlists">Listeler</string>
+    <string name="playlist_save">Kaydet</string>
+    <string name="playlist_save_title">Şuraya kaydet…</string>
+    <string name="playlist_watch_later">Daha sonra izle</string>
+    <string name="playlist_new">Yeni oynatma listesi</string>
+    <string name="playlist_name_hint">Ad</string>
+    <string name="playlist_rename">Yeniden adlandır</string>
+    <string name="playlist_delete">Oynatma listesini sil</string>
+    <string name="playlist_delete_confirm">“%1$s” silinsin mi? Videolar YouTube’da kalır.</string>
+    <string name="playlist_saved_to">%1$s listesine kaydedildi</string>
+    <string name="playlist_removed_from">%1$s listesinden kaldırıldı</string>
+    <string name="playlist_full">Kaydedilemedi: çok fazla liste veya video var</string>
+    <string name="playlist_empty">Henüz bir şey yok. Bir videoya uzun basıp Kaydet’e dokunun.</string>
+    <string name="playlist_play_all">Tümünü oynat</string>
+    <string name="playlist_shuffle">Karıştır</string>
+    <string name="playlist_remove_watched">İzlenen videoları kaldır</string>
+    <string name="playlist_remove_watched_confirm">İzlediğiniz videolar %1$s listesinden kaldırılsın mı?</string>
+    <string name="playlist_import_export">İçe veya dışa aktar</string>
+    <string name="playlist_import">Oynatma listelerini içe aktar</string>
+    <string name="playlist_export">Oynatma listelerini dışa aktar</string>
+    <string name="playlist_import_failed">Bu bir TestTube oynatma listesi dosyası değil</string>
+    <string name="playlist_export_done">Oynatma listeleri dışa aktarıldı</string>
+    <string name="playlist_export_failed">Oynatma listeleri dışa aktarılamadı</string>
+    <string name="playlist_options">Oynatma listesi seçenekleri</string>
+    <string name="playlist_back">Oynatma listelerine dön</string>
+    <plurals name="playlist_count">
+        <item quantity="one">%d video</item>
+        <item quantity="other">%d video</item>
+    </plurals>
+    <plurals name="playlist_removed_watched">
+        <item quantity="one">%d video kaldırıldı</item>
+        <item quantity="other">%d video kaldırıldı</item>
+    </plurals>
+    <plurals name="playlist_import_done">
+        <item quantity="one">%d video içe aktarıldı</item>
+        <item quantity="other">%d video içe aktarıldı</item>
+    </plurals>
 </resources>

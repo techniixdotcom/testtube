@@ -76,9 +76,7 @@ public final class StreamIOUtils {
 		}
 	}
 
-	/**
-	 * Moves a file, failing if the target already exists.
-	 */
+	/** Moves a file, fails if the target exists. */
 	public static void moveFile(@NonNull File source, @NonNull File target) throws IOException {
 		if (target.exists()) throw new IOException("Target already exists: " + target);
 		if (source.renameTo(target)) return;

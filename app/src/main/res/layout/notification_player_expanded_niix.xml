@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- notification_player_expanded in the NiiX theme's JetBrains Mono. Keep the two the same. -->
+<!-- notification_player_expanded in JetBrains Mono for NiiX. Keep both in sync. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"

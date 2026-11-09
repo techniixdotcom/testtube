@@ -17,9 +17,7 @@ import com.testtube.app.AppSettings;
 import com.testtube.app.R;
 import com.testtube.app.util.PermissionUtils;
 
-/**
- * The items of one downloaded playlist. All other downloads live in the Library's Downloads tab.
- */
+/** Items of one downloaded playlist. Everything else is in Library > Downloads. */
 @UnstableApi
 public class DownloadActivity extends AppCompatActivity implements DownloadPermissionHost {
 	public static final String EXTRA_PARENT_ID = "extra_parent_id";

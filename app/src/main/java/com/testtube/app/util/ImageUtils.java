@@ -26,9 +26,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Every picture in the app goes through here. YouTube thumbnails are asked for as WebP, about a
- * third smaller than the JPEGs with the same look, and fall back to the JPEG if a WebP version
- * doesn't exist. Pictures are never stretched in memory; the views do the cropping.
+ * Every picture goes through here. YouTube thumbnails are requested as WebP (about a third
+ * smaller, same look) with JPEG as fallback. Never stretched in memory, views do the cropping.
  */
 public final class ImageUtils {
 	private static final int THUMB = R.drawable.bg_thumbnail_placeholder;
@@ -40,7 +39,7 @@ public final class ImageUtils {
 	private ImageUtils() {
 	}
 
-	/** The WebP version of a YouTube thumbnail link, or null when there is none. */
+	/** WebP version of a YouTube thumbnail link, or null. */
 	@Nullable
 	public static String webp(@Nullable String url) {
 		if (url == null) return null;
@@ -50,7 +49,7 @@ public final class ImageUtils {
 						: null;
 	}
 
-	/** A video thumbnail with the usual placeholder. */
+	/** Video thumbnail with the usual placeholder. */
 	public static void loadThumb(@NonNull ImageView view, @Nullable String url) {
 		load(view, url, THUMB);
 	}
@@ -61,8 +60,8 @@ public final class ImageUtils {
 	}
 
 	/**
-	 * Loads a picture into a view, showing {@code placeholder} until it's there and when it
-	 * fails; no picture at all shows just the placeholder.
+	 * Loads into a view, {@code placeholder} until it's there or on failure; no url, just the
+	 * placeholder.
 	 */
 	public static void load(@NonNull ImageView view, @Nullable String url, @DrawableRes int placeholder) {
 		if (url == null || url.isBlank()) {
@@ -72,28 +71,28 @@ public final class ImageUtils {
 		}
 		RequestManager glide = glide(view);
 		if (glide == null) return;
-		// The placeholder comes from the view, so it's in the screen's theme. Don't hand Glide the
-		// theme instead: it goes into the cache key, and then pictures loaded ahead of time never
-		// match and get decoded all over again. That made every damn list slower.
+		// placeholder comes from the view so it matches the screen's theme. Don't give Glide the theme:
+		// it ends up in the cache key, then preloaded pictures never match and get decoded all over
+		// again. That made every damn list slower.
 		request(glide, url, ContextCompat.getDrawable(view.getContext(), placeholder)).into(view);
 	}
 
-	/** Tries {@code url} and, if it doesn't exist, {@code fallback} (vertical Shorts thumbnails). */
+	/** Tries {@code url}, then {@code fallback} if it doesn't exist (vertical Shorts thumbnails). */
 	public static void loadWithFallback(@NonNull ImageView view, @NonNull String url, @NonNull String fallback) {
 		RequestManager glide = glide(view);
 		if (glide != null) request(glide, url, null).error(request(glide, fallback, null)).into(view);
 	}
 
-	/** Stops a load into the view (a recycled row) and lets go of its picture. */
+	/** Stops a load into the view (recycled row) and drops its picture. */
 	public static void clear(@NonNull ImageView view) {
 		RequestManager glide = glide(view);
 		if (glide != null) glide.clear(view);
 	}
 
 	/**
-	 * Glide for a view, or null when its screen is already gone: Glide throws for a destroyed
-	 * activity, and late callbacks (a list refreshing after the screen was rebuilt for a new
-	 * theme) would take the whole app down with it. Its requests ended with the screen anyway.
+	 * Glide for a view, or null if its screen is gone: Glide throws for destroyed activities and late
+	 * callbacks (a list refreshing after a theme rebuild) would crash the app. The requests died with
+	 * the screen anyway.
 	 */
 	@Nullable
 	private static RequestManager glide(@NonNull View view) {
@@ -107,16 +106,13 @@ public final class ImageUtils {
 		return Glide.with(view);
 	}
 
-	/** Downloads a picture ahead of time, for rows that aren't on screen yet. */
+	/** Downloads a picture ahead of time for off-screen rows. */
 	public static void prefetch(@NonNull Context context, @Nullable String url) {
 		if (url == null || url.isBlank()) return;
 		request(Glide.with(context.getApplicationContext()), url, null).priority(Priority.LOW).preload();
 	}
 
-	/**
-	 * A square picture for the notification, from the cache when it's on screen already. Blocks;
-	 * null when it can't be loaded.
-	 */
+	/** Square picture for the notification, cached if it's on screen. Blocks; null on failure. */
 	@WorkerThread
 	@Nullable
 	public static Bitmap squareBitmap(@NonNull Context context, @NonNull String url, int size) {
@@ -127,7 +123,7 @@ public final class ImageUtils {
 		FutureTarget<Bitmap> target = request.submit(size, size);
 		try {
 			Bitmap bitmap = target.get();
-			// Glide reuses its bitmaps once the request is cleared; the notification keeps a copy
+			// Glide reuses bitmaps once the request is cleared, the notification keeps a copy
 			return bitmap.copy(bitmap.getConfig() != null ? bitmap.getConfig() : Bitmap.Config.ARGB_8888, false);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
@@ -139,7 +135,7 @@ public final class ImageUtils {
 		}
 	}
 
-	/** The WebP when there is one, then the JPEG; {@code placeholder} null for none. */
+	/** WebP if there is one, then JPEG; {@code placeholder} null for none. */
 	@NonNull
 	private static RequestBuilder<Drawable> request(@NonNull RequestManager glide, @NonNull String url,
 	                                                @Nullable Drawable placeholder) {

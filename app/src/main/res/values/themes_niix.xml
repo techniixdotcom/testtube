@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-        The NiiX theme, in the niixa.org look: black, dark glass (#121218) with a thin pink edge,
-        pink #ff0a6c for whatever is selected, on or in progress, and JetBrains Mono for all text.
-        Dark only: choosing it sets the app to night mode (AppSettings.Theme.NIIX), and this theme
-        gives every colour role of the Dark theme a NiiX value (colors_niix.xml).
+        NiiX theme, niixa.org look: black, dark glass (#121218) with a thin pink edge, pink #ff0a6c for
+        anything selected, on or in progress, JetBrains Mono everywhere. Dark only: picking it sets night
+        mode (AppSettings.Theme.NIIX); every Dark colour role gets a NiiX value (colors_niix.xml).
     -->
     <style name="Theme.TestTube.Niix" parent="Theme.TestTube">
         <item name="colorPrimary">@color/niix_accent</item>
@@ -62,12 +61,12 @@
         <item name="ttLibraryPage">@color/niix_surface</item>
         <item name="ttSettingsGroup">@android:color/transparent</item>
         <item name="ttSwipeBackground">@color/niix_swipe_background</item>
-        <!-- The logo and Add / Follow on a swiped row, in the pink -->
+        <!-- Logo and Add / Follow on a swiped row, in pink -->
         <item name="ttSwipeContent">@color/niix_accent</item>
         <item name="ttCommentAuthor">@color/niix_accent</item>
         <item name="ttOnVideoAccent">@color/niix_accent</item>
 
-        <!-- JetBrains Mono everywhere, like niixa.org: the default, every type role and the app's own -->
+        <!-- JetBrains Mono everywhere: default, every type role and our own -->
         <item name="android:fontFamily">@font/jetbrains_mono</item>
         <item name="fontFamily">@font/jetbrains_mono</item>
         <item name="ttFontRegular">@font/jetbrains_mono</item>
@@ -90,7 +89,7 @@
         <item name="textAppearanceLabelSmall">@style/TextAppearance.TestTube.Niix.LabelSmall</item>
     </style>
 
-    <!-- The Material type scale in JetBrains Mono -->
+    <!-- Material type scale in JetBrains Mono -->
     <style name="TextAppearance.TestTube.Niix.DisplayLarge" parent="TextAppearance.Material3.DisplayLarge">
         <item name="android:fontFamily">@font/jetbrains_mono</item>
         <item name="fontFamily">@font/jetbrains_mono</item>

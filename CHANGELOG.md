@@ -1,9 +1,24 @@
 # Changelog
 
+## 3.0.4
+
 ## 3.0.3
 
+- New: TestTube+, a second edition next to TestTube. It's TestTube plus links people send you from Spotify, Facebook and SoundCloud. A Spotify song, album or playlist plays from YouTube (the first song plays, the rest go in the queue). Public Facebook videos and SoundCloud songs, sets and albums play in the player itself, like YouTube videos: minimized, in the floating window, in the background, with the notification and the queue; when one ends the queue goes on, or autoplay picks a YouTube video like it. A SoundCloud song that's only a 30-second preview there plays from YouTube. No browsing, search or account on those sites. Either edition installs over the other and keeps history and settings; each one updates to its own
+- Changed: Back on the video screen now works like a real back button: it plays the video you watched before, and from the first one it closes the player and goes back to the screen you came from. Swipe the player down to minimize it
+- New: on Android 12 and newer, the app offers once to let links open in it, and takes you to the screen where Android asks (Settings, Open links in this app, shows how many are on)
 - Fixed: Clear cache on exit didn't work. Swiping TestTube away before a video had played never cleared anything, and when it did start Android usually closed the app before it finished. Now the app stays open until the cache is empty, and anything a closed app couldn't clear (swiped away, force-stopped, crashed) is cleared the next time it starts
 - Leaving with Back now also clears the web data and the pictures kept in memory when Clear cache on exit is on
+- Clear cache now really reaches zero: with Clear cache on exit on, closing the app (Back, Close, or swiping it or its notification away) empties everything Android's own Clear cache in App info does, also the index files and folders the caches keep while the app runs and Android's graphics cache, and then ends the app, so App info shows 0 B right away. A download that's still running or paused keeps the app open; the rest is then cleared on the next start. Settings → Clear cache also empties Android's graphics cache and the external cache, and deletes half-finished downloads and update files nothing uses any more; only the few folders the open caches need stay while the app runs
+- The cache size in Settings is now Android's own number, the same as Cache in App info. It used to count only the files' contents, not the disk space they take, the graphics cache or the external cache
+- Fixed: counts in Russian (and the other languages) now use the right plural form, and "1 items added" style messages are gone
+- Translations checked line by line: Traditional Chinese now uses Taiwanese terms throughout, Spanish says "vídeo" everywhere, and a few French, Japanese, Turkish and Chinese wordings were corrected
+- New: playlists and Watch later, kept on the phone. Long-press any video and tap Save to tick the playlists it goes in, or make a new one. Library has a fourth tab, Playlists: Watch later on top, Play all and Shuffle, tap to play, the cross removes, long press drags to reorder, and the bin removes watched videos. Playing one works like a YouTube playlist, with the list under the player and next, previous and shuffle. Playlists can be exported and imported. The Library tabs now only label the open one, so four fit
+- Faster, lighter playback: videos now use VP9 or AV1 when the phone decodes them in hardware, instead of always H.264 at 1080p and below. Same quality in roughly a third less data, so videos start sooner and buffer less. AV1 the phone could only decode in software (a battery drain) is skipped. Prefer H.264 still forces H.264; downloads still pick H.264 as before
+- Videos start without waiting for YouTube's second details request; the upload date fills in a moment later
+- Live chat only runs while you can see it: switching to the description, minimizing or leaving the app shuts it down, and it reloads when you come back
+- NewPipe Extractor updated to v0.27.0 (was a development snapshot from 20 October). Brings YouTube's fix for reading the speed-limit parameter of stream links, which otherwise can make videos load slowly. Gson 2.15.0, OkHttp 5.5.1 and jsoup 1.24.1
+- Smaller APK: font hinting Android never uses is stripped, unused launcher bitmaps are gone, the logo is WebP, and the unused Rhino script engine and Rhino's JVM compiler are no longer bundled
 
 ## 3.0.2
 

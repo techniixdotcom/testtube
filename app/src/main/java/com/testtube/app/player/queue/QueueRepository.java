@@ -18,9 +18,9 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public final class QueueRepository {
 	static final String KEY_QUEUE_ITEMS = "local_queue_items";
-	/** The old on/off switch; the queue now always plays when it has videos. Removed on start. */
+	/** Old on/off switch; the queue always plays now. Removed on start. */
 	static final String KEY_QUEUE_ENABLED = "local_queue_enabled";
-	/** Pins of "Play next" items saved by older versions; removed on start. */
+	/** Old "Play next" pins; removed on start. */
 	static final String KEY_PLAY_NEXT = "local_queue_play_next";
 	private static final Type LIST_TYPE = new TypeToken<List<QueueItem>>() {
 	}.getType();
@@ -33,7 +33,7 @@ public final class QueueRepository {
 	private final List<QueueInvalidationListener> listeners = new ArrayList<>();
 	@NonNull
 	private final MutableLiveData<QueueState> state;
-	/** The stored queue, parsed once; this repository is its only writer. Guarded by {@code this}. */
+	/** Stored queue, parsed once; this is the only writer. Guarded by {@code this}. */
 	@Nullable
 	private List<QueueItem> cache;
 
@@ -81,9 +81,8 @@ public final class QueueRepository {
 	}
 
 	/**
-	 * Inserts the item after the playing video, or at the front if that isn't queued.
-	 *
-	 * @return false if the item is the playing video
+	 * Inserts after the playing video, or at the front if that isn't queued.
+	 * @return false if it is the playing video
 	 */
 	public boolean addNext(@NonNull QueueItem item, @Nullable String playingVideoId) {
 		String videoId = item.getVideoId();
@@ -173,7 +172,7 @@ public final class QueueRepository {
 			return offset > 0 ? items.get(0).copy() : items.get(items.size() - 1).copy();
 		}
 		int target = index + offset;
-		// No wrap-around, so callers can fall back to suggestions at either end.
+		// no wrap-around so callers can fall back to suggestions at either end
 		if (target < 0 || target >= items.size()) return null;
 		return items.get(target).copy();
 	}

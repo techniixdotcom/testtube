@@ -12,10 +12,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The mini player and the bottom bar float over Home, Subscriptions, the Library and channel pages
- * (as frosted glass in NiiX), and those screens reach down under them. This keeps the end of each
- * list (and each centred message) clear of the bars: it pads them by the height the bars take up
- * right now, which changes as the mini player and the bottom bar show and hide.
+ * Mini player and bottom bar float over Home, Subscriptions, Library and channel pages (frosted
+ * glass in NiiX) and those screens reach under them. This pads list ends and centred messages by
+ * whatever height the bars take right now, which changes as they show and hide.
  */
 final class BottomChrome implements ViewTreeObserver.OnGlobalLayoutListener {
 	@NonNull
@@ -35,9 +34,7 @@ final class BottomChrome implements ViewTreeObserver.OnGlobalLayoutListener {
 		root.getViewTreeObserver().addOnGlobalLayoutListener(this);
 	}
 
-	/**
-	 * Keeps the bottom of this view clear of the bars. Its own bottom padding is kept on top.
-	 */
+	/** Keeps this view's bottom clear of the bars, on top of its own padding. */
 	void add(@Nullable View view) {
 		if (view == null || view.getTag(R.id.tag_bottom_chrome_padding) != null) return;
 		view.setTag(R.id.tag_bottom_chrome_padding, view.getPaddingBottom());
@@ -45,9 +42,7 @@ final class BottomChrome implements ViewTreeObserver.OnGlobalLayoutListener {
 		apply(view);
 	}
 
-	/**
-	 * Keeps the bottom of each of these views, found under the given root, clear of the bars.
-	 */
+	/** Same for each of these views under the root. */
 	void addAll(@Nullable View parent, @NonNull int... ids) {
 		if (parent == null) return;
 		for (int id : ids) add(parent.findViewById(id));
@@ -67,9 +62,7 @@ final class BottomChrome implements ViewTreeObserver.OnGlobalLayoutListener {
 		views.clear();
 	}
 
-	/**
-	 * How far up from the bottom of the content area the visible bars reach.
-	 */
+	/** How high the visible bars reach from the bottom. */
 	private int measure() {
 		int bottom = root.getHeight() - root.getPaddingBottom();
 		int top = bottom;

@@ -246,7 +246,7 @@ public final class DownloadTaskFactory {
 
 	@Nullable
 	private VideoStream pickPlaylistVideoStream(@NonNull StreamCatalog catalog) {
-		List<VideoStream> streams = catalog.getVideoStreams();
+		List<VideoStream> streams = PlayerUtils.downloadStreams(catalog.getVideoStreams());
 		if (streams.isEmpty()) return null;
 		Comparator<VideoStream> comparator = Comparator
 						.comparingInt(PlayerUtils::streamHeight)
@@ -267,7 +267,7 @@ public final class DownloadTaskFactory {
 						.orElse(null);
 	}
 
-	/** Makes a title safe as a file name: no separators, control characters, "." or "..". */
+	/** Safe file name: no separators, control chars, "." or "..". */
 	@NonNull
 	private static String cleanName(@NonNull String name) {
 		String cleaned = name.replaceAll("[<>:\"/\\\\|?*\\p{Cntrl}]", "_").trim();

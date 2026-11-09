@@ -51,22 +51,19 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * The Shorts tab: one Short per screen, swipe up or down for the next one. Each Short plays as
- * soon as it settles and loops; a tap pauses it.
+ * Shorts tab: one per screen, swipe up/down for the next. Plays when it settles and loops; tap
+ * pauses.
  */
 @UnstableApi
 public final class ShortsScreen {
 	/** Load the next page this many Shorts before the end. */
 	private static final int LOAD_MORE_AT = 3;
-	/** Pages that bring nothing new before giving up for now. */
+	/** Pages with nothing new before giving up for now. */
 	private static final int MAX_EMPTY_PAGES = 3;
 	private static final long PROGRESS_INTERVAL_MS = 250L;
-	/**
-	 * Shorts extracted ahead of the one on screen. The first of them loads in the standby player,
-	 * the rest get their first seconds cached.
-	 */
+	/** Shorts extracted ahead. The first goes into the standby player, the rest get their start cached. */
 	private static final int PREFETCH_AHEAD = 3;
-	/** Some phones don't report the first frame of a player that loaded off screen. */
+	/** Some phones never report the first frame of a player loaded off screen. */
 	private static final long FIRST_FRAME_FALLBACK_MS = 200L;
 
 	@NonNull
@@ -118,17 +115,17 @@ public final class ShortsScreen {
 	private int current = RecyclerView.NO_POSITION;
 	@Nullable
 	private String startedId;
-	/** Bumped for every start, so late extractions for an earlier Short are dropped. */
+	/** Bumped on every start so late extractions for an older Short get dropped. */
 	private long startToken;
 	private boolean retried;
 	private boolean firstFrameShown;
 	private boolean active;
 	@Nullable
 	private Runnable onStartedPlaying;
-	/** The next Short, extracted, waiting for the current one to show before loading its video. */
+	/** Next Short, extracted, waiting for the current one to show before loading its video. */
 	@Nullable
 	private PlaybackDetails nextUp;
-	/** Shorts further ahead, extracted, waiting for the same thing before their start is cached. */
+	/** Further ones, extracted, waiting for the same before their start gets cached. */
 	@NonNull
 	private final List<PlaybackDetails> warmUps = new ArrayList<>();
 
@@ -150,8 +147,8 @@ public final class ShortsScreen {
 		list = root.findViewById(R.id.shorts_list);
 		loading = root.findViewById(R.id.shorts_loading);
 		message = root.findViewById(R.id.shorts_message);
-		// Inflated against a plain FrameLayout like the slots it moves between; the list can't
-		// make layout params before it has a layout manager
+		// inflated against a plain FrameLayout like the slots it moves between; the list can't make
+		// layout params before it has a layout manager
 		playerView = (PlayerView) LayoutInflater.from(root.getContext())
 						.inflate(R.layout.view_shorts_player, new FrameLayout(root.getContext()), false);
 		playerView.setPlayer(engine.player());
@@ -176,7 +173,7 @@ public final class ShortsScreen {
 
 			@Override
 			public void onVideoSize(@NonNull VideoSize size) {
-				// Fill the screen with vertical Shorts; the odd landscape one is shown whole
+				// vertical Shorts fill the screen, the odd landscape one shows whole
 				boolean landscape = size.width > size.height;
 				playerView.setResizeMode(landscape
 								? AspectRatioFrameLayout.RESIZE_MODE_FIT : AspectRatioFrameLayout.RESIZE_MODE_ZOOM);
@@ -211,7 +208,7 @@ public final class ShortsScreen {
 		firstFrameShown = true;
 		ShortHolder holder = holderAt(current);
 		if (holder != null) holder.showVideo();
-		// Now the next one can load its video without slowing this one down
+		// now the next one can load without slowing this one
 		PlaybackDetails next = nextUp;
 		nextUp = null;
 		if (next != null && active) engine.preload(next);
@@ -221,10 +218,7 @@ public final class ShortsScreen {
 		warmUps.clear();
 	}
 
-	/**
-	 * The tab came into view (true) or was left, covered or the app went to the background
-	 * (false). Only an active screen plays.
-	 */
+	/** Tab came into view (true), or was left, covered or backgrounded (false). Only active plays. */
 	public void setActive(boolean active) {
 		if (this.active == active) return;
 		this.active = active;
@@ -247,12 +241,12 @@ public final class ShortsScreen {
 		}
 	}
 
-	/** Runs every time a Short starts or resumes. */
+	/** Runs whenever a Short starts or resumes. */
 	public void setOnStartedPlaying(@Nullable Runnable listener) {
 		onStartedPlaying = listener;
 	}
 
-	/** Pauses the Short on screen, which stays paused until it is tapped. */
+	/** Pauses the Short on screen until it's tapped. */
 	public void pause() {
 		if (active) engine.pause();
 	}
@@ -282,7 +276,7 @@ public final class ShortsScreen {
 			loading.setVisibility(View.GONE);
 			if (error != null || page == null) {
 				if (items.isEmpty()) {
-					// Say why when it's something the person can act on (offline, YouTube's pause)
+					// say why when the user can do something about it (offline, pause)
 					Failure failure = error != null ? Failure.report(error) : Failure.OTHER;
 					showMessage(failure == Failure.OFFLINE || failure == Failure.SLOW_DOWN || failure == Failure.TIMEOUT
 									? failure.message : R.string.shorts_load_failed);
@@ -332,8 +326,7 @@ public final class ShortsScreen {
 
 	/**
 	 * Extracts the current Short and plays it.
-	 *
-	 * @param refresh true to skip the cached extraction (its stream URLs were rejected)
+	 * @param refresh skip the cached extraction (its URLs got rejected)
 	 */
 	private void start(boolean refresh) {
 		if (current == RecyclerView.NO_POSITION || current >= items.size()) return;
@@ -365,7 +358,7 @@ public final class ShortsScreen {
 				target.attachPlayer(playerView);
 			}
 			try {
-				// The preloaded player took over: show that one
+				// preloaded player took over, show that one
 				if (engine.play(result)) playerView.setPlayer(engine.player());
 			} catch (IllegalArgumentException e) {
 				if (target != null) target.showError();
@@ -377,7 +370,7 @@ public final class ShortsScreen {
 		}));
 	}
 
-	/** Stream URLs can expire; try once more with a fresh extraction before giving up. */
+	/** URLs can expire; one more try with a fresh extraction before giving up. */
 	private void onPlaybackFailed() {
 		if (!retried) {
 			retried = true;
@@ -389,9 +382,9 @@ public final class ShortsScreen {
 	}
 
 	/**
-	 * Extracts the next few Shorts right away, so swiping on doesn't wait for YouTube. Once the
-	 * current one shows, the very next one loads its video and the ones after it get their start
-	 * cached; before that they'd only slow it down.
+	 * Extracts the next few Shorts now so swiping doesn't wait for YouTube. Once the current one
+	 * shows, the next loads its video and the rest get their start cached; earlier they'd only slow
+	 * it down.
 	 */
 	private void prefetchAhead() {
 		int from = current;
@@ -524,7 +517,7 @@ public final class ShortsScreen {
 		}
 
 		void bind(@NonNull FeedItem item, int position) {
-			// Replaced by the player's (original) title once the Short loads
+			// replaced by the player's (original) title once it loads
 			title.setText(Originals.get().apply(item).title());
 			loadThumbnail(item.videoId());
 			more.setOnClickListener(v -> host.showMenu(item));
@@ -550,7 +543,7 @@ public final class ShortsScreen {
 				thumbnail.setImageDrawable(null);
 				return;
 			}
-			// The vertical thumbnail, or the regular one for Shorts that have none
+			// vertical thumbnail, or the normal one if there's none
 			ImageUtils.loadWithFallback(thumbnail, "https://i.ytimg.com/vi/" + videoId + "/oar2.jpg",
 							"https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg");
 		}
@@ -598,7 +591,7 @@ public final class ShortsScreen {
 							ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 		}
 
-		/** Thumbnail only, as for every Short that isn't playing. */
+		/** Thumbnail only, like every Short that isn't playing. */
 		void showCover() {
 			thumbnail.setVisibility(View.VISIBLE);
 			buffering.setVisibility(View.GONE);

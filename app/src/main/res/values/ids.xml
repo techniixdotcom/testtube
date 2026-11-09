@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- A list's own bottom padding, before room for the bars over it was added (BottomChrome) -->
+    <!-- A list's own bottom padding before BottomChrome added room for the bars -->
     <item name="tag_bottom_chrome_padding" type="id" />
 </resources>

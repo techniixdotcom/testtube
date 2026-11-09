@@ -17,9 +17,7 @@ import com.testtube.app.util.ToastUtils;
 
 import java.util.List;
 
-/**
- * The list of followed channels: unfollow one, add one by link or handle, or import a list.
- */
+/** Followed channels: unfollow, add by link or handle, import a list. */
 final class SubscriptionsDialog {
 	private SubscriptionsDialog() {
 	}

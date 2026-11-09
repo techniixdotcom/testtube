@@ -18,9 +18,9 @@ import java.util.Map;
 import java.util.function.LongSupplier;
 
 /**
- * How a request for a YouTube stream has to look, whichever HTTP stack sends it. googlevideo is
- * picky as hell: playback URLs are POSTed with a two-byte body, ranges go in the query, and the headers
- * have to match the client that asked for the player response, or it answers with a 403.
+ * How a YouTube stream request has to look, whatever stack sends it. googlevideo is picky as
+ * hell: playback URLs get POSTed with a two-byte body, ranges go in the query, and headers have to
+ * match the client that got the player response, or it's a 403.
  */
 final class YoutubeRequests {
 	static final byte[] POST_BODY = new byte[]{0x78, 0};
@@ -34,9 +34,8 @@ final class YoutubeRequests {
 	}
 
 	/**
-	 * Adds the request number and, when ranges go in the query, the byte range to a playback URL.
-	 *
-	 * @param requestNumber the next request number, or null to leave it out
+	 * Adds the request number and, when ranges go in the query, the byte range.
+	 * @param requestNumber next request number, or null to leave it out
 	 */
 	@NonNull
 	static String requestUrl(@NonNull String url,
@@ -57,14 +56,14 @@ final class YoutubeRequests {
 	}
 
 	/**
-	 * The headers that go on top of whatever the player asked for: cookies, the browser-ish
-	 * headers web streams expect, and the user agent of the client the URL came from.
+	 * Headers on top of what the player asked for: cookies, the browser-ish headers web streams
+	 * expect, and the user agent of the URL's client.
 	 */
 	@NonNull
 	static Map<String, String> headers(@NonNull String requestUrl, @NonNull String userAgent) {
 		Map<String, String> headers = new LinkedHashMap<>();
 
-		// Cookies only go to YouTube's own video and site hosts.
+		// cookies only go to YouTube's own hosts
 		String host = Uri.parse(requestUrl).getHost();
 		if (host != null && (host.endsWith(".googlevideo.com") || host.equals("youtube.com") || host.endsWith(".youtube.com"))) {
 			String cookies = CookieManager.getInstance().getCookie(requestUrl);
@@ -81,8 +80,8 @@ final class YoutubeRequests {
 
 		headers.put(HttpHeaders.ACCEPT, "*/*");
 
-		// googlevideo checks that stream requests come from the same client that requested the
-		// player response, so the matching client user agent must be sent.
+		// googlevideo checks the stream request comes from the client that got the player response, so
+		// send that client's user agent
 		headers.put(HttpHeaders.USER_AGENT, isVisionOsStreamingUrl(requestUrl) ? getVisionOsUserAgent(null) : userAgent);
 		return headers;
 	}

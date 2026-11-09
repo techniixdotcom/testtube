@@ -14,9 +14,9 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 
-/** Position, quality and autoplay are always remembered; speed is fixed at 1x. */
+/** Position, quality and autoplay always remembered; speed fixed at 1x. */
 public final class PlayerPreferences {
-	/** The single quality of older versions; both networks start from it. */
+	/** Old single quality; both networks start from it. */
 	private static final String KEY_VIDEO_QUALITY = "video_quality";
 	private static final String KEY_VIDEO_QUALITY_WIFI = "video_quality_wifi";
 	private static final String KEY_VIDEO_QUALITY_MOBILE = "video_quality_mobile";
@@ -40,12 +40,12 @@ public final class PlayerPreferences {
 	@NonNull
 	private final BooleanSupplier onMobileData;
 
-	/** Qualities offered in the settings, lowest first. */
+	/** Qualities in settings, lowest first. */
 	public static final String[] QUALITIES = {"144p", "240p", "360p", "480p", "720p", "1080p", "1440p", "2160p"};
 	public static final String DEFAULT_QUALITY_WIFI = "720p";
 	public static final String DEFAULT_QUALITY_MOBILE = "480p";
 
-	/** @param onMobileData tells whether the phone is on mobile data right now (else Wi-Fi) */
+	/** @param onMobileData whether we're on mobile data right now (else Wi-Fi) */
 	public PlayerPreferences(@NonNull MMKV mmkv, @NonNull Gson gson, @NonNull BooleanSupplier onMobileData) {
 		this.mmkv = mmkv;
 		this.gson = gson;
@@ -53,16 +53,13 @@ public final class PlayerPreferences {
 		this.loopModeState = new MutableLiveData<>(readLoopMode());
 	}
 
-	/**
-	 * Quality for the network the phone is on now. Videos without that quality start in the next
-	 * lower one.
-	 */
+	/** Quality for the current network. Videos without it start one lower. */
 	@NonNull
 	public String getPreferredQuality() {
 		return getQuality(onMobileData.getAsBoolean());
 	}
 
-	/** A quality picked in the player becomes the one for the network the phone is on. */
+	/** Quality picked in the player becomes the current network's. */
 	public void setPreferredQuality(@NonNull String quality) {
 		setQuality(onMobileData.getAsBoolean(), quality);
 	}
@@ -145,13 +142,13 @@ public final class PlayerPreferences {
 		mmkv.encode(PREFIX_PROGRESS + videoId, gson.toJson(new Progress(positionMs, System.currentTimeMillis())));
 	}
 
-	/** Forgets the saved position, e.g. after a video was watched to the end. */
+	/** Forgets the saved position (watched to the end, say). */
 	public void clearProgress(@Nullable String videoId) {
 		if (videoId == null || videoId.isBlank()) return;
 		mmkv.removeValueForKey(PREFIX_PROGRESS + videoId);
 	}
 
-	/** Remembers a played video so autoplay doesn't loop back to it. */
+	/** Remembers a played video so autoplay doesn't loop back. */
 	public synchronized void recordPlayed(@Nullable String videoId) {
 		if (videoId == null || videoId.isBlank()) return;
 		long now = System.currentTimeMillis();

@@ -5,7 +5,7 @@
 
 [versions]
 jsr305 = "3.0.2"
-jsoup = "1.23.2"
+jsoup = "1.24.1"
 protobuf-lib = "4.36.2"
 protobuf-plugin = "0.10.0"
 rhino = "1.8.1" # rhino 1.9.x is not yet validated by upstream NewPipe Extractor, see #1423
@@ -16,7 +16,6 @@ google-jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr
 google-protobuf = { module = "com.google.protobuf:protobuf-javalite", version.ref = "protobuf-lib" }
 jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 mozilla-rhino-core = { module = "org.mozilla:rhino", version.ref = "rhino" }
-mozilla-rhino-engine = { module = "org.mozilla:rhino-engine", version.ref = "rhino" }
 newpipe-nanojson = { module = "com.github.TeamNewPipe:nanojson", version.ref = "teamnewpipe-nanojson" }
 
 [plugins]
