@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.0.5
+
+- Faster video starts: YouTube's player code now runs in QuickJS through a small Rust library (`native/testtube-core`) instead of the Rhino script engine. Rhino read and ran the whole player file again (about 3 MB of JavaScript) for every new video, which took around a second on a fast computer and longer on a phone. Now it's read once per player version, ideally in the background right after the app starts, and each video after that takes a few microseconds for this step. If the library can't load, the app uses Rhino as before
+- Home shows up much sooner after starting the app:
+  - The videos from last time appear right away, and the new ones replace them when they arrive. If you've already started scrolling, your place is kept and the new videos go below
+  - Signed out, YouTube's Home is often empty, so the app looks up related videos and searches instead. Those lookups now run at the same time rather than one after another, and if Home was empty last time they start immediately instead of after three failed tries
+  - The YouTube version number the app sends is remembered between launches, so the first request no longer waits for a separate lookup
+  - Signed in, the account settings read from m.youtube.com are kept between launches (for 6 hours, as before) instead of being fetched again on every start
+  - The WebView cookie store, which every YouTube request needs, starts in the background while the first screen is drawn instead of just before Home's first request
+- When YouTube releases a new player version, reading what the app needs out of it is about 3-7x faster: the regex searches through the player file (and other big pages) now run in the Rust library, with exactly the same results as before
+- The stored player functions are loaded into QuickJS in the background shortly after the app starts, so the first video doesn't wait for them. When Android needs memory back while the app is in the background, that memory (about 30 MB) is freed again
+
 ## 3.0.4
 
 ## 3.0.3

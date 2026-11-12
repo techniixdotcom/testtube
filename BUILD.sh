@@ -62,6 +62,8 @@ TESTTUBE_HOME="${TESTTUBE_HOME:-$HOME/.testtube}"
 JDK_MAJOR=21
 JDK_DIR="$TESTTUBE_HOME/jdk-$JDK_MAJOR"
 SDK_DIR="$TESTTUBE_HOME/android-sdk"
+# Rust for the native core (native/testtube-core); an existing rustup install is used if there is one
+RUST_TARGETS=(aarch64-linux-android armv7-linux-androideabi)
 # every key for every app lives in ~/.keys (see README.txt there and scripts/android-keys.sh)
 KEYS_HOME="${KEYS_HOME:-$HOME/.keys}"
 if [[ ! -f "$ROOT/scripts/android-keys.sh" ]]; then
@@ -540,6 +542,81 @@ install_android_sdk() {
 	fi
 }
 
+# Newest stable version of an SDK package ("ndk", "build-tools") in sdkmanager's list. Reads the
+# old sdkmanager table and the newer Android CLI's output alike ("ndk;28.2.13676358" or
+# "ndk/28.2.13676358", anywhere on a line); skips -rc and other previews. Prints nothing if none.
+newest_sdk_package_version() {
+	local name="$1"
+	local sdkmanager="$SDK_DIR/cmdline-tools/latest/bin/sdkmanager"
+	{ "$sdkmanager" --sdk_root="$SDK_DIR" --list 2>&1 || true; } \
+		| grep -oE "(^|[^a-zA-Z-])${name}[;/][0-9]+\.[0-9]+\.[0-9]+([^-0-9.a-zA-Z]|$)" \
+		| grep -oE '[0-9]+\.[0-9]+\.[0-9]+' \
+		| sort -u -V | tail -n 1 || true
+}
+
+# Points ANDROID_NDK_HOME at the newest NDK under an SDK folder, if there is one there.
+use_ndk_in() {
+	local root="$1" dir
+	[[ -n "$root" && -d "$root/ndk" ]] || return 1
+	dir="$(find "$root/ndk" -mindepth 2 -maxdepth 2 -name source.properties 2>/dev/null \
+		| xargs -r -n1 dirname | sort -V | tail -n 1)"
+	[[ -n "$dir" ]] || return 1
+	export ANDROID_NDK_HOME="$dir"
+	log "Using the Android NDK in $dir"
+}
+
+# NDK versions installed by name when the package list can't be read, newest first
+NDK_FALLBACK_VERSIONS=(28.2.13676358 27.3.13750724)
+
+# An NDK for the Rust core: one already set or installed (also Android Studio's), otherwise the
+# newest stable one sdkmanager offers, otherwise a known version by name.
+install_android_ndk() {
+	if [[ -n "${ANDROID_NDK_HOME:-}" && -f "$ANDROID_NDK_HOME/source.properties" ]]; then
+		log "Using the Android NDK in $ANDROID_NDK_HOME"
+		return
+	fi
+	local root
+	for root in "$SDK_DIR" "${ANDROID_SDK_HOME_ORIG:-}" "$HOME/Android/Sdk" "$HOME/Library/Android/sdk"; do
+		use_ndk_in "$root" && return
+	done
+	local sdkmanager="$SDK_DIR/cmdline-tools/latest/bin/sdkmanager"
+	local listed version
+	listed="$(newest_sdk_package_version ndk)"
+	for version in $listed "${NDK_FALLBACK_VERSIONS[@]}"; do
+		log "Installing Android NDK $version (for the Rust core; about 1 GB, once)"
+		"$sdkmanager" --sdk_root="$SDK_DIR" --install "ndk;$version" >/dev/null 2>&1 || true
+		if [[ -f "$SDK_DIR/ndk/$version/source.properties" ]]; then
+			export ANDROID_NDK_HOME="$SDK_DIR/ndk/$version"
+			return
+		fi
+		warn "Android NDK $version didn't install"
+	done
+	use_ndk_in "$SDK_DIR" && return
+	die "Could not install an Android NDK for the Rust core. Install one in Android Studio (SDK Manager, SDK Tools, NDK (Side by side)) or set ANDROID_NDK_HOME, then run again. Or build without it (slower video starts): TESTTUBE_SKIP_RUST=1 ./BUILD.sh ..."
+}
+
+# cargo, the Android targets and cargo-ndk. Uses the user's rustup if there is one, otherwise
+# installs a private one into TESTTUBE_HOME (rustup checks what it downloads itself).
+install_rust() {
+	if ! command -v rustup >/dev/null 2>&1; then
+		export RUSTUP_HOME="$TESTTUBE_HOME/rustup"
+		export CARGO_HOME="$TESTTUBE_HOME/cargo"
+		export PATH="$CARGO_HOME/bin:$PATH"
+		if [[ ! -x "$CARGO_HOME/bin/rustup" ]]; then
+			log "Downloading Rust (rustup, minimal profile)"
+			local installer="$TMP_DIR/rustup-init.sh"
+			download "https://sh.rustup.rs" "$installer"
+			sh "$installer" -y --no-modify-path --profile minimal --default-toolchain stable >/dev/null
+		fi
+	fi
+	log "Adding the Android Rust targets"
+	rustup target add "${RUST_TARGETS[@]}" >/dev/null
+	if ! cargo ndk --version >/dev/null 2>&1; then
+		log "Installing cargo-ndk"
+		cargo install cargo-ndk --locked >/dev/null
+	fi
+}
+
 write_local_properties() {
 	local escaped="${SDK_DIR//\\/\\\\}"
 	escaped="${escaped//:/\\:}"
@@ -554,9 +631,16 @@ setup_toolchain() {
 	install_jdk
 	export JAVA_HOME="$JDK_DIR"
 	export PATH="$JAVA_HOME/bin:$PATH"
+	ANDROID_SDK_HOME_ORIG="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
 	export ANDROID_HOME="$SDK_DIR"
 	export ANDROID_SDK_ROOT="$SDK_DIR"
 	install_android_sdk
+	if [[ "${TESTTUBE_SKIP_RUST:-0}" == "1" ]]; then
+		warn "TESTTUBE_SKIP_RUST=1: building without the Rust core (YouTube's player code runs in Rhino, slower)"
+	else
+		install_android_ndk
+		install_rust
+	fi
 	write_local_properties
 }
 
@@ -909,6 +993,7 @@ gradle_args() {
 		"-Dorg.gradle.jvmargs=-Xmx${heap}m -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8")
 	[[ "$VERBOSE" -eq 1 ]] && GRADLE_ARGS+=(--info)
 	[[ "$WRITE_CHECKSUMS" -eq 1 ]] && GRADLE_ARGS+=(--write-verification-metadata sha256)
+	[[ "${TESTTUBE_SKIP_RUST:-0}" == "1" ]] && GRADLE_ARGS+=(-Ptesttube.skipRust=true)
 	chmod +x "$ROOT/gradlew"
 }
 
@@ -1183,9 +1268,9 @@ ensure_build_tools() {
 	[[ -n "$(apksigner_bin)" ]] && return 0
 	local sdkmanager="$SDK_DIR/cmdline-tools/latest/bin/sdkmanager"
 	local package
-	package="$("$sdkmanager" --sdk_root="$SDK_DIR" --list 2>/dev/null | awk '{print $1}' \
-		| grep -E '^build-tools;[0-9]+\.[0-9]+\.[0-9]+$' | sort -t';' -k2 -V | tail -n 1 || true)"
+	package="$(newest_sdk_package_version build-tools)"
 	[[ -n "$package" ]] || die "Could not find Android build tools to read APK signatures"
+	package="build-tools;$package"
 	log "Installing $package"
 	"$sdkmanager" --sdk_root="$SDK_DIR" --install "$package" >/dev/null
 }
@@ -1755,6 +1840,10 @@ source_zip() {
 }
 
 run_tests() {
+	if [[ "${TESTTUBE_SKIP_RUST:-0}" != "1" ]]; then
+		log "Rust core tests (native/testtube-core)"
+		(cd "$ROOT/native/testtube-core" && cargo test --locked) || die "Rust core tests failed"
+	fi
 	# both editions: each compiles its own Edition and ExtraLinks
 	run_gradle_tasks ":app:testStandardDebugUnitTest" ":app:testPlusDebugUnitTest"
 	local edition reports tests failures errors skipped

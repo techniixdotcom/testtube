@@ -68,6 +68,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -316,6 +317,11 @@ public final class FeedClient {
 		return auth.isSignedIn();
 	}
 
+	/** {@link NativeAuth#wasSignedIn()}: no WebView, for the first screen. */
+	public boolean wasSignedIn() {
+		return auth.wasSignedIn();
+	}
+
 	/** @param continuation previous page token, or null for the first */
 	@NonNull
 	public Call browse(@NonNull Feed feed, @Nullable String continuation) {
@@ -342,11 +348,28 @@ public final class FeedClient {
 			List<FeedItem> more = discover(known, seeds);
 			return new FeedPage(more, more.isEmpty() ? null : discoverToken(more), signedIn);
 		}
-		FeedPage page = browsePage(Feed.HOME, continuation, null);
-		if (page.items().isEmpty() && !signedIn && continuation == null) {
-			// signed out Home can be empty without visitor data, retry with it
-			String visitor = visitorData();
-			if (visitor != null) page = browsePage(Feed.HOME, null, visitor);
+		// Signed out, YouTube's Home is often empty, and finding that out takes up to three requests
+		// before discover can even start. If it was empty last time, discover starts right away
+		// alongside them and is used only if Home is empty again.
+		boolean guestFirstPage = !signedIn && continuation == null;
+		Future<List<FeedItem>> early = guestFirstPage && MMKV.defaultMMKV().decodeBool(KEY_GUEST_HOME_EMPTY, false)
+						? startDiscover(known) : null;
+		FeedPage page;
+		try {
+			page = browsePage(Feed.HOME, continuation, null);
+			if (page.items().isEmpty() && guestFirstPage) {
+				// signed out Home can be empty without visitor data, retry with it
+				String visitor = visitorData();
+				if (visitor != null) page = browsePage(Feed.HOME, null, visitor);
+			}
+		} catch (IOException | ExtractionException | RuntimeException e) {
+			if (early != null) early.cancel(true);
+			throw e;
+		}
+		if (guestFirstPage) MMKV.defaultMMKV().encode(KEY_GUEST_HOME_EMPTY, page.items().isEmpty());
+		if (early != null && !page.items().isEmpty()) {
+			early.cancel(true);
+			early = null;
 		}
 		List<FeedItem> items = curate(page.items(), known);
 		Object next = page.next();
@@ -361,11 +384,14 @@ public final class FeedClient {
 		if (continuation == null && items.isEmpty()) {
 			Set<String> urls = new HashSet<>();
 			for (FeedItem item : items) urls.add(item.url());
-			for (FeedItem item : discover(known, List.of())) {
+			List<FeedItem> discovered = early != null ? awaitDiscover(early) : discover(known, List.of());
+			for (FeedItem item : discovered) {
 				if (urls.add(item.url())) items.add(item);
 			}
 			Collections.shuffle(items);
 		}
+		// Home had videos after all (a later page): the early discover isn't needed
+		if (early != null) early.cancel(true);
 		// after the last page, related videos
 		return new FeedPage(items, next != null ? next : discoverToken(items), page.signedIn());
 	}
@@ -496,6 +522,15 @@ public final class FeedClient {
 	private static final int SHORTS_QUERIES_PER_PAGE = 2;
 	private static final int SHORTS_PER_CHANNEL = 6;
 	private static final long SHORTS_WAIT_MS = 10_000L;
+	/** Home's discover lookups, all at once; the pacer limits how many requests really run. */
+	private static final ExecutorService DISCOVER_POOL = Executors.newCachedThreadPool(task -> {
+		Thread thread = new Thread(task, "home-discover");
+		thread.setDaemon(true);
+		return thread;
+	});
+	private static final long DISCOVER_WAIT_MS = 8_000L;
+	/** Whether signed-out Home came back empty last time (see homePage). */
+	private static final String KEY_GUEST_HOME_EMPTY = "guest_home_empty";
 	/** A few channels at a time, as background requests for the pacer. */
 	private static final ExecutorService FEED_POOL = Executors.newFixedThreadPool(4, task -> {
 		Thread thread = new Thread(task, "channel-feed");
@@ -527,7 +562,6 @@ public final class FeedClient {
 	 */
 	@NonNull
 	private List<FeedItem> discover(@NonNull Set<String> known, @NonNull List<String> seeds) {
-		List<FeedItem> pool = new ArrayList<>();
 		Taste current;
 		try {
 			current = taste.get();
@@ -535,31 +569,90 @@ public final class FeedClient {
 			current = new Taste(List.of(), List.of());
 		}
 		List<String> sources = seeds.isEmpty() || seeds.get(0).isEmpty() ? current.videoIds() : seeds;
-		for (String videoId : sources) {
-			try {
-				pool.addAll(relatedItems(videoId));
-			} catch (IOException | ExtractionException ignored) {
-				// skip failed lookups
-			}
+		// all lookups at once instead of one after another (the pacer still caps how many run)
+		List<Callable<List<FeedItem>>> lookups = new ArrayList<>();
+		for (String videoId : sources) lookups.add(() -> relatedItems(videoId));
+		for (String title : current.titles()) {
+			String query = firstWords(title, 5);
+			lookups.add(() -> searchVideos(query));
 		}
-		List<String> queries = new ArrayList<>();
-		for (String title : current.titles()) queries.add(firstWords(title, 5));
+		List<FeedItem> pool = new ArrayList<>(runAll(lookups));
 		if (pool.size() < DISCOVER_TARGET) {
+			// no or little history: general topics, also in parallel
 			List<String> general = new ArrayList<>(generalQueries.get());
 			Collections.shuffle(general);
-			queries.addAll(general.subList(0, Math.min(general.size(), 3)));
-		}
-		for (String query : queries) {
-			try {
-				pool.addAll(searchVideos(query));
-			} catch (IOException | ExtractionException ignored) {
-				// other queries may still work
+			List<Callable<List<FeedItem>>> searches = new ArrayList<>();
+			for (String query : general.subList(0, Math.min(general.size(), 3))) {
+				searches.add(() -> searchVideos(query));
 			}
-			if (pool.size() >= DISCOVER_TARGET * 2) break;
+			pool.addAll(runAll(searches));
 		}
 		Collections.shuffle(pool);
 		List<FeedItem> out = curate(pool, known);
 		return out.size() > DISCOVER_TARGET ? out.subList(0, DISCOVER_TARGET) : out;
+	}
+
+	/** Starts {@link #discover} for Home's first page on another thread. */
+	@NonNull
+	private Future<List<FeedItem>> startDiscover(@NonNull Set<String> known) {
+		ExtractionSession session = downloader.currentSession();
+		boolean background = RequestPacer.isBackground();
+		Callable<List<FeedItem>> work = () -> downloader.withExtractionSession(() -> discover(known, List.of()), session);
+		Callable<List<FeedItem>> task = background ? RequestPacer.<List<FeedItem>>inBackground(work::call) : work;
+		return DISCOVER_POOL.submit(task);
+	}
+
+	@NonNull
+	private static List<FeedItem> awaitDiscover(@NonNull Future<List<FeedItem>> early) {
+		try {
+			return early.get(DISCOVER_WAIT_MS * 2, TimeUnit.MILLISECONDS);
+		} catch (InterruptedException e) {
+			early.cancel(true);
+			Thread.currentThread().interrupt();
+			return List.of();
+		} catch (ExecutionException | TimeoutException | CancellationException e) {
+			early.cancel(true);
+			return List.of();
+		}
+	}
+
+	/**
+	 * Runs lookups in parallel with the caller's session and pacer priority; failed ones are
+	 * skipped, slow ones dropped after {@link #DISCOVER_WAIT_MS}.
+	 */
+	@NonNull
+	private List<FeedItem> runAll(@NonNull List<Callable<List<FeedItem>>> lookups) {
+		if (lookups.isEmpty()) return List.of();
+		ExtractionSession session = downloader.currentSession();
+		boolean background = RequestPacer.isBackground();
+		List<Callable<List<FeedItem>>> wrapped = new ArrayList<>(lookups.size());
+		for (Callable<List<FeedItem>> lookup : lookups) {
+			Callable<List<FeedItem>> inSession = () -> downloader.withExtractionSession(() -> {
+				try {
+					return lookup.call();
+				} catch (IOException | ExtractionException e) {
+					throw e;
+				} catch (Exception e) {
+					throw new IOException(e);
+				}
+			}, session);
+			Callable<List<FeedItem>> task = background ? RequestPacer.<List<FeedItem>>inBackground(inSession::call) : inSession;
+			wrapped.add(task);
+		}
+		List<FeedItem> out = new ArrayList<>();
+		try {
+			for (Future<List<FeedItem>> future : DISCOVER_POOL.invokeAll(wrapped, DISCOVER_WAIT_MS, TimeUnit.MILLISECONDS)) {
+				if (future.isCancelled()) continue;
+				try {
+					out.addAll(future.get());
+				} catch (ExecutionException ignored) {
+					// skip failed lookups, the others may still work
+				}
+			}
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+		return out;
 	}
 
 	@NonNull

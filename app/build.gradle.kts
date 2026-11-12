@@ -1,13 +1,18 @@
 import com.android.build.api.artifact.SingleArtifact
 import com.android.build.api.variant.BuiltArtifactsLoader
+import javax.inject.Inject
 
 plugins {
     alias(libs.plugins.android.application)
 }
 
-val appVersionName = "v3.0.4"
-val appVersionCode = 30004
+val appVersionName = "v3.0.5"
+val appVersionCode = 30005
 val apkBaseName = "testtube" + appVersionName.removePrefix("v")
+val appMinSdk = 26
+// ARM only to keep it small; add "x86_64" for emulators and Intel Chromebooks. The Rust core
+// (native/testtube-core) is built for the same list.
+val shippedAbis = listOf("armeabi-v7a", "arm64-v8a")
 
 // standard = TestTube (YouTube only), plus = TestTube+ (Spotify, Facebook, SoundCloud too). Same id
 // and key so either installs over the other. The updater matches these names (Edition.APK_PREFIX);
@@ -34,14 +39,13 @@ android {
 
     defaultConfig {
         applicationId = "com.testtube.app"
-        minSdk = 26
+        minSdk = appMinSdk
         targetSdk = 36
         versionCode = appVersionCode
         versionName = appVersionName
 
         ndk {
-            // ARM only to keep it small; add "x86_64" for emulators and Intel Chromebooks
-            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a"))
+            abiFilters.addAll(shippedAbis)
         }
     }
 
@@ -170,6 +174,71 @@ abstract class ExportApkTask : DefaultTask() {
     }
 }
 
+/**
+ * Builds the Rust core (native/testtube-core) into libtesttube_core.so for the shipped ABIs with
+ * cargo-ndk. The extractor runs YouTube's player JavaScript in it (QuickJS) and falls back to
+ * Rhino when it's missing, so -Ptesttube.skipRust=true still gives a working, slower, APK.
+ * Needs cargo, cargo-ndk, the Android Rust targets and an NDK; BUILD.sh installs all of them.
+ */
+abstract class BuildRustCoreTask : DefaultTask() {
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val crateSources: DirectoryProperty
+
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val crateManifests: ConfigurableFileCollection
+
+    @get:Input
+    abstract val abis: ListProperty<String>
+
+    @get:Input
+    abstract val minSdk: Property<Int>
+
+    @get:Internal
+    abstract val crateDir: DirectoryProperty
+
+    @get:Internal
+    abstract val sdkDir: Property<String>
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @get:Inject
+    abstract val exec: ExecOperations
+
+    @TaskAction
+    fun build() {
+        val out = outputDir.get().asFile
+        out.deleteRecursively()
+        out.mkdirs()
+        val args = mutableListOf(cargo(), "ndk")
+        abis.get().forEach { args += listOf("-t", it) }
+        args += listOf("--platform", minSdk.get().toString(), "-o", out.absolutePath, "build", "--release", "--locked")
+        exec.exec {
+            workingDir = crateDir.get().asFile
+            commandLine(args)
+            // cargo-ndk finds the NDK under the SDK unless ANDROID_NDK_HOME says otherwise
+            if (System.getenv("ANDROID_HOME").isNullOrBlank()) environment("ANDROID_HOME", sdkDir.get())
+        }
+    }
+
+    /** Android Studio's Gradle often doesn't have ~/.cargo/bin on its PATH. */
+    private fun cargo(): String {
+        val home = System.getProperty("user.home")
+        val candidates = listOfNotNull(
+            System.getenv("CARGO"),
+            System.getenv("CARGO_HOME")?.let { "$it/bin/cargo" },
+            "$home/.testtube/cargo/bin/cargo",
+            "$home/.cargo/bin/cargo",
+        )
+        return candidates.firstOrNull { File(it).canExecute() } ?: "cargo"
+    }
+}
+
+val skipRust = providers.gradleProperty("testtube.skipRust").map { it.toBoolean() }.getOrElse(false)
+val rustCrate = rootProject.layout.projectDirectory.dir("native/testtube-core")
+
 androidComponents {
     onVariants { variant ->
         val variantName = variant.name.replaceFirstChar { it.uppercase() }
@@ -188,6 +257,19 @@ androidComponents {
         }
         tasks.matching { it.name == "assemble$variantName" }.configureEach {
             finalizedBy(exportTask)
+        }
+        if (!skipRust) {
+            val rustTask = tasks.register<BuildRustCoreTask>("buildRustCore$variantName") {
+                group = "build"
+                description = "Builds libtesttube_core.so (Rust, QuickJS) for $variantName"
+                crateDir.set(rustCrate)
+                crateSources.set(rustCrate.dir("src"))
+                crateManifests.from(rustCrate.file("Cargo.toml"), rustCrate.file("Cargo.lock"))
+                abis.set(shippedAbis)
+                minSdk.set(appMinSdk)
+                sdkDir.set(androidComponents.sdkComponents.sdkDirectory.map { it.asFile.absolutePath })
+            }
+            variant.sources.jniLibs?.addGeneratedSourceDirectory(rustTask, BuildRustCoreTask::outputDir)
         }
     }
 }

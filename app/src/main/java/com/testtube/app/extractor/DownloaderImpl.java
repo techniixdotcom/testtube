@@ -52,6 +52,12 @@ public final class DownloaderImpl extends Downloader {
 		this.responseListener = listener;
 	}
 
+	/** The session of the calling thread, to hand to work started on other threads. */
+	@Nullable
+	ExtractionSession currentSession() {
+		return scope.get();
+	}
+
 	@NonNull
 	<T> T withExtractionSession(@NonNull StreamInfoSupplier<T> supplier,
 	                            @Nullable ExtractionSession session) throws ExtractionException, IOException {

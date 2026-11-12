@@ -6,6 +6,7 @@ import android.webkit.CookieManager;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.tencent.mmkv.MMKV;
 import com.testtube.app.Constant;
 
 import okhttp3.CacheControl;
@@ -14,6 +15,9 @@ import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,10 +35,24 @@ public final class NativeAuth {
 	private static final Pattern SESSION_INDEX = Pattern.compile("\"SESSION_INDEX\":\"?(\\d+)");
 	private static final Pattern CLIENT_VERSION = Pattern.compile("\"INNERTUBE_CLIENT_VERSION\":\"([^\"]*)\"");
 
+	/** Kept between launches: the config (so a signed-in start skips fetching m.youtube.com) and
+	 * whether the last check found an account (so the first screen can pick its saved list without
+	 * starting WebView). Only YouTube's ids and a hash of the SAPISID, never a cookie. */
+	private static final String STORE_ID = "testtube_auth";
+	private static final String KEY_SIGNED_IN = "signed_in";
+	private static final String KEY_SAPISID_HASH = "config_sapisid_sha256";
+	private static final String KEY_DATASYNC_ID = "config_datasync_id";
+	private static final String KEY_VISITOR_DATA = "config_visitor_data";
+	private static final String KEY_SESSION_INDEX = "config_session_index";
+	private static final String KEY_CLIENT_VERSION = "config_client_version";
+	private static final String KEY_FETCHED_AT = "config_fetched_at";
+
 	@NonNull
 	private final OkHttpClient http;
 	@Nullable
 	private volatile Config config;
+	@Nullable
+	private volatile Boolean signedIn;
 
 	public NativeAuth(@NonNull OkHttpClient http) {
 		this.http = http;
@@ -47,6 +65,7 @@ public final class NativeAuth {
 		String sapisid = cookie(cookies, "SAPISID");
 		if (sapisid == null) sapisid = cookie(cookies, "__Secure-3PAPISID");
 		boolean loggedIn = sapisid != null;
+		remember(loggedIn);
 		Config cfg = loggedIn ? config(sapisid, cookies, allowNetwork) : null;
 		return new AuthContext(
 						cookies,
@@ -59,7 +78,39 @@ public final class NativeAuth {
 
 	public boolean isSignedIn() {
 		String cookies = cookies();
-		return cookie(cookies, "SAPISID") != null || cookie(cookies, "__Secure-3PAPISID") != null;
+		boolean loggedIn = cookie(cookies, "SAPISID") != null || cookie(cookies, "__Secure-3PAPISID") != null;
+		remember(loggedIn);
+		return loggedIn;
+	}
+
+	/**
+	 * Whether the last check (this launch or an earlier one) found an account. Doesn't touch
+	 * WebView, so it's free on the main thread at startup; {@link #isSignedIn()} is the real answer.
+	 */
+	public boolean wasSignedIn() {
+		Boolean known = signedIn;
+		if (known != null) return known;
+		try {
+			return store().decodeBool(KEY_SIGNED_IN, false);
+		} catch (RuntimeException e) {
+			return false;
+		}
+	}
+
+	private void remember(boolean loggedIn) {
+		Boolean known = signedIn;
+		if (known != null && known == loggedIn) return;
+		signedIn = loggedIn;
+		try {
+			store().encode(KEY_SIGNED_IN, loggedIn);
+		} catch (RuntimeException ignored) {
+			// only a startup hint
+		}
+	}
+
+	@NonNull
+	private static MMKV store() {
+		return MMKV.mmkvWithID(STORE_ID);
 	}
 
 	@Nullable
@@ -76,6 +127,11 @@ public final class NativeAuth {
 	@Nullable
 	private Config config(@NonNull String sapisid, @NonNull String cookies, boolean allowNetwork) {
 		Config cached = config;
+		if (cached == null || !cached.sapisid.equals(sapisid)) {
+			// first use this launch: the one kept from the last launch, if it's for this account
+			Config stored = loadStored(sapisid);
+			if (stored != null) config = cached = stored;
+		}
 		long now = System.currentTimeMillis();
 		if (cached != null && cached.sapisid.equals(sapisid) && now - cached.fetchedAt < CONFIG_TTL_MS) {
 			return cached;
@@ -89,7 +145,10 @@ public final class NativeAuth {
 				return cached;
 			}
 			Config fresh = fetch(sapisid, cookies);
-			if (fresh != null) config = fresh;
+			if (fresh != null) {
+				config = fresh;
+				saveStored(fresh);
+			}
 			return fresh != null ? fresh : cached;
 		}
 	}
@@ -114,6 +173,58 @@ public final class NativeAuth {
 							System.currentTimeMillis());
 		} catch (Exception e) {
 			Log.w(TAG, "Unable to read YouTube configuration", e);
+			return null;
+		}
+	}
+
+	@Nullable
+	private static Config loadStored(@NonNull String sapisid) {
+		try {
+			MMKV store = store();
+			String hash = sha256(sapisid);
+			if (hash == null || !hash.equals(store.decodeString(KEY_SAPISID_HASH, null))) return null;
+			long fetchedAt = store.decodeLong(KEY_FETCHED_AT, 0L);
+			if (fetchedAt <= 0L) return null;
+			return new Config(sapisid,
+							store.decodeString(KEY_DATASYNC_ID, null),
+							store.decodeString(KEY_VISITOR_DATA, null),
+							store.decodeString(KEY_SESSION_INDEX, null),
+							store.decodeString(KEY_CLIENT_VERSION, null),
+							fetchedAt);
+		} catch (RuntimeException e) {
+			return null;
+		}
+	}
+
+	private static void saveStored(@NonNull Config config) {
+		try {
+			String hash = sha256(config.sapisid);
+			if (hash == null) return;
+			MMKV store = store();
+			store.encode(KEY_SAPISID_HASH, hash);
+			putOrRemove(store, KEY_DATASYNC_ID, config.dataSyncId);
+			putOrRemove(store, KEY_VISITOR_DATA, config.visitorData);
+			putOrRemove(store, KEY_SESSION_INDEX, config.sessionIndex);
+			putOrRemove(store, KEY_CLIENT_VERSION, config.clientVersion);
+			store.encode(KEY_FETCHED_AT, config.fetchedAt);
+		} catch (RuntimeException ignored) {
+			// fetched again next launch
+		}
+	}
+
+	private static void putOrRemove(@NonNull MMKV store, @NonNull String key, @Nullable String value) {
+		if (value == null) store.removeValueForKey(key);
+		else store.encode(key, value);
+	}
+
+	@Nullable
+	private static String sha256(@NonNull String value) {
+		try {
+			byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+			StringBuilder hex = new StringBuilder(digest.length * 2);
+			for (byte b : digest) hex.append(String.format("%02x", b));
+			return hex.toString();
+		} catch (NoSuchAlgorithmException e) {
 			return null;
 		}
 	}

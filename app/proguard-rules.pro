@@ -81,3 +81,11 @@
 -dontwarn org.mozilla.classfile.**
 -dontwarn org.mozilla.javascript.**
 -dontwarn springfox.documentation.**
+
+# Rust core: the JNI functions are looked up by class and method name
+-keep class org.schabi.newpipe.extractor.utils.NativeJavaScript {
+    native <methods>;
+}
+-keep class org.schabi.newpipe.extractor.utils.NativeRegex {
+    native <methods>;
+}

@@ -614,6 +614,42 @@ public final class YoutubeParsingHelper {
      * tests with mocks will fail, because the mock is missing.
      * </p>
      */
+    /**
+     * TestTube: uses a version found on an earlier launch until a fresh one is extracted, so the
+     * first request of a launch doesn't wait for sw.js_data. Ignored once a version is set.
+     *
+     * @param version a version from {@link #getExtractedClientVersion()} on an earlier launch
+     */
+    public static void seedClientVersion(@Nullable final String version) {
+        if (!isNullOrEmpty(version) && Character.isDigit(version.charAt(0))
+                && isNullOrEmpty(clientVersion)) {
+            clientVersion = version;
+        }
+    }
+
+    /**
+     * TestTube: the version extracted from YouTube during this launch (not a seeded or hardcoded
+     * one), to keep for the next launch.
+     *
+     * @return the extracted version, or {@code null} if none was extracted yet
+     */
+    @Nullable
+    public static String getExtractedClientVersion() {
+        return clientVersionExtracted ? clientVersion : null;
+    }
+
+    /**
+     * TestTube: extracts the current version (one request) if this launch hasn't yet, replacing a
+     * seeded one; keeps the seeded one if it fails. For a background thread.
+     */
+    public static void refreshClientVersion() {
+        try {
+            extractClientVersionFromSwJs();
+        } catch (final Exception ignored) {
+            // the seeded or hardcoded version keeps working; the next request may extract it
+        }
+    }
+
     public static void resetClientVersion() {
         clientVersion = null;
         clientVersionExtracted = false;

@@ -382,6 +382,27 @@ public final class YoutubeJavaScriptPlayerManager {
     }
 
     /**
+     * Gets the stored signature and throttling functions ready ahead of the first video: looks up
+     * the player URL (one small request) and, if functions were kept for that player, loads them
+     * into the JavaScript engine. Never downloads the player file itself; if nothing is stored,
+     * the first video extracts as before. Meant for a background thread at startup.
+     */
+    public static synchronized void warmUp() {
+        try {
+            resolvePlayerUrlIfNeeded("");
+        } catch (final ParsingException | RuntimeException offline) {
+            return;
+        }
+        if (cachedSignatureDeobfuscationFunction == null && sigDeobFuncExtractionEx == null) {
+            cachedSignatureDeobfuscationFunction = readStoredFunction(KEY_SIGNATURE_FUNCTION);
+        }
+        if (cachedThrottlingDeobfuscationFunction == null
+                && throttlingDeobfFuncExtractionEx == null) {
+            cachedThrottlingDeobfuscationFunction = readStoredFunction(KEY_THROTTLING_FUNCTION);
+        }
+    }
+
+    /**
      * Clear all cached throttling parameters.
      *
      * <p>
@@ -451,6 +472,7 @@ public final class YoutubeJavaScriptPlayerManager {
 
     /**
      * A stored function, if one was saved for the current player URL and it still compiles.
+     * With QuickJS it's also evaluated right away, so running it later only has to call it.
      */
     @Nullable
     private static String readStoredFunction(@Nonnull final String key) {
@@ -459,7 +481,7 @@ public final class YoutubeJavaScriptPlayerManager {
             return null;
         }
         try {
-            JavaScript.compileOrThrow(function);
+            JavaScript.prepareOrThrow(function);
             return function;
         } catch (final Exception ignored) {
             // Corrupt on disk; extracting it again from the player file is the safe bet

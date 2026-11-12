@@ -47,8 +47,9 @@ public final class Parser {
     @Nonnull
     public static Matcher matchOrThrow(@Nonnull final Pattern pattern,
                                               final String input) throws RegexException {
-        final Matcher matcher = pattern.matcher(input);
-        if (matcher.find()) {
+        // TestTube: big texts (the player file, HTML pages) are scanned natively, same result
+        final Matcher matcher = NativeRegex.find(pattern, input);
+        if (matcher != null) {
             return matcher;
         } else {
             String errorMessage = "Failed to find pattern \"" + pattern.pattern() + "\"";
@@ -150,8 +151,8 @@ public final class Parser {
             throws RegexException {
         RegexException exception = null;
         for (final var pattern : patterns) {
-            final var matcher = pattern.matcher(input);
-            if (matcher.find()) {
+            final var matcher = NativeRegex.find(pattern, input);
+            if (matcher != null) {
                 return matcher;
             } else if (exception == null) {
                 exception = new RegexException("Failed to find pattern \"" + pattern.pattern()

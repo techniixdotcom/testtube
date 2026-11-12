@@ -65,6 +65,60 @@ a release (`Edition.APK_PREFIX`).
   about you is sent. To switch checks off, tap the TestTube logo on Home and turn off "Check for
   updates automatically" under Updates.
 
+## Native core (Rust)
+
+`native/testtube-core` is a small Rust library, `libtesttube_core.so`, built for both ARM ABIs
+into the APK. It runs YouTube's player JavaScript (the signature and n-parameter functions) in
+QuickJS through [rquickjs](https://crates.io/crates/rquickjs), and searches big texts for the
+extractor's regexes with Rust's [regex](https://crates.io/crates/regex) crate.
+
+- **Why:** for the n parameter, NewPipe Extractor runs the whole player file (about 3 MB of
+  JavaScript) plus a small helper. Rhino started a new context and parsed and ran all of it
+  again on every call, so every new video waited for it. QuickJS keeps each piece of code
+  evaluated and only calls the function after the first time.
+- **Measured** on the player file from NewPipe Extractor's test data, through the real
+  `JavaScript.run` path, on a desktop JVM: Rhino 740-2,000 ms per call, every call; QuickJS
+  about 240 ms once per player version, then 0.01-0.05 ms per call. Phones are slower in
+  both, by about the same factor.
+- **Where:** `org.schabi.newpipe.extractor.utils.NativeJavaScript` (JNI) is used by
+  `JavaScript.run`, `compileOrThrow` and `prepareOrThrow`. Code is evaluated once and kept
+  under a handle (up to 4 pieces of code; the oldest is dropped). Stored player functions are
+  loaded into it by `YoutubeJavaScriptPlayerManager.warmUp()`, which `AppGraph.warmUp()` runs
+  in the background after the first screen. `App.onTrimMemory` frees it (about 30 MB) when
+  Android asks while the app is in the background.
+- **Safety:** each call has a 3 second limit, a 512 KB stack limit and a 256 MB memory limit;
+  Rust panics come back as Java exceptions. If the library is missing or QuickJS fails on
+  anything, the same call runs in Rhino, so playback never depends on the native library.
+  Results are the same as Rhino's for every string result; a number comes back as JavaScript
+  writes it (`6`, where Rhino wrote `6.0`), which YouTube's functions never return.
+- **Build:** Gradle runs `cargo ndk` for each variant (`buildRustCore<Variant>`), so the APK
+  build needs cargo, cargo-ndk, the `aarch64-linux-android` and `armv7-linux-androideabi`
+  targets and an NDK; `BUILD.sh` installs all of these (using your own rustup if you have
+  one). `-Ptesttube.skipRust=true` builds without it (Rhino only). `./BUILD.sh --test` also runs
+  `cargo test`. rquickjs ships no bindings for Android, so a copy of `rquickjs-sys` with them
+  added is in `native/vendor/rquickjs-sys` (see its `TESTTUBE.md`).
+- **Benchmark:** `cargo bench --bench nparam -- <code.js> [function]` in
+  `native/testtube-core`.
+- **Regex search in big texts** (`regex_scan.rs`, `NativeRegex.java`): the extractor's regex
+  searches over texts of 64 KB and up (the player file, HTML pages) go through
+  `Parser.matchOrThrow` / `matchMultiplePatterns`, which ask Rust where the first match can
+  start. Rust runs a relaxed version of the Java pattern that matches at every position the Java
+  one can (backreferences become "any text", lookarounds, anchors and `\b` are dropped, `\w`
+  `\d` `\s` become "the ASCII set or any non-ASCII character", negated classes keep Java's
+  ASCII sets), so its first hit is never after Java's first match. Java then runs its own
+  pattern from there with `matcher.find(start)`, so callers get exactly the `Matcher` a full
+  Java scan gives; if the relaxed pattern doesn't match, neither can Java's. Anything else
+  (case-insensitive, `\p{..}`, class intersections, ...) is searched by Java as before. Checked
+  with every regex in the extractor and app on the real player file and 22 YouTube responses:
+  1,679 cases, identical results; searches 8x faster overall. Pulling the n and sig functions
+  out of a new player file (once per player version) went from about 150 + 70 ms to 40-60 +
+  10 ms cold on a desktop JVM.
+- **Not moved to Rust: JSON parsing.** NewPipe's nanojson fork is lazy and fast (285 MB/s on
+  real responses, about 1.5 ms for a 450 KB page). Parsing in Rust is 2x faster, but sending the
+  text in and the tree back through JNI costs more than that: measured on 22 real responses,
+  62.7 ms through Rust against 28.8 ms in Java. The JS lexer that cuts a function out of the
+  player stays in Java too (a few ms, once per player version).
+
 ## Build
 
 One script, `BUILD.sh`, builds, tests and publishes TestTube, on Linux, macOS or WSL2 on Windows.

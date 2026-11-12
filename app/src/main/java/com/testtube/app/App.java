@@ -4,6 +4,7 @@ import android.app.Application;
 import android.content.pm.PackageInfo;
 import android.content.res.Configuration;
 import android.os.Build;
+import android.webkit.CookieManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 
@@ -18,6 +19,9 @@ import com.testtube.app.extractor.ContentLanguage;
 import com.testtube.app.util.CrashLog;
 import com.testtube.app.util.Timing;
 import com.testtube.app.util.UserAgents;
+
+import org.schabi.newpipe.extractor.utils.NativeJavaScript;
+import org.schabi.newpipe.extractor.utils.NativeRegex;
 
 @UnstableApi
 public class App extends Application {
@@ -44,6 +48,34 @@ public class App extends Application {
 		// Wipe last run's cache before anything opens it
 		graph.wipeCacheOnStart();
 		initUserAgent();
+		// Every YouTube request reads its cookies from WebView's CookieManager, and its first use
+		// starts the WebView engine (a few hundred ms on many phones). Start it now, beside drawing
+		// the first screen, instead of in front of Home's first request.
+		graph.executor().execute(() -> {
+			try {
+				CookieManager.getInstance();
+			} catch (RuntimeException missingOrUpdating) {
+				// requests fall back to no cookies, as before
+			}
+		});
+	}
+
+	/**
+	 * In the background and Android wants memory back: drop the player JavaScript QuickJS keeps
+	 * evaluated (about 30 MB) and the texts kept for native regex searches. The next video loads
+	 * them again, a fraction of a second.
+	 */
+	@Override
+	@SuppressWarnings("deprecation") // TRIM_MEMORY_BACKGROUND is still delivered
+	public void onTrimMemory(int level) {
+		super.onTrimMemory(level);
+		if (level >= TRIM_MEMORY_BACKGROUND && graph != null) {
+			// off the main thread: an extraction may be holding the engine
+			graph.executor().execute(() -> {
+				NativeJavaScript.clear();
+				NativeRegex.clear(); // the player file (a few MB) kept for regex searches
+			});
+		}
 	}
 
 	@Override

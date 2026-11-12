@@ -355,6 +355,7 @@ public final class NativeBrowser {
 		state.scroll = null;
 		state.loaded = false;
 		state.error = false;
+		state.fromCache = false;
 	}
 
 	/** Reloads Subscriptions after follows changed. */
@@ -503,16 +504,35 @@ public final class NativeBrowser {
 			FeedClient.Feed feed = target == Mode.HOME ? FeedClient.Feed.HOME : FeedClient.Feed.SUBSCRIPTIONS;
 			call = client.browse(feed, next instanceof String token ? token : null);
 		}
+		// First open (app start): the list saved last time shows right away, under the refresh
+		// spinner, and the new one replaces it when it arrives. Local Subscriptions already shows
+		// each channel's saved videos while it loads.
+		boolean localSubs = target == Mode.SUBSCRIPTIONS && !host.accountEnabled();
+		if (firstPage && !fresh && target != Mode.SEARCH && !localSubs && state.items.isEmpty()) {
+			// wasSignedIn: isSignedIn would start WebView here, on the main thread
+			String key = target == Mode.HOME ? (client.wasSignedIn() ? "home_account" : "home_guest")
+							: "subs_account";
+			for (FeedItem cached : FeedCache.load(key)) {
+				if (state.seen.add(cached.url())) state.items.add(cached);
+			}
+			state.fromCache = !state.items.isEmpty();
+		}
 		state.call = call;
 		state.refreshing = firstPage;
 		state.error = false;
 		if (target == mode && firstPage) {
 			refresh.setRefreshing(true);
 			if (state.items.isEmpty()) message.setVisibility(View.GONE);
+			else if (state.fromCache) render(state);
 		}
 		call.result.whenComplete((page, error) -> handler.post(() -> {
 			if (state.call != call) return;
 			state.call = null;
+			boolean wasCached = state.fromCache;
+			state.fromCache = false;
+			// already scrolling through the saved list: keep their place, new videos go below
+			boolean keepPlace = wasCached && firstPage && target == mode
+							&& layoutManager.findFirstVisibleItemPosition() > 0;
 			if (error != null) {
 				if (!isCancellation(error) && !Failure.isCancellation(error)) {
 					state.error = true;
@@ -529,9 +549,13 @@ public final class NativeBrowser {
 				}
 			} else if (page != null) {
 				state.autoRetried = false;
-				if (firstPage && !streamed[0]) state.scroll = null;
-				int before = firstPage ? 0 : state.items.size();
-				if (page.whole() || firstPage) {
+				if (firstPage && !streamed[0] && !keepPlace) state.scroll = null;
+				int before = firstPage && !keepPlace ? 0 : state.items.size();
+				if (keepPlace) {
+					for (FeedItem item : page.items()) {
+						if (state.seen.add(item.url())) state.items.add(item);
+					}
+				} else if (page.whole() || firstPage) {
 					replaceItems(state, page.items());
 				} else {
 					for (FeedItem item : page.items()) {
@@ -561,7 +585,7 @@ public final class NativeBrowser {
 			}
 			if (target == mode) {
 				render(state);
-				if (firstPage && error == null && !streamed[0]) list.scrollToPosition(0);
+				if (firstPage && error == null && !streamed[0] && !keepPlace) list.scrollToPosition(0);
 			}
 		}));
 	}
@@ -700,6 +724,8 @@ public final class NativeBrowser {
 		Failure failure = Failure.OTHER;
 		/** First page already auto-retried once since its last load. */
 		boolean autoRetried;
+		/** Showing the list saved last time while the first page loads. */
+		boolean fromCache;
 		int emptyPages;
 		long errorAt;
 	}

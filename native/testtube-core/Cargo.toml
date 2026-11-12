@@ -1,0 +1,42 @@
+[package]
+name = "testtube-core"
+version = "0.1.0"
+edition = "2021"
+description = "TestTube's native core: a QuickJS engine for YouTube's signature and n-parameter functions"
+license = "GPL-3.0-or-later"
+publish = false
+
+[lib]
+name = "testtube_core"
+# cdylib for Android (libtesttube_core.so), rlib for the tests and the benchmark
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+rquickjs = { version = "0.14", default-features = false, features = ["parallel"] }
+jni = { version = "0.21", default-features = false }
+# linear-time, literal-prefiltered search. No Unicode tables (about 1.5 MB of library):
+# regex_scan writes \w \d \s as explicit ranges instead
+regex = { version = "1", default-features = false, features = ["std", "perf-literal", "perf-dfa"] }
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+# panics unwind so the JNI layer can turn them into a Java exception (and a Rhino fallback)
+strip = true
+
+[[bench]]
+name = "nparam"
+harness = false
+
+# rquickjs-sys with the Android bindings it doesn't ship (see native/vendor/rquickjs-sys/TESTTUBE.md)
+[patch.crates-io]
+rquickjs-sys = { path = "../vendor/rquickjs-sys" }
+
+# The regex crates for size: their hot loops are small and stay fast at "s"; QuickJS keeps opt-level 3
+[profile.release.package.regex-syntax]
+opt-level = "z"
+[profile.release.package.regex-automata]
+opt-level = "s"
+[profile.release.package.aho-corasick]
+opt-level = "s"

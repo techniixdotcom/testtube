@@ -1,0 +1,1 @@
+Faster video starts: YouTube's player code now runs in a small Rust library (QuickJS) instead of Rhino, and is only loaded once per player version. Home shows up much sooner: last time's videos appear right away, signed-out Home's lookups run in parallel, and fewer requests have to finish before the first videos show.

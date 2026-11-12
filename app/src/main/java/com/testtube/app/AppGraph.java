@@ -61,6 +61,7 @@ import com.testtube.app.util.Json;
 import com.testtube.app.util.NetworkWatcher;
 
 import org.schabi.newpipe.extractor.services.youtube.YoutubeJavaScriptPlayerManager;
+import org.schabi.newpipe.extractor.services.youtube.YoutubeParsingHelper;
 
 import okhttp3.Cache;
 import okhttp3.ConnectionPool;
@@ -177,6 +178,12 @@ public final class AppGraph {
 				}
 			});
 		}
+		background.execute(this::refreshClientVersion);
+		// stored sig/n functions into QuickJS now, not when the first video is tapped
+		background.execute(() -> {
+			youtubeExtractor(); // inits NewPipe and the function store
+			YoutubeJavaScriptPlayerManager.warmUp();
+		});
 		background.execute(() -> poTokenCoordinator().warmUp());
 		background.execute(() -> StreamHttp.warmUp(context));
 		background.execute(DecoderSupport::load);
@@ -770,8 +777,30 @@ public final class AppGraph {
 							infoCache(), executor(), gson(), contentFilters());
 			// before any extraction, so the first video can use the stored functions
 			YoutubeJavaScriptPlayerManager.setPersistentCache(new PlayerFunctionStore(context));
+			// last launch's WEB client version: Home's first request doesn't wait for sw.js_data
+			String version = mmkv().decodeString(KEY_CLIENT_VERSION, null);
+			if (version != null && System.currentTimeMillis() - mmkv().decodeLong(KEY_CLIENT_VERSION_AT, 0L) < CLIENT_VERSION_MAX_AGE_MS) {
+				YoutubeParsingHelper.seedClientVersion(version);
+			}
 		}
 		return youtubeExtractor;
+	}
+
+	private static final String KEY_CLIENT_VERSION = "web_client_version";
+	private static final String KEY_CLIENT_VERSION_AT = "web_client_version_at";
+	/** YouTube accepts a client version for months; a few days keeps it close to current. */
+	private static final long CLIENT_VERSION_MAX_AGE_MS = 3L * 24 * 60 * 60 * 1000;
+
+	/** Extracts the current client version (one small request) and keeps it for next launch. */
+	@WorkerThread
+	private void refreshClientVersion() {
+		youtubeExtractor(); // inits NewPipe
+		YoutubeParsingHelper.refreshClientVersion();
+		String version = YoutubeParsingHelper.getExtractedClientVersion();
+		if (version != null) {
+			mmkv().encode(KEY_CLIENT_VERSION, version);
+			mmkv().encode(KEY_CLIENT_VERSION_AT, System.currentTimeMillis());
+		}
 	}
 
 	@NonNull
