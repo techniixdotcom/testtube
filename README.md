@@ -3,7 +3,7 @@
 </h1>
 
 <p align="center">
-  in a world full of excess we give you 5 mb of simplicity
+  in a world full of excess we give you 7mb of simplicity
 </p>
 
 An ad-free YouTube client for Android. No account needed: Home, search, subscriptions, the queue
